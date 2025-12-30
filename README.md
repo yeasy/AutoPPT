@@ -80,7 +80,19 @@ See AutoPPT in action (with real content and images):
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to open issues or submit Pull Requests.
+We welcome contributions from the community! To contribute to AutoPPT:
+
+1. **Fork** the repository.
+2. **Create a new branch** for your feature or bugfix (`git checkout -b feature/awesome-feature`).
+3. **Commit your changes** with descriptive messages.
+4. **Push to the branch** (`git push origin feature/awesome-feature`).
+5. **Open a Pull Request** and describe your changes.
+
+### Ideas for Contribution:
+- Add support for more LLM providers (e.g., Anthropic, DeepSeek).
+- Implement more visual themes and layout templates.
+- Improve the research algorithm for even deeper content analysis.
+- Add support for exporting to other formats (PDF, Google Slides).
 
 ---
 
