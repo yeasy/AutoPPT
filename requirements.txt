@@ -1,0 +1,7 @@
+python-pptx
+openai
+duckduckgo-search
+python-dotenv
+pydantic
+google-generativeai
+
