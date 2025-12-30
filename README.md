@@ -6,24 +6,22 @@
 
 **Generate Professional Presentations in Seconds using AI.**
 
-**AutoPPT** leverages the power of advanced LLMs (OpenAI, Anthropic, Google) to research, structure, and create PowerPoint presentations on *any* topic automatically.
+**AutoPPT** combines the power of advanced LLMs (OpenAI, Anthropic, Google) with real-time web research to create structured, researched, and visually styled PowerPoint presentations automatically.
 
 ---
 
 ## ✨ Features
 
-- **🤖 AI-Powered Content**: Automatically researches topics and writes professional slide content with citations.
-- **🔌 Multi-Provider Support**: Seamlessly switch between OpenAI (GPT-4o), Anthropic (Claude 3.5), and Google (Gemini) models.
-- **🧪 Mock Provider**: Test generation instantly without API keys or quota usage using `--provider mock`.
-- **🎨 Persona Styles**: Choose from tailored personas like *Minimalist*, *Technology*, *Nature*, or *Creative*.
-- **📊 Customizable**: Control slide count, language, specific model, and output details.
-- **⚡️ Instant Output**: Get a ready-to-present `.pptx` file in under a minute.
+- **� Hierarchical Sectioning**: Unlike basic generators, AutoPPT structures content into logical sections and chapters for a professional narrative flow.
+- **🎨 Thematic Styling**: Automatic application of curated color palettes, typography, and background themes (Technology, Nature, Creative, Minimalist).
+- **🤖 Research-Driven Content**: Real-time web searching provides accurate data, citations, and comprehensive slide bullets.
+- **🖼️ Smart Visuals**: Integrated image search and downloading with intelligent layout adjustment to accommodate graphics.
+- **� Multi-Provider Support**: Choose your preferred engine: OpenAI (GPT-4o), Google (Gemini 2.0/2.5), or Anthropic (Claude 3.5).
+- **🧪 Mock Provider**: Instant end-to-end testing without API keys or token costs using `--provider mock`.
 
 ## 🚀 Quick Start
 
 ### 1. Installation
-
-Clone the repository and install dependencies:
 
 ```bash
 git clone https://github.com/yeasy/AutoPPT.git
@@ -33,71 +31,57 @@ pip install -r requirements.txt
 
 ### 2. Configuration
 
-Set up your API keys. Copy the example file and add at least one key:
+Set up your API keys in a `.env` file:
 
 ```bash
 cp .env.example .env
-# Edit .env and add your keys
-# Example content for .env:
-# OPENAI_API_KEY=sk-proj-xxxx...
-# GOOGLE_API_KEY=AIzaSy...
+# Add your keys (at least one is required for real generation)
+# OPENAI_API_KEY=sk-...
+# GOOGLE_API_KEY=AIza...
 ```
 
 ### 3. Usage
 
-Generate your first presentation with a single command:
-
 ```bash
-python main.py --topic "The Future of Artificial Intelligence"
+# Generate a full presentation (10 slides by default)
+python main.py --topic "The Future of Quantum Computing"
+
+# Test instantly with mock data (no API key needed)
+python main.py --topic "Space Travel" --provider mock --slides 6
 ```
 
-## 🛠️ Usage Options
-
-Customize your generation with these powerful flags:
+## 🛠️ Configuration Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--topic` | The main subject of your presentation. | **Required** |
-| `--provider` | Choose from `openai`, `anthropic`, `google`, or `mock`. | `openai` |
-| `--model` | Specify a specific model name (e.g., `gpt-4o`, `gemini-1.5-flash`). | Provider default |
-| `--slides` | Number of slides to generate. | `10` |
-| `--language` | Target language (e.g., "Spanish", "Chinese"). | `English` |
-| `--style` | Tone and structure style (e.g., `Technology`, `Nature`). | `minimalist` |
+| `--topic` | The presentation subject. | **Required** |
+| `--provider` | AI backend: `openai`, `google`, `anthropic`, or `mock`. | `openai` |
+| `--model` | Specific model name (e.g., `gemini-2.0-flash`, `gpt-4o`). | Default |
+| `--slides` | Target number of slides. | `10` |
+| `--language` | Output language (e.g., `Chinese`, `English`, `French`). | `English` |
+| `--style` | Visual theme: `Technology`, `Nature`, `Creative`, `Minimalist`. | `minimalist` |
 
-### Supported Styles
-- **Minimalist** (Default): Clean, bullet-point focused, easy to read.
-- **Professional**: Business-first tone, suitable for corporate environments.
-- **Technology**: Futuristic, data-driven, and innovative focus.
-- **Creative**: Engaging narrative structure for storytelling.
-- **Nature/Art**: Specialized personas for specific topic domains.
-
-### Examples
-
-Generate a 5-slide presentation on AI in Chinese using Google Gemini:
-```bash
-python main.py --topic "人工智能的发展" --provider google --slides 5 --language "Chinese"
-```
-
-Test with the mock provider (no API key needed):
-```bash
-python main.py --topic "History of Jazz" --provider mock --slides 3
-```
+### 🎨 Visual Themes
+- **Technology**: Dark mode, blueprints blue, futuristic typography.
+- **Nature**: Earthy greens, mint backgrounds, classic serif fonts.
+- **Creative**: Vibrant magenta/purple accents, artistic layout.
+- **Minimalist**: Clean grayscale, white backgrounds, high readability.
 
 ## 📂 Samples
 
-Explore the pre-generated samples in the [samples/](samples/) directory:
+See AutoPPT in action (with real content and images):
 
-- [**AI Future (CN)**](samples/cn_tech.pptx)
+- [**AI & Robotics (CN)**](samples/cn_tech.pptx)
 - [**Healthy Living (CN)**](samples/cn_life.pptx)
-- [**Art History (CN)**](samples/cn_art.pptx)
-- [**AI Future (EN)**](samples/en_tech.pptx)
+- [**Renaissance Art (CN)**](samples/cn_art.pptx)
+- [**AI & Robotics (EN)**](samples/en_tech.pptx)
 - [**Healthy Living (EN)**](samples/en_life.pptx)
-- [**Art History (EN)**](samples/en_art.pptx)
+- [**Renaissance Art (EN)**](samples/en_art.pptx)
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to open issues or submit Pull Requests.
 
 ---
 
-*Generated with ❤️ by AutoPPT*
+*Built with ❤️ by AutoPPT Team*
