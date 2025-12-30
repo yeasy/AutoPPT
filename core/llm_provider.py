@@ -21,7 +21,7 @@ class BaseLLMProvider(ABC):
         pass
 
 class OpenAIProvider(BaseLLMProvider):
-    def __init__(self, api_key: str = None, model: str = "gpt-4o"):
+    def __init__(self, api_key: str = None, model: str = "gpt-5.2"):
         self.client = OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
         self.model = model
 
@@ -48,7 +48,7 @@ class OpenAIProvider(BaseLLMProvider):
         return completion.choices[0].message.parsed
 
 class GoogleProvider(BaseLLMProvider):
-    def __init__(self, api_key: str = None, model: str = "gemini-flash-latest"):
+    def __init__(self, api_key: str = None, model: str = "gemini-3-flash"):
         api_key = api_key or os.getenv("GOOGLE_API_KEY")
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel(model)
