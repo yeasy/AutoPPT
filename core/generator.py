@@ -41,15 +41,15 @@ class Generator:
                 import time
                 from .llm_provider import MockProvider
                 if not isinstance(self.llm, MockProvider):
-                    print("Wait 30s for rate limit...")
-                    time.sleep(30)
+                    print("Wait 60s for rate limit...")
+                    time.sleep(60)
                 
                 # Research
                 search_query = f"{slide_title} {section.title} {topic}"
                 context = self.researcher.gather_context([search_query])
                 
                 # Draft Content
-                slide_config = self._create_slide_content(slide_title, context, style, language)
+                slide_config = self._create_slide_content(slide_title, context, style, language, topic)
                 
                 # Fetch Image
                 image_path = None
@@ -85,25 +85,27 @@ class Generator:
         prompt = f"""
         Create a professional hierarchical outline for a {slides_count}-slide presentation on: '{topic}'.
         Divide the presentation into 3-5 logical sections (chapters).
-        Each section should contain a list of relevant slide titles.
+        Each section should contain a list of relevant slide topics.
+        Ensure the structure flows logically from introduction to conclusion.
         Language: {language}.
         """
         return self.llm.generate_structure(prompt, PresentationOutline)
 
-    def _create_slide_content(self, slide_title: str, context: str, style: str, language: str) -> SlideConfig:
-        system_prompt = f"You are a professional presentation designer. Style: {style}. Use the provided context to write accurate content. Output Language: {language}."
+    def _create_slide_content(self, slide_title: str, context: str, style: str, language: str, topic: str) -> SlideConfig:
+        system_prompt = f"You are a professional research analyst and presentation designer. Style: {style}. Your goal is to provide deep, substantive, and data-driven insights. Output Language: {language}."
         prompt = f"""
-        Create content for a slide titled: '{slide_title}'.
+        Objective: Create substantive, high-quality content for a slide titled: '{slide_title}' as part of a presentation on '{topic}'.
         
-        Context found from search:
-        {context[:8000]} # Limit context window just in case
+        Context found from research:
+        {context[:8000]}
         
         Requirements:
-        - 3-5 concise bullet points.
-        - Professional tone.
+        - 3-5 detailed bullet points. Avoid generic statements.
+        - Include specific facts, figures, or key technical concepts if available in context.
+        - Ensure content is substantive and "professional-grade".
         - Language: {language}.
-        - Add speaker notes.
-        - Include a descriptive `image_query` to find a relevant visual for this slide.
-        - Include any relevant source URLs from the context in the citations list.
+        - Detailed speaker notes (2-4 sentences explaining the slide).
+        - Targeted `image_query` (e.g., 'high quality 4k schematic of quantum processor' not just 'computer').
+        - Cite every fact by including the source URL in the citations list.
         """
         return self.llm.generate_structure(prompt, SlideConfig, system_prompt=system_prompt)

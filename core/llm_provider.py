@@ -3,9 +3,8 @@ from typing import List, Type, TypeVar
 from pydantic import BaseModel
 from openai import OpenAI
 import os
-import google.generativeai as genai
-import json
-
+from google import genai
+from google.genai import types
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -48,56 +47,69 @@ class OpenAIProvider(BaseLLMProvider):
         return completion.choices[0].message.parsed
 
 class GoogleProvider(BaseLLMProvider):
-    def __init__(self, api_key: str = None, model: str = "gemini-3-flash"):
+    def __init__(self, api_key: str = None, model: str = "gemini-2.0-flash"):
         api_key = api_key or os.getenv("GOOGLE_API_KEY")
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model)
+        self.client = genai.Client(api_key=api_key)
+        self.model_id = model
 
     def generate_text(self, prompt: str, system_prompt: str = "") -> str:
-        combined_prompt = f"{system_prompt}\n\n{prompt}"
-        response = self.model.generate_content(combined_prompt)
+        response = self.client.models.generate_content(
+            model=self.model_id,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.7
+            ),
+            contents=prompt
+        )
         return response.text
 
     def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
-        # Avoid response_schema if it's causing issues, use prompt instead
-        format_instructions = f"\n\nIMPORTANT: Return ONLY a valid JSON object matching this schema: {schema.model_json_schema()}"
-        combined_prompt = f"{system_prompt}\n\n{prompt}{format_instructions}"
-        
-        response = self.model.generate_content(
-            combined_prompt,
-            generation_config=genai.GenerationConfig(
-                response_mime_type="application/json"
-            )
+        response = self.client.models.generate_content(
+            model=self.model_id,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                response_schema=schema,
+                temperature=0.2
+            ),
+            contents=prompt
         )
-        
-        # Clean up response text in case of markdown blocks
-        text = response.text.strip()
-        if text.startswith("```json"):
-            text = text[7:]
-        if text.endswith("```"):
-            text = text[:-3]
-        
-        return schema.model_validate_json(text.strip())
+        return response.parsed
 
 class MockProvider(BaseLLMProvider):
     def generate_text(self, prompt: str, system_prompt: str = "") -> str:
-        return f"Mock response for: {prompt[:50]}..."
+        return f"This is a high-quality researched content for your presentation. It covers the key aspects of the requested topic with depth and clarity, ensuring a professional delivery. Citation: [Source 2025]"
 
     def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
-        # Generate dummy data based on schema, including nested models
         from .data_types import PresentationSection
         
+        # Try to extract topic for better mock data
+        topic = "Current Topic"
+        if "topic:" in prompt.lower():
+            topic = prompt.lower().split("topic:")[1].split("\n")[0].strip()
+        elif "about" in prompt.lower():
+            topic = prompt.lower().split("about")[1].split("\n")[0].strip()
+
         dummy_data = {}
         for field_name, field in schema.model_fields.items():
-            # Basic type handling
             if field.annotation == str:
-                dummy_data[field_name] = f"Mock {field_name}"
+                if "title" in field_name.lower():
+                    dummy_data[field_name] = f"Overview of {topic}"
+                elif "image_query" in field_name.lower():
+                    dummy_data[field_name] = f"professional artistic image of {topic}"
+                else:
+                    dummy_data[field_name] = f"Comprehensive analysis and professional insight into {topic}."
             elif field.annotation == List[str]:
-                dummy_data[field_name] = [f"Mock Item {i}" for i in range(3)]
+                dummy_data[field_name] = [
+                    f"Key innovation and strategic importance of {topic}",
+                    f"Global impact and future trends in {topic}",
+                    f"Practical applications and case studies of {topic}"
+                ]
             elif field.annotation == List[PresentationSection]:
                 dummy_data[field_name] = [
-                    PresentationSection(title=f"Mock Section {i}", slides=[f"Slide {i}.{j}" for j in range(2)])
-                    for i in range(3)
+                    PresentationSection(title=f"Fundamentals of {topic}", slides=[f"Introduction to {topic}", f"Core Concepts of {topic}"]),
+                    PresentationSection(title=f"Advanced Applications: {topic}", slides=[f"Case Study: {topic}", f"Economic Impact"]),
+                    PresentationSection(title=f"The Future of {topic}", slides=[f"Predictions for {topic}", f"Strategic Roadmap"])
                 ]
             else:
                 dummy_data[field_name] = None

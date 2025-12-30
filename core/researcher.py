@@ -1,17 +1,9 @@
-try:
-    from duckduckgo_search import DDGS
-except ImportError:
-    try:
-        from ddgs import DDGS
-    except ImportError:
-        raise ImportError("Please install duckduckgo-search or ddgs: pip install duckduckgo-search")
-
+from ddgs import DDGS
 import time
 from typing import List, Dict
 
 class Researcher:
     def __init__(self):
-        # Suppress the rename warning if it exists in the future
         self.ddgs = DDGS()
 
     def search(self, query: str, max_results: int = 3) -> List[Dict[str, str]]:

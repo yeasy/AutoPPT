@@ -1,8 +1,8 @@
 python-pptx
 openai
-duckduckgo-search
+ddgs
 python-dotenv
 pydantic
-google-generativeai
+google-genai
 requests
 
