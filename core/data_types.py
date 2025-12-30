@@ -8,10 +8,14 @@ class SlideConfig(BaseModel):
     speaker_notes: Optional[str] = Field(None, description="Speaker notes for this slide")
     citations: List[str] = Field(default_factory=list, description="List of source URLs used for this slide")
 
+class PresentationSection(BaseModel):
+    title: str = Field(description="Title of the section or chapter")
+    slides: List[str] = Field(description="List of slide topics within this section")
+
 class PresentationOutline(BaseModel):
-    title: str = Field(description="Title of the presentation")
-    slides: List[str] = Field(description="List of slide titles/topics")
+    title: str = Field(description="Main title of the presentation")
+    sections: List[PresentationSection] = Field(description="List of hierarchical sections/chapters")
 
 class UserPresentation(BaseModel):
     title: str
-    slides: List[SlideConfig]
+    sections: List[PresentationSection]

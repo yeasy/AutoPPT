@@ -84,15 +84,24 @@ class MockProvider(BaseLLMProvider):
         return f"Mock response for: {prompt[:50]}..."
 
     def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
-        # Generate basic dummy data based on schema
+        # Generate dummy data based on schema, including nested models
+        from .data_types import PresentationSection
+        
         dummy_data = {}
         for field_name, field in schema.model_fields.items():
+            # Basic type handling
             if field.annotation == str:
-                dummy_data[field_name] = f"Sample {field_name}"
+                dummy_data[field_name] = f"Mock {field_name}"
             elif field.annotation == List[str]:
-                dummy_data[field_name] = [f"Item {i}" for i in range(3)]
+                dummy_data[field_name] = [f"Mock Item {i}" for i in range(3)]
+            elif field.annotation == List[PresentationSection]:
+                dummy_data[field_name] = [
+                    PresentationSection(title=f"Mock Section {i}", slides=[f"Slide {i}.{j}" for j in range(2)])
+                    for i in range(3)
+                ]
             else:
                 dummy_data[field_name] = None
+                
         return schema.model_validate(dummy_data)
 
 def get_provider(provider_name: str, model: str = None) -> BaseLLMProvider:
