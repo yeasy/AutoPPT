@@ -83,11 +83,26 @@ See AutoPPT in action (with real content and images):
 
 We welcome contributions from the community! To contribute to AutoPPT:
 
-1. **Fork** the repository.
-2. **Create a new branch** for your feature or bugfix (`git checkout -b feature/awesome-feature`).
-3. **Commit your changes** with descriptive messages.
-4. **Push to the branch** (`git push origin feature/awesome-feature`).
-5. **Open a [Pull Request](https://github.com/yeasy/autoppt/pulls)** and describe your changes.
+1. **Fork** the repository on GitHub.
+2. **Clone** your fork locally:
+   ```bash
+   git clone https://github.com/your-username/autoppt.git
+   cd autoppt
+   ```
+3. **Create a new branch** for your feature or bugfix:
+   ```bash
+   git checkout -b feature/awesome-feature
+   ```
+4. **Commit your changes** with descriptive messages:
+   ```bash
+   git add .
+   git commit -m "Add some awesome feature"
+   ```
+5. **Push to your branch**:
+   ```bash
+   git push origin feature/awesome-feature
+   ```
+6. **Open a [Pull Request](https://github.com/yeasy/autoppt/pulls)** and describe your changes.
 
 If you find any bugs or have feature requests, please open an **[Issue](https://github.com/yeasy/autoppt/issues)**.
 
