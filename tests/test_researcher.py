@@ -4,7 +4,7 @@ Unit tests for Researcher module.
 import pytest
 from unittest.mock import patch, MagicMock
 
-from core.researcher import Researcher
+from autoppt.researcher import Researcher
 
 
 class TestResearcherInit:

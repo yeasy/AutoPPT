@@ -175,7 +175,7 @@ if generate_button:
         # Generate presentation
         with st.spinner("🔄 Generating your presentation... This may take a few minutes."):
             try:
-                from core.generator import Generator
+                from .generator import Generator
                 
                 # Create output directory
                 output_dir = tempfile.mkdtemp()

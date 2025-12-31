@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 import requests
 from ddgs import DDGS
 
-from config import Config
+from .config import Config
 from .exceptions import ResearchError
 
 logger = logging.getLogger(__name__)

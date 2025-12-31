@@ -10,7 +10,7 @@ from google import genai
 from google.genai import types
 
 from .exceptions import APIKeyError, RateLimitError
-from config import Config
+from .config import Config
 
 logger = logging.getLogger(__name__)
 

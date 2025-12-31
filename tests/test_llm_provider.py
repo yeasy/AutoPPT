@@ -4,12 +4,12 @@ Unit tests for LLM providers.
 import pytest
 from typing import List
 
-from core.llm_provider import (
+from autoppt.llm_provider import (
     BaseLLMProvider,
     MockProvider,
     get_provider
 )
-from core.data_types import (
+from autoppt.data_types import (
     PresentationOutline,
     PresentationSection,
     SlideConfig

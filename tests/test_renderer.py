@@ -5,8 +5,8 @@ import pytest
 import os
 import tempfile
 
-from core.ppt_renderer import PPTRenderer
-from core.data_types import ChartData, ChartType
+from autoppt.ppt_renderer import PPTRenderer
+from autoppt.data_types import ChartData, ChartType
 
 
 class TestPPTRendererInit:
