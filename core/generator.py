@@ -92,20 +92,21 @@ class Generator:
         return self.llm.generate_structure(prompt, PresentationOutline)
 
     def _create_slide_content(self, slide_title: str, context: str, style: str, language: str, topic: str) -> SlideConfig:
-        system_prompt = f"You are a professional research analyst and presentation designer. Style: {style}. Your goal is to provide deep, substantive, and data-driven insights. Output Language: {language}."
+        system_prompt = f"You are a top-tier research analyst and professional presentation architect. Style: {style}. Your objective is to transform raw data into high-density, substantive insights (Dry Goods / 干货). Output Language: {language}."
         prompt = f"""
-        Objective: Create substantive, high-quality content for a slide titled: '{slide_title}' as part of a presentation on '{topic}'.
+        Objective: Create substantive, authoritative content for a slide titled: '{slide_title}' as part of a presentation on '{topic}'.
         
-        Context found from research:
+        Research Context (from Web/Wikipedia):
         {context[:8000]}
         
-        Requirements:
-        - 3-5 detailed bullet points. Avoid generic statements.
-        - Include specific facts, figures, or key technical concepts if available in context.
-        - Ensure content is substantive and "professional-grade".
-        - Language: {language}.
-        - Detailed speaker notes (2-4 sentences explaining the slide).
-        - Targeted `image_query` (e.g., 'high quality 4k schematic of quantum processor' not just 'computer').
-        - Cite every fact by including the source URL in the citations list.
+        Mandatory Content Standards:
+        1. NO FLUFF. Avoid generic or obvious statements.
+        2. DATA-RICH: Include specific technical specifications, historical dates, statistical figures, or key academic concepts found in the context.
+        3. WIKIPEDIA QUALITY: Each bullet point must convey a clear, factual, and significant piece of information.
+        4. STRUCTURE: 3-5 detailed bullet points. Use sub-bullets if necessary to explain complex points.
+        5. LANGUAGE: {language}.
+        6. SPEAKER NOTES: 3-4 professional sentences expanding on the data-driven points, providing additional background or analysis.
+        7. IMAGE QUERY: A highly specific artistic keyword (e.g., '4k macro photograph of integrated circuit with light trails' not 'technology').
+        8. CITATIONS: List the exact source URLs from the context for every factual claim.
         """
         return self.llm.generate_structure(prompt, SlideConfig, system_prompt=system_prompt)

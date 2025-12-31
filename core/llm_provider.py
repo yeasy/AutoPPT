@@ -53,28 +53,46 @@ class GoogleProvider(BaseLLMProvider):
         self.model_id = model
 
     def generate_text(self, prompt: str, system_prompt: str = "") -> str:
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=0.7
-            ),
-            contents=prompt
-        )
-        return response.text
+        import time
+        for attempt in range(3):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_id,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        temperature=0.7
+                    ),
+                    contents=prompt
+                )
+                return response.text
+            except Exception as e:
+                if "429" in str(e) and attempt < 2:
+                    print(f"Rate limit hit, retrying in 60s... (Attempt {attempt+1}/3)")
+                    time.sleep(60)
+                else:
+                    raise e
 
     def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
-        response = self.client.models.generate_content(
-            model=self.model_id,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                response_schema=schema,
-                temperature=0.2
-            ),
-            contents=prompt
-        )
-        return response.parsed
+        import time
+        for attempt in range(3):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model_id,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        response_mime_type="application/json",
+                        response_schema=schema,
+                        temperature=0.2
+                    ),
+                    contents=prompt
+                )
+                return response.parsed
+            except Exception as e:
+                if "429" in str(e) and attempt < 2:
+                    print(f"Rate limit hit, retrying in 60s... (Attempt {attempt+1}/3)")
+                    time.sleep(60)
+                else:
+                    raise e
 
 class MockProvider(BaseLLMProvider):
     def generate_text(self, prompt: str, system_prompt: str = "") -> str:
