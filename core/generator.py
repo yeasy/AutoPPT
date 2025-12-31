@@ -13,6 +13,9 @@ class Generator:
     def generate(self, topic: str, style: str = "minimalist", output_file: str = "output.pptx", slides_count: int = 10, language: str = "English"):
         print(f"--- Starting Generation for topic: {topic} ---")
         
+        # Ensure fresh renderer for each call
+        self.renderer = PPTRenderer()
+        
         # 0. Apply Style
         self.renderer.apply_style(style)
         
