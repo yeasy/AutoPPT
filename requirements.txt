@@ -15,3 +15,8 @@ wikipedia
 
 # UI
 tqdm
+streamlit
+
+# Testing
+pytest
+pytest-cov

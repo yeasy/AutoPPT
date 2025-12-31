@@ -3,6 +3,7 @@
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
+![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)
 
 **Generate Professional Presentations in Seconds using AI.**
 
@@ -12,15 +13,16 @@
 
 ## ✨ Features
 
-- **🧱 Hierarchical Sectioning**: Unlike basic generators, AutoPPT structures content into logical sections and chapters for a professional narrative flow.
-- **🎨 8 Visual Themes**: Technology, Nature, Creative, Minimalist, Corporate, Academic, Startup, and Dark mode.
-- **🤖 Research-Driven Content**: Real-time web searching + Wikipedia integration for accurate data and citations.
-- **📊 Chart Generation**: Automatically create bar, pie, line, and column charts from data.
-- **🖼️ Smart Visuals**: Integrated image search with intelligent layout adjustment.
-- **🔌 Multi-Provider Support**: OpenAI (GPT-4o), Google (Gemini 2.0), Anthropic (Claude 3.5).
-- **🧪 Mock Provider**: Instant testing without API keys using `--provider mock`.
+- **🧱 Hierarchical Sectioning**: Structures content into logical sections and chapters.
+- **🎨 8 Visual Themes**: Technology, Nature, Creative, Minimalist, Corporate, Academic, Startup, Dark.
+- **🤖 Research-Driven Content**: DuckDuckGo + Wikipedia integration for accurate data.
+- **📊 Chart Generation**: Automatic bar, pie, line, and column charts.
+- **🖼️ Smart Visuals**: Integrated image search with intelligent layout.
+- **🔌 Multi-Provider Support**: OpenAI, Google Gemini, Anthropic Claude.
+- **🌐 Web UI**: Streamlit-based interface for easy generation.
+- **🧪 Mock Provider**: Test without API keys using `--provider mock`.
 - **📈 Progress Indicators**: Real-time progress bars during generation.
-- **🛡️ Privacy-First & Open Source**: Run locally. Your data stays with you.
+- **✅ Test Coverage**: Comprehensive pytest test suite.
 
 ## 🚀 Quick Start
 
@@ -34,11 +36,9 @@ pip install -r requirements.txt
 
 ### 2. Configuration
 
-Set up your API keys in a `.env` file:
-
 ```bash
 cp .env.example .env
-# Add your keys (at least one is required for real generation)
+# Add your API keys (at least one for real generation)
 # OPENAI_API_KEY=sk-...
 # GOOGLE_API_KEY=AIza...
 # ANTHROPIC_API_KEY=sk-ant-...
@@ -46,60 +46,73 @@ cp .env.example .env
 
 ### 3. Usage
 
+#### Command Line
 ```bash
-# Generate with default settings (OpenAI, 10 slides)
-python main.py --topic "The Future of Quantum Computing"
+# Generate with default settings
+python main.py --topic "The Future of AI"
 
-# Use Google Gemini with a specific theme
-python main.py --topic "Healthy Living" --provider google --style nature --slides 8
-
-# Use Anthropic Claude with dark theme
-python main.py --topic "AI Ethics" --provider anthropic --style dark
+# Use Google Gemini with dark theme
+python main.py --topic "AI Ethics" --provider google --style dark --slides 8
 
 # Test without API keys
-python main.py --topic "Test Presentation" --provider mock --slides 5
-
-# Verbose mode for debugging
-python main.py --topic "Debug Test" --provider mock -v
+python main.py --topic "Test" --provider mock --slides 5
 ```
+
+#### Web UI
+```bash
+streamlit run app.py
+```
+Then open http://localhost:8501 in your browser.
+
+## 🌐 Web Interface
+
+AutoPPT includes a beautiful Streamlit-based web UI:
+
+- **Easy Configuration**: Select provider, model, theme, and language
+- **Real-time Progress**: See generation progress as it happens
+- **Direct Download**: Download your PPTX immediately after generation
+- **No Coding Required**: Perfect for non-technical users
 
 ## 🛠️ Configuration Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--topic` | The presentation subject. | **Required** |
-| `--provider` | AI backend: `openai`, `google`, `anthropic`, or `mock`. | `openai` |
-| `--model` | Specific model name (e.g., `gpt-4o`, `gemini-2.0-flash`). | Provider default |
+| `--provider` | AI backend: `openai`, `google`, `anthropic`, `mock`. | `openai` |
+| `--model` | Specific model name. | Provider default |
 | `--slides` | Target number of slides. | `10` |
-| `--language` | Output language (e.g., `Chinese`, `English`, `French`). | `English` |
+| `--language` | Output language. | `English` |
 | `--style` | Visual theme (see below). | `minimalist` |
 | `--output` | Custom output file path. | `output/<topic>.pptx` |
-| `-v, --verbose` | Enable debug logging. | `false` |
+| `-v` | Enable debug logging. | `false` |
 
 ### 🎨 Visual Themes
 
-| Theme | Description |
-|-------|-------------|
-| `minimalist` | Clean grayscale, high readability |
-| `technology` | Dark mode, blueprint blue |
-| `nature` | Earthy greens, serif fonts |
-| `creative` | Vibrant magenta/purple |
-| `corporate` | Professional blue tones |
-| `academic` | Traditional maroon/cream |
-| `startup` | Modern orange accents |
-| `dark` | Cyan/purple on dark background |
+| Theme | Style |
+|-------|-------|
+| `minimalist` | Clean grayscale |
+| `technology` | Dark blue |
+| `nature` | Earthy greens |
+| `creative` | Vibrant colors |
+| `corporate` | Professional blue |
+| `academic` | Traditional maroon |
+| `startup` | Modern orange |
+| `dark` | Cyan on dark |
 
-## 📊 Chart Generation
+## 🧪 Running Tests
 
-AutoPPT can automatically generate charts when the LLM identifies numerical data. Supported types:
-- Bar charts
-- Column charts
-- Pie charts
-- Line charts
+```bash
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov=core --cov-report=term-missing
+
+# Run specific test file
+pytest tests/test_renderer.py -v
+```
 
 ## 📂 Samples
-
-See AutoPPT in action with substantive, research-driven content:
 
 - [**AI & Technology (CN)**](samples/cn_tech.pptx)
 - [**Healthy Living (CN)**](samples/cn_life.pptx)
@@ -110,26 +123,17 @@ See AutoPPT in action with substantive, research-driven content:
 
 ## 🤝 Contributing
 
-We welcome contributions! To contribute:
-
-1. **Fork** the repository
-2. **Clone** your fork: `git clone https://github.com/your-username/autoppt.git`
-3. **Create a branch**: `git checkout -b feature/awesome-feature`
-4. **Commit changes**: `git commit -m "Add awesome feature"`
-5. **Push**: `git push origin feature/awesome-feature`
-6. **Open a Pull Request**
-
-### Ideas for Contribution
-- Add support for more LLM providers (DeepSeek, Mistral, Ollama)
-- Implement PDF export
-- Add Google Slides API integration
-- Create a web UI with Streamlit/Gradio
-- Add more visual themes
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feature/awesome`
+3. Run tests: `pytest`
+4. Commit changes: `git commit -m "Add awesome feature"`
+5. Push: `git push origin feature/awesome`
+6. Open a Pull Request
 
 ## 📜 License
 
-Apache 2.0 - See [LICENSE](LICENSE) for details.
+Apache 2.0 - See [LICENSE](LICENSE)
 
 ## 📝 Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for version history.
+See [CHANGELOG.md](CHANGELOG.md)

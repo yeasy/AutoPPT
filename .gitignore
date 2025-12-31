@@ -40,3 +40,31 @@ env/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+temp_images/
+*.tmp
+*.temp
+
+# Output (optional - uncomment if you don't want to track generated PPTs)
+# output/*.pptx
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
