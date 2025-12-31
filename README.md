@@ -13,12 +13,14 @@
 ## ✨ Features
 
 - **🧱 Hierarchical Sectioning**: Unlike basic generators, AutoPPT structures content into logical sections and chapters for a professional narrative flow.
-- **🎨 Thematic Styling**: Automatic application of curated color palettes, typography, and background themes (Technology, Nature, Creative, Minimalist).
-- **🤖 Research-Driven Content**: Real-time web searching provides accurate data, citations, and comprehensive slide bullets.
-- **🖼️ Smart Visuals**: Integrated image search and downloading with intelligent layout adjustment to accommodate graphics.
-- **🔌 Multi-Provider Support**: Choose your preferred engine: OpenAI (GPT-5.2), Google (Gemini 3), or Anthropic (Claude 4.5).
-- **🧪 Mock Provider**: Instant end-to-end testing without API keys or token costs using `--provider mock`.
-- **🛡️ Privacy-First & Open Source**: Run the entire pipeline locally. Your data stays with you, reducing leakage risks compared to proprietary web-based services.
+- **🎨 8 Visual Themes**: Technology, Nature, Creative, Minimalist, Corporate, Academic, Startup, and Dark mode.
+- **🤖 Research-Driven Content**: Real-time web searching + Wikipedia integration for accurate data and citations.
+- **📊 Chart Generation**: Automatically create bar, pie, line, and column charts from data.
+- **🖼️ Smart Visuals**: Integrated image search with intelligent layout adjustment.
+- **🔌 Multi-Provider Support**: OpenAI (GPT-4o), Google (Gemini 2.0), Anthropic (Claude 3.5).
+- **🧪 Mock Provider**: Instant testing without API keys using `--provider mock`.
+- **📈 Progress Indicators**: Real-time progress bars during generation.
+- **🛡️ Privacy-First & Open Source**: Run locally. Your data stays with you.
 
 ## 🚀 Quick Start
 
@@ -39,16 +41,26 @@ cp .env.example .env
 # Add your keys (at least one is required for real generation)
 # OPENAI_API_KEY=sk-...
 # GOOGLE_API_KEY=AIza...
+# ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 ### 3. Usage
 
 ```bash
-# Generate a full presentation (10 slides by default)
+# Generate with default settings (OpenAI, 10 slides)
 python main.py --topic "The Future of Quantum Computing"
 
-# Test instantly with mock data (no API key needed)
-python main.py --topic "Space Travel" --provider mock --slides 6
+# Use Google Gemini with a specific theme
+python main.py --topic "Healthy Living" --provider google --style nature --slides 8
+
+# Use Anthropic Claude with dark theme
+python main.py --topic "AI Ethics" --provider anthropic --style dark
+
+# Test without API keys
+python main.py --topic "Test Presentation" --provider mock --slides 5
+
+# Verbose mode for debugging
+python main.py --topic "Debug Test" --provider mock -v
 ```
 
 ## 🛠️ Configuration Options
@@ -57,57 +69,67 @@ python main.py --topic "Space Travel" --provider mock --slides 6
 |------|-------------|---------|
 | `--topic` | The presentation subject. | **Required** |
 | `--provider` | AI backend: `openai`, `google`, `anthropic`, or `mock`. | `openai` |
-| `--model` | Specific model name (e.g., `gemini-3-flash`, `gpt-5.2`). | Default |
+| `--model` | Specific model name (e.g., `gpt-4o`, `gemini-2.0-flash`). | Provider default |
 | `--slides` | Target number of slides. | `10` |
 | `--language` | Output language (e.g., `Chinese`, `English`, `French`). | `English` |
-| `--style` | Visual theme: `Technology`, `Nature`, `Creative`, `Minimalist`. | `minimalist` |
+| `--style` | Visual theme (see below). | `minimalist` |
+| `--output` | Custom output file path. | `output/<topic>.pptx` |
+| `-v, --verbose` | Enable debug logging. | `false` |
 
 ### 🎨 Visual Themes
-- **Technology**: Dark mode, blueprints blue, futuristic typography.
-- **Nature**: Earthy greens, mint backgrounds, classic serif fonts.
-- **Creative**: Vibrant magenta/purple accents, artistic layout.
-- **Minimalist**: Clean grayscale, white backgrounds, high readability.
+
+| Theme | Description |
+|-------|-------------|
+| `minimalist` | Clean grayscale, high readability |
+| `technology` | Dark mode, blueprint blue |
+| `nature` | Earthy greens, serif fonts |
+| `creative` | Vibrant magenta/purple |
+| `corporate` | Professional blue tones |
+| `academic` | Traditional maroon/cream |
+| `startup` | Modern orange accents |
+| `dark` | Cyan/purple on dark background |
+
+## 📊 Chart Generation
+
+AutoPPT can automatically generate charts when the LLM identifies numerical data. Supported types:
+- Bar charts
+- Column charts
+- Pie charts
+- Line charts
 
 ## 📂 Samples
 
-See AutoPPT in action (with real content and images):
+See AutoPPT in action with substantive, research-driven content:
 
-- [**AI & Robotics (CN)**](samples/cn_tech.pptx)
+- [**AI & Technology (CN)**](samples/cn_tech.pptx)
 - [**Healthy Living (CN)**](samples/cn_life.pptx)
 - [**Renaissance Art (CN)**](samples/cn_art.pptx)
-- [**AI & Robotics (EN)**](samples/en_tech.pptx)
+- [**AI & Technology (EN)**](samples/en_tech.pptx)
 - [**Healthy Living (EN)**](samples/en_life.pptx)
 - [**Renaissance Art (EN)**](samples/en_art.pptx)
 
 ## 🤝 Contributing
 
-We welcome contributions from the community! To contribute to AutoPPT:
+We welcome contributions! To contribute:
 
-1. **Fork** the repository on GitHub.
-2. **Clone** your fork locally:
-   ```bash
-   git clone https://github.com/your-username/autoppt.git
-   cd autoppt
-   ```
-3. **Create a new branch** for your feature or bugfix:
-   ```bash
-   git checkout -b feature/awesome-feature
-   ```
-4. **Commit your changes** with descriptive messages:
-   ```bash
-   git add .
-   git commit -m "Add some awesome feature"
-   ```
-5. **Push to your branch**:
-   ```bash
-   git push origin feature/awesome-feature
-   ```
-6. **Open a [Pull Request](https://github.com/yeasy/autoppt/pulls)** and describe your changes.
+1. **Fork** the repository
+2. **Clone** your fork: `git clone https://github.com/your-username/autoppt.git`
+3. **Create a branch**: `git checkout -b feature/awesome-feature`
+4. **Commit changes**: `git commit -m "Add awesome feature"`
+5. **Push**: `git push origin feature/awesome-feature`
+6. **Open a Pull Request**
 
-If you find any bugs or have feature requests, please open an **[Issue](https://github.com/yeasy/autoppt/issues)**.
+### Ideas for Contribution
+- Add support for more LLM providers (DeepSeek, Mistral, Ollama)
+- Implement PDF export
+- Add Google Slides API integration
+- Create a web UI with Streamlit/Gradio
+- Add more visual themes
 
-### Ideas for Contribution:
-- Add support for more LLM providers (e.g., DeepSeek, Mistral).
-- Implement more visual themes and layout templates.
-- Improve the research algorithm for even deeper content analysis.
-- Add support for exporting to other formats (PDF, Google Slides).
+## 📜 License
+
+Apache 2.0 - See [LICENSE](LICENSE) for details.
+
+## 📝 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.

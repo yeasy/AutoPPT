@@ -1,10 +1,18 @@
+import os
+import logging
+import time
 from abc import ABC, abstractmethod
 from typing import List, Type, TypeVar
+
 from pydantic import BaseModel
 from openai import OpenAI
-import os
 from google import genai
 from google.genai import types
+
+from .exceptions import APIKeyError, RateLimitError
+from config import Config
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -89,12 +97,85 @@ class GoogleProvider(BaseLLMProvider):
                 return response.parsed
             except Exception as e:
                 if "429" in str(e) and attempt < 2:
-                    print(f"Rate limit hit, retrying in 60s... (Attempt {attempt+1}/3)")
-                    time.sleep(60)
+                    logger.warning(f"Rate limit hit, retrying in {Config.API_RETRY_DELAY_SECONDS}s... (Attempt {attempt+1}/{Config.API_RETRY_ATTEMPTS})")
+                    time.sleep(Config.API_RETRY_DELAY_SECONDS)
+                else:
+                    raise RateLimitError("google", Config.API_RETRY_DELAY_SECONDS)
+
+
+class AnthropicProvider(BaseLLMProvider):
+    """Provider for Anthropic Claude models."""
+    
+    def __init__(self, api_key: str = None, model: str = None):
+        try:
+            import anthropic
+        except ImportError:
+            raise ImportError("Please install anthropic: pip install anthropic")
+        
+        api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise APIKeyError("anthropic")
+        
+        self.client = anthropic.Anthropic(api_key=api_key)
+        self.model = model or Config.DEFAULT_ANTHROPIC_MODEL
+
+    def generate_text(self, prompt: str, system_prompt: str = "") -> str:
+        for attempt in range(Config.API_RETRY_ATTEMPTS):
+            try:
+                message = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=4096,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                return message.content[0].text
+            except Exception as e:
+                if "rate" in str(e).lower() and attempt < Config.API_RETRY_ATTEMPTS - 1:
+                    logger.warning(f"Rate limit hit, retrying in {Config.API_RETRY_DELAY_SECONDS}s... (Attempt {attempt+1}/{Config.API_RETRY_ATTEMPTS})")
+                    time.sleep(Config.API_RETRY_DELAY_SECONDS)
                 else:
                     raise e
 
+    def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
+        import json
+        
+        # Anthropic doesn't have native structured output, so we prompt for JSON
+        schema_description = schema.model_json_schema()
+        enhanced_prompt = f"""
+{prompt}
+
+You MUST respond with valid JSON that matches this schema:
+{json.dumps(schema_description, indent=2)}
+
+Respond ONLY with the JSON object, no additional text.
+"""
+        for attempt in range(Config.API_RETRY_ATTEMPTS):
+            try:
+                message = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=4096,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": enhanced_prompt}
+                    ]
+                )
+                response_text = message.content[0].text
+                # Parse and validate against schema
+                data = json.loads(response_text)
+                return schema.model_validate(data)
+            except Exception as e:
+                if "rate" in str(e).lower() and attempt < Config.API_RETRY_ATTEMPTS - 1:
+                    logger.warning(f"Rate limit hit, retrying in {Config.API_RETRY_DELAY_SECONDS}s... (Attempt {attempt+1}/{Config.API_RETRY_ATTEMPTS})")
+                    time.sleep(Config.API_RETRY_DELAY_SECONDS)
+                else:
+                    raise e
+
+
 class MockProvider(BaseLLMProvider):
+    """Mock provider for testing without API keys."""
+    
     def generate_text(self, prompt: str, system_prompt: str = "") -> str:
         return f"This is a high-quality researched content for your presentation. It covers the key aspects of the requested topic with depth and clarity, ensuring a professional delivery. Citation: [Source 2025]"
 
@@ -134,12 +215,19 @@ class MockProvider(BaseLLMProvider):
                 
         return schema.model_validate(dummy_data)
 
+
 def get_provider(provider_name: str, model: str = None) -> BaseLLMProvider:
+    """Factory function to get the appropriate LLM provider."""
+    provider_name = provider_name.lower()
+    
     if provider_name == "openai":
         return OpenAIProvider(model=model) if model else OpenAIProvider()
     elif provider_name == "google":
         return GoogleProvider(model=model) if model else GoogleProvider()
+    elif provider_name == "anthropic":
+        return AnthropicProvider(model=model) if model else AnthropicProvider()
     elif provider_name == "mock":
         return MockProvider()
-    # Add other providers here later
-    raise ValueError(f"Unknown provider: {provider_name}")
+    else:
+        raise ValueError(f"Unknown provider: {provider_name}. Supported: openai, google, anthropic, mock")
+

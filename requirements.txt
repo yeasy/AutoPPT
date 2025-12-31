@@ -1,8 +1,17 @@
+# Core dependencies
 python-pptx
-openai
-ddgs
-python-dotenv
 pydantic
-google-genai
+python-dotenv
 requests
 
+# LLM Providers
+openai
+google-genai
+anthropic
+
+# Research & Web
+ddgs
+wikipedia
+
+# UI
+tqdm
