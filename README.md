@@ -2,8 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
-[![CI - Test & Audit](https://github.com/yeasy/autoppt/actions/workflows/test.yml/badge.svg)](https://github.com/yeasy/autoppt/actions/workflows/test.yml)
-[![CD - Publish to PyPI](https://github.com/yeasy/autoppt/actions/workflows/publish.yml/badge.svg)](https://github.com/yeasy/autoppt/actions/workflows/publish.yml)
+[![CI/CD](https://github.com/yeasy/autoppt/actions/workflows/workflow.yml/badge.svg)](https://github.com/yeasy/autoppt/actions/workflows/workflow.yml)
 
 **Generate Professional Presentations in Seconds using AI.**
 
