@@ -46,12 +46,13 @@ pip freeze | grep <package> >> requirements.txt
 
 Or manually add with version constraints.
 
-## 4. Run Tests
+## 4. Run Tests & Safety Audit
 
-Before committing, ensure all tests pass:
+Before committing, ensure all tests pass and no sensitive data is leaked:
 // turbo
 ```bash
 pytest tests/ -v
+python3 scripts/check_sensitive.py
 ```
 
 ## 5. Commit with Descriptive Message
@@ -65,7 +66,22 @@ git commit -m "feat: Add feature X
 - Updated README.md with new usage"
 ```
 
-## 6. Tag Releases
+## 6. PyPI Release (for version releases)
+
+When ready to release a new version to PyPI:
+1. Update version in `autoppt/__init__.py` and `pyproject.toml`.
+2. Build the package:
+   // turbo
+   ```bash
+   python3 -m build
+   ```
+3. Upload to PyPI (requires PyPI token/credentials):
+   // turbo
+   ```bash
+   python3 -m twine upload dist/*
+   ```
+
+## 7. Tag Releases
 
 For version releases:
 ```bash

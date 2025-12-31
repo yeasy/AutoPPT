@@ -11,7 +11,7 @@ from .researcher import Researcher
 from .ppt_renderer import PPTRenderer
 from .data_types import PresentationOutline, SlideConfig, UserPresentation
 from .exceptions import AutoPPTError, RateLimitError, ResearchError, RenderError
-from config import Config
+from .config import Config
 
 logger = logging.getLogger(__name__)
 

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoppt"
+version = "0.3.0"
+authors = [
+  { name="Baohua", email="baohua@example.com" },
+]
+description = "Generate Professional Presentations in Seconds using AI"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial :: Spreadsheet",
+    "Topic :: Multimedia :: Graphics :: Presentation",
+]
+dependencies = [
+    "python-pptx",
+    "pydantic",
+    "python-dotenv",
+    "requests",
+    "openai",
+    "google-genai",
+    "anthropic",
+    "ddgs",
+    "wikipedia",
+    "tqdm",
+    "streamlit",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yeasy/autoppt"
+"Bug Tracker" = "https://github.com/yeasy/autoppt/issues"
+
+[project.scripts]
+autoppt = "autoppt.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["autoppt*"]

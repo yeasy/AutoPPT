@@ -8,8 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2025-12-31
 
 ### Added
-- **Streamlit Web UI**: New `app.py` provides a beautiful web interface for generating presentations without command line.
-- **Unit Test Suite**: Comprehensive pytest tests.
+- **PyPI Packaging**: Structured as `autoppt` package with `pyproject.toml` and CLI entry point.
+- **Automated Safety Audit**: Integrated Git pre-commit hook to block sensitive data (API keys, local paths) and unwanted files (.log).
+- **Unit Test Suite**: Comprehensive pytest tests (38/38 passing).
 - **Documentation Workflow**: New `.agent/workflows/update-docs.md`.
 - **Enhanced Gitignore**: Comprehensive `.gitignore`.
 - **Cleaner History**: Used `git-filter-repo` to remove old logs.

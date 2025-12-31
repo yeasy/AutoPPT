@@ -4,7 +4,7 @@ Unit tests for data types (Pydantic models).
 import pytest
 from pydantic import ValidationError
 
-from core.data_types import (
+from autoppt.data_types import (
     ChartType,
     ChartData,
     SlideConfig,

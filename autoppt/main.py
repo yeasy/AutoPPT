@@ -9,8 +9,8 @@ import sys
 import os
 import logging
 
-from config import Config
-from core.exceptions import AutoPPTError, APIKeyError, RateLimitError
+from .config import Config
+from .exceptions import APIKeyError, RateLimitError
 
 # Configure logging
 logging.basicConfig(
@@ -90,7 +90,7 @@ Examples:
     logger.info("=" * 50)
     
     try:
-        from core.generator import Generator
+        from .generator import Generator
         
         # Ensure output directory exists
         os.makedirs(os.path.dirname(output_filename) or "output", exist_ok=True)

@@ -2,8 +2,7 @@
 
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-green.svg)
-![Status](https://img.shields.io/badge/status-active-success.svg)
-![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)
+[![CI/CD](https://github.com/yeasy/autoppt/actions/workflows/workflow.yml/badge.svg)](https://github.com/yeasy/autoppt/actions/workflows/workflow.yml)
 
 **Generate Professional Presentations in Seconds using AI.**
 
@@ -28,10 +27,16 @@
 
 ### 1. Installation
 
+From PyPI:
+```bash
+pip install autoppt
+```
+
+From source:
 ```bash
 git clone https://github.com/yeasy/autoppt.git
 cd autoppt
-pip install -r requirements.txt
+pip install .
 ```
 
 ### 2. Configuration
@@ -49,18 +54,15 @@ cp .env.example .env
 #### Command Line
 ```bash
 # Generate with default settings
-python main.py --topic "The Future of AI"
+autoppt --topic "The Future of AI"
 
 # Use Google Gemini with dark theme
-python main.py --topic "AI Ethics" --provider google --style dark --slides 8
-
-# Test without API keys
-python main.py --topic "Test" --provider mock --slides 5
+autoppt --topic "Planets in Solar System" --provider google --style dark
 ```
 
 #### Web UI
 ```bash
-streamlit run app.py
+streamlit run autoppt/app.py
 ```
 Then open http://localhost:8501 in your browser.
 
@@ -106,7 +108,7 @@ AutoPPT includes a beautiful Streamlit-based web UI:
 pytest
 
 # Run with coverage report
-pytest --cov=core --cov-report=term-missing
+pytest --cov=autoppt --cov-report=term-missing
 
 # Run specific test file
 pytest tests/test_renderer.py -v
@@ -125,8 +127,8 @@ pytest tests/test_renderer.py -v
 
 1. Fork the repository
 2. Create your feature branch: `git checkout -b feature/awesome`
-3. Run tests: `pytest`
-4. Commit changes: `git commit -m "Add awesome feature"`
+3. Run tests & safety audit: `pytest && python3 scripts/check_sensitive.py`
+4. Commit changes: `git commit -m "feat: Add awesome feature"`
 5. Push: `git push origin feature/awesome`
 6. Open a Pull Request
 
