@@ -204,6 +204,9 @@ class MockProvider(BaseLLMProvider):
                     f"Global impact and future trends in {topic}",
                     f"Practical applications and case studies of {topic}"
                 ]
+            elif "slide_type" in field_name:
+                from .data_types import SlideType
+                dummy_data[field_name] = SlideType.CONTENT
             elif field.annotation == List[PresentationSection]:
                 dummy_data[field_name] = [
                     PresentationSection(title=f"Fundamentals of {topic}", slides=[f"Introduction to {topic}", f"Core Concepts of {topic}"]),

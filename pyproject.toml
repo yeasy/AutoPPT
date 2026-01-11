@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autoppt"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
-  { name="Baohua", email="baohua@example.com" },
+  { name="yeasy", email="yeasy@example.com" },
 ]
 description = "Generate Professional Presentations in Seconds using AI"
 readme = "README.md"

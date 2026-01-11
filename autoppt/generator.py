@@ -9,7 +9,7 @@ from tqdm import tqdm
 from .llm_provider import get_provider, BaseLLMProvider, MockProvider
 from .researcher import Researcher
 from .ppt_renderer import PPTRenderer
-from .data_types import PresentationOutline, SlideConfig, UserPresentation
+from .data_types import PresentationOutline, SlideConfig, UserPresentation, SlideType
 from .exceptions import AutoPPTError, RateLimitError, ResearchError, RenderError
 from .config import Config
 
@@ -105,13 +105,38 @@ class Generator:
                                 if self.researcher.download_image(img_url, local_path):
                                     image_path = local_path
                         
-                        # Render Slide
-                        self.renderer.add_content_slide(
-                            slide_config.title, 
-                            slide_config.bullets, 
-                            slide_config.speaker_notes, 
-                            image_path=image_path
-                        )
+                        # Render Slide based on Type
+                        if slide_config.slide_type == SlideType.STATISTICS and slide_config.statistics:
+                            # Convert pydantic stats to list of dicts for renderer
+                            stats_dicts = [{"value": s.value, "label": s.label} for s in slide_config.statistics]
+                            self.renderer.add_statistics_slide(
+                                slide_config.title,
+                                stats_dicts,
+                                slide_config.speaker_notes
+                            )
+                        
+                        elif slide_config.slide_type == SlideType.IMAGE and image_path:
+                            self.renderer.add_fullscreen_image_slide(
+                                image_path,
+                                caption=slide_config.bullets[0] if slide_config.bullets else "",
+                                overlay_title=slide_config.title
+                            )
+
+                        elif slide_config.chart_data and slide_config.slide_type == SlideType.CHART:
+                             self.renderer.add_chart_slide(
+                                slide_config.title,
+                                slide_config.chart_data,
+                                slide_config.speaker_notes
+                             )
+                             
+                        else:
+                            # Default to content slide
+                            self.renderer.add_content_slide(
+                                slide_config.title, 
+                                slide_config.bullets, 
+                                slide_config.speaker_notes, 
+                                image_path=image_path
+                            )
                         all_citations.extend(slide_config.citations)
                         
                     except Exception as e:
@@ -168,20 +193,51 @@ Your objective is to transform raw data into high-density, substantive insights 
 Output Language: {language}."""
 
         prompt = f"""
-        Objective: Create substantive, authoritative content for a slide titled: '{slide_title}' as part of a presentation on '{topic}'.
+        Objective: Create COMPREHENSIVE, authoritative content for a slide titled: '{slide_title}' as part of a presentation on '{topic}'.
         
         Research Context (from Web/Wikipedia):
-        {context[:8000]}
+        {context[:12000]}
         
-        Mandatory Content Standards:
-        1. NO FLUFF. Avoid generic or obvious statements.
-        2. DATA-RICH: Include specific technical specifications, historical dates, statistical figures, or key academic concepts found in the context.
-        3. WIKIPEDIA QUALITY: Each bullet point must convey a clear, factual, and significant piece of information.
-        4. STRUCTURE: 3-5 detailed bullet points. Use sub-bullets if necessary to explain complex points.
-        5. LANGUAGE: {language}.
-        6. SPEAKER NOTES: 3-4 professional sentences expanding on the data-driven points, providing additional background or analysis.
-        7. IMAGE QUERY: A highly specific artistic keyword (e.g., '4k macro photograph of integrated circuit with light trails' not 'technology').
-        8. CITATIONS: List the exact source URLs from the context for every factual claim.
+        ===== MANDATORY CONTENT STANDARDS =====
+        
+        0. **SLIDE TYPE SELECTION**:
+           - **'statistics'**: If the research contains 3+ strong numerical data points (market size, growth rates, survey results). FILL 'statistics' field.
+           - **'image'**: If the slide is about a visual concept, product design, or emotional impact.
+           - **'content'**: Default for informational text.
+           - **'chart'**: only if you have clear categorical data for comparison.
+        
+        1. **CONTENT DENSITY (CRITICAL)**:
+           - Generate 5-8 SUBSTANTIVE bullet points (not 3-5)
+           - Each bullet should be 1-2 sentences of REAL information
+           - Use sub-bullets (indented with "  •") to add details, examples, or statistics
+           - Total content should fill at least 60% of the slide area
+        
+        2. **DATA-RICH REQUIREMENTS**:
+           - Include AT LEAST 3 specific numbers/statistics/dates
+           - Reference real companies, researchers, or institutions by name
+           - Cite specific percentages, growth rates, or measurements
+           - Example GOOD: "Tesla's Model 3 achieved 82% battery efficiency in 2023 tests (NREL)"
+           - Example BAD: "Electric vehicles are becoming more efficient"
+        
+        3. **STRUCTURAL DEPTH**:
+           - First bullet: Key definition or core concept
+           - Middle bullets: Specific examples, data points, case studies
+           - Final bullet: Current trends, future outlook, or key implications
+           - Use sub-bullets liberally for complex points
+        
+        4. **SPEAKER NOTES**: 
+           - Write 5-7 professional sentences (not 3-4)
+           - Include additional context, anecdotes, or Q&A preparation points
+           - Mention any caveats or nuances not on the slide
+        
+        5. **IMAGE QUERY**: 
+           - Be HIGHLY specific and artistic
+           - Include style keywords: "4K", "cinematic", "professional photography", "infographic style"
+           - Example: "4K cinematic aerial view of solar panel farm at golden hour with dramatic shadows"
+        
+        6. **CITATIONS**: List ALL source URLs from research context used.
+        
+        7. **LANGUAGE**: {language}
         """
         return self.llm.generate_structure(prompt, SlideConfig, system_prompt=system_prompt)
 

@@ -93,13 +93,18 @@ AutoPPT includes a beautiful Streamlit-based web UI:
 | Theme | Style |
 |-------|-------|
 | `minimalist` | Clean grayscale |
-| `technology` | Dark blue |
+| `technology` | Dark blue with gradient |
 | `nature` | Earthy greens |
 | `creative` | Vibrant colors |
 | `corporate` | Professional blue |
 | `academic` | Traditional maroon |
 | `startup` | Modern orange |
-| `dark` | Cyan on dark |
+| `dark` | Cyan on dark with gradient |
+| `luxury` | Gold on dark, elegant ✨ |
+| `magazine` | Crimson accents, editorial style |
+| `tech_gradient` | Indigo to purple gradient |
+| `ocean` | Deep blue gradient |
+| `sunset` | Warm orange to pink gradient |
 
 ## 🧪 Running Tests
 

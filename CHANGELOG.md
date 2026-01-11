@@ -5,6 +5,29 @@ All notable changes to AutoPPT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-01-11
+
+### Added - Visual & Content Upgrade
+- **High-Density Content**: Prompts now generate 5-8 substantive bullet points with sub-bullets, data, and statistics.
+- **Modern Styling System**: 
+  - Gradient background support.
+  - Decorative accent lines for headers.
+  - Enhanced typography for titles and special slides.
+- **New Slide Types**:
+  - `Fullscreen Image`: For impactful visual breaks or section headers.
+  - `Statistics`: Dedicated layout for showcasing key metrics (big numbers).
+- **5 New Premium Themes**:
+  - `luxury` (Gold/Dark)
+  - `magazine` (Editorial style)
+  - `tech_gradient` (Indigo/Purple)
+  - `ocean` (Deep Blue)
+  - `sunset` (Warm Gradients)
+- **Smart Layout Handling**: Generator now automatically selects between Content, Statistics, Image, and Chart layouts based on context.
+
+### Changed
+- Updated `SlideConfig` to support `slide_type` and `statistics` data fields.
+- Refactored `ppt_renderer` to support cleaner XML-based gradient fills.
+
 ## [0.3.0] - 2025-12-31
 
 ### Added
