@@ -7,7 +7,12 @@ from pydantic import ValidationError
 from autoppt.data_types import (
     ChartType,
     ChartData,
+    DeckSpec,
+    SlideLayout,
     SlideConfig,
+    SlidePlan,
+    SlideSpec,
+    SlideType,
     PresentationSection,
     PresentationOutline,
     UserPresentation
@@ -103,6 +108,24 @@ class TestSlideConfig:
         with pytest.raises(ValidationError):
             SlideConfig(title="Only Title")  # Missing bullets
 
+    def test_rich_slide_config_fields(self):
+        """Test richer layout fields on SlideConfig."""
+        slide = SlideConfig(
+            title="Platform Comparison",
+            slide_type=SlideType.COMPARISON,
+            bullets=["Shared baseline"],
+            left_title="Current State",
+            right_title="Future State",
+            left_bullets=["Manual reviews", "Slow release cycle"],
+            right_bullets=["Automated checks", "Faster iteration"],
+            citations=["https://example.com"],
+        )
+
+        assert slide.slide_type == SlideType.COMPARISON
+        assert slide.left_title == "Current State"
+        assert len(slide.left_bullets) == 2
+        assert slide.citations == ["https://example.com"]
+
 
 class TestPresentationSection:
     """Tests for PresentationSection model."""
@@ -152,3 +175,31 @@ class TestUserPresentation:
         
         assert presentation.title == "My Presentation"
         assert len(presentation.sections) == 2
+
+
+class TestDeckSpec:
+    """Tests for deck-level normalized data."""
+
+    def test_deck_spec_tracks_style_language_and_plan(self):
+        """Test deck metadata and slide planning fields."""
+        plan = SlidePlan(
+            title="Execution Priorities",
+            section_title="Roadmap",
+            topic="AI Transformation",
+            language="English",
+            slide_type=SlideType.TWO_COLUMN,
+            research_queries=["AI Transformation roadmap execution priorities"],
+        )
+        slide = SlideSpec(
+            layout=SlideLayout.TWO_COLUMN,
+            title="Execution Priorities",
+            left_bullets=["Stabilize infrastructure"],
+            right_bullets=["Scale automation"],
+            plan=plan,
+        )
+        deck = DeckSpec(title="Deck", topic="AI Transformation", style="technology", language="English", slides=[slide])
+
+        assert deck.style == "technology"
+        assert deck.language == "English"
+        assert deck.slides[0].plan is not None
+        assert deck.slides[0].plan.slide_type == SlideType.TWO_COLUMN

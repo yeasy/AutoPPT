@@ -4,32 +4,47 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autoppt"
-version = "0.4.0"
+version = "0.5.0"
 authors = [
   { name="yeasy", email="yeasy@example.com" },
 ]
 description = "Generate Professional Presentations in Seconds using AI"
 readme = "README.md"
-requires-python = ">=3.8"
+license = "Apache-2.0"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
     "Topic :: Office/Business :: Financial :: Spreadsheet",
     "Topic :: Multimedia :: Graphics :: Presentation",
 ]
 dependencies = [
-    "python-pptx",
-    "pydantic",
-    "python-dotenv",
-    "requests",
-    "openai",
-    "google-genai",
-    "anthropic",
-    "ddgs",
-    "wikipedia",
-    "tqdm",
-    "streamlit",
+    "anthropic>=0.49.0",
+    "ddgs>=9.6.0",
+    "google-genai>=1.8.0",
+    "markitdown[pptx]>=0.1.0",
+    "openai>=1.68.0",
+    "Pillow>=10.0.0",
+    "pydantic>=2.8.0",
+    "python-dotenv>=1.0.0",
+    "python-pptx>=0.6.23",
+    "requests>=2.32.0",
+    "streamlit>=1.42.0",
+    "tqdm>=4.66.0",
+    "trafilatura>=2.0.0",
+    "wikipedia>=1.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2.2",
+    "mypy>=1.14.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
 ]
 
 [project.urls]
@@ -42,3 +57,9 @@ autoppt = "autoppt.main:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["autoppt*"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true

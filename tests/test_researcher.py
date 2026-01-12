@@ -73,7 +73,7 @@ class TestGatherContext:
         mock_wiki.return_value = mock_wiki_result
         
         researcher = Researcher()
-        context = researcher.gather_context(["AI applications"])
+        context = researcher.gather_context(["AI applications"], fetch_full_text=False)
         
         assert isinstance(context, str)
         assert len(context) > 0
@@ -89,7 +89,7 @@ class TestGatherContext:
         
         researcher = Researcher()
         # Search same query twice
-        context = researcher.gather_context(["AI", "AI"])
+        context = researcher.gather_context(["AI", "AI"], fetch_full_text=False)
         
         # Should not have duplicate content
         assert isinstance(context, str)
@@ -102,7 +102,7 @@ class TestGatherContext:
         mock_wiki.return_value = None
         
         researcher = Researcher()
-        context = researcher.gather_context(["test"], include_wikipedia=False)
+        context = researcher.gather_context(["test"], include_wikipedia=False, fetch_full_text=False)
         
         assert isinstance(context, str)
         mock_wiki.assert_not_called()
@@ -141,3 +141,71 @@ class TestDownloadImage:
         result = researcher.download_image("https://example.com/image.jpg", save_path)
         
         assert result is False
+
+    @patch('requests.get')
+    def test_download_image_rejects_non_image_content(self, mock_get, temp_dir):
+        """Test non-image responses are rejected."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Type": "text/html", "Content-Length": "64"}
+        mock_response.iter_content.return_value = [b'not image']
+        mock_get.return_value = mock_response
+
+        researcher = Researcher()
+        import os
+        save_path = os.path.join(temp_dir, "test_image.jpg")
+
+        result = researcher.download_image("https://example.com/not-image", save_path)
+
+        assert result is False
+        assert not os.path.exists(save_path)
+
+
+class TestCaching:
+    @patch.object(Researcher, 'search')
+    def test_gather_context_reuses_cache(self, mock_search):
+        mock_search.return_value = [
+            {"title": "Cached", "href": "https://example.com/cached", "body": "Body"}
+        ]
+
+        researcher = Researcher()
+        context_a = researcher.gather_context(["cache me"], include_wikipedia=False, fetch_full_text=False)
+        context_b = researcher.gather_context(["cache me"], include_wikipedia=False, fetch_full_text=False)
+
+        assert context_a == context_b
+        mock_search.assert_called_once()
+
+
+class TestOfflineMode:
+    def test_gather_context_returns_empty_string_offline(self, monkeypatch):
+        monkeypatch.setenv("AUTOPPT_OFFLINE", "1")
+
+        researcher = Researcher()
+        context = researcher.gather_context(["offline test"], fetch_full_text=False)
+
+        assert context == ""
+
+    def test_search_images_returns_empty_list_offline(self, monkeypatch):
+        monkeypatch.setenv("AUTOPPT_OFFLINE", "1")
+
+        researcher = Researcher()
+        assert researcher.search_images("offline image test") == []
+
+    def test_search_images_respects_env_after_init(self, monkeypatch):
+        researcher = Researcher()
+        monkeypatch.setenv("AUTOPPT_OFFLINE", "1")
+
+        assert researcher.search_images("offline image test") == []
+
+    @patch("requests.get")
+    def test_download_image_skips_network_offline(self, mock_get, monkeypatch, temp_dir):
+        monkeypatch.setenv("AUTOPPT_OFFLINE", "1")
+
+        researcher = Researcher()
+        import os
+
+        save_path = os.path.join(temp_dir, "offline.jpg")
+        result = researcher.download_image("https://example.com/image.jpg", save_path)
+
+        assert result is False
+        mock_get.assert_not_called()

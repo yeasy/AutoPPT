@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.mypy_cache/
 build/
 develop-eggs/
 dist/
@@ -50,8 +51,10 @@ temp_images/
 *.tmp
 *.temp
 
-# Output (optional - uncomment if you don't want to track generated PPTs)
-# output/*.pptx
+# Generated outputs
+output/
+*.thumbnail.png
+*.thumbs.png
 
 # IDE
 .idea/
@@ -64,7 +67,7 @@ temp_images/
 .pytest_cache/
 .coverage
 htmlcov/
+coverage.xml
 
 # Jupyter
 .ipynb_checkpoints/
-

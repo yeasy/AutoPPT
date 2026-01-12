@@ -1,0 +1,24 @@
+# Docker-specific files
+.git
+.github
+.gitignore
+.env
+.env.example
+.idea
+.venv
+*.egg-info
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov
+output/*.pptx
+temp_images/*
+*.log
+README.md
+CHANGELOG.md
+LICENSE
+docs/
+tests/

@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  autoppt:
+    build: .
+    container_name: autoppt
+    ports:
+      - "8501:8501"
+    volumes:
+      # Persist generated presentations
+      - ./output:/app/output
+      # Mount samples for easy access
+      - ./samples:/app/samples:ro
+    env_file:
+      - .env
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
+    restart: unless-stopped
+
+  # Optional: CLI-only container for batch generation
+  autoppt-cli:
+    build: .
+    container_name: autoppt-cli
+    profiles:
+      - cli
+    volumes:
+      - ./output:/app/output
+    env_file:
+      - .env
+    entrypoint: ["autoppt"]
+    command: ["--help"]

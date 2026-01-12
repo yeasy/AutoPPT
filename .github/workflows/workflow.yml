@@ -14,56 +14,87 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        
+        cache: pip
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .
-        pip install pytest pytest-cov
-        
+        pip install -e ".[dev]"
+
+    - name: Type Check (mypy)
+      run: |
+        mypy autoppt/
+
     - name: Safety Audit
       run: |
         python scripts/check_sensitive.py
-        
+
     - name: Run tests
       run: |
         export PYTHONPATH=$PYTHONPATH:.
         pytest tests/ -v --cov=autoppt --cov-report=xml
 
+  build:
+    name: Build wheel & smoke test
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: pip
+
+    - name: Build distributions
+      run: |
+        python -m pip install --upgrade pip build
+        python -m build
+
+    - name: Smoke test wheel install
+      run: |
+        python -m venv .venv-smoke
+        . .venv-smoke/bin/activate
+        python -m pip install --upgrade pip
+        pip install dist/*.whl
+        autoppt --help > /dev/null
+        python -c "import autoppt; print(autoppt.__version__)"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/*
+
   publish:
     name: Build and publish to PyPI
-    needs: test
+    needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    
+
     permissions:
       id-token: write
       contents: read
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
       with:
-        python-version: "3.10"
-        
-    - name: Install build dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build
-        
-    - name: Build binary wheel and source tarball
-      run: python -m build
-      
+        name: dist
+        path: dist
+
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: dist

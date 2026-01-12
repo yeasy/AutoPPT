@@ -3,10 +3,9 @@ Unit tests for PPT renderer.
 """
 import pytest
 import os
-import tempfile
-
 from autoppt.ppt_renderer import PPTRenderer
-from autoppt.data_types import ChartData, ChartType
+from autoppt.data_types import ChartData, ChartType, SlideLayout, SlideSpec
+from autoppt.style_selector import get_all_styles
 
 
 class TestPPTRendererInit:
@@ -40,10 +39,7 @@ class TestApplyStyle:
     
     def test_apply_all_styles(self):
         """Test that all styles can be applied without error."""
-        styles = [
-            "minimalist", "technology", "nature", "creative",
-            "corporate", "academic", "startup", "dark"
-        ]
+        styles = get_all_styles()
         
         for style in styles:
             renderer = PPTRenderer()
@@ -142,6 +138,134 @@ class TestChartSlide:
         renderer.add_chart_slide("Revenue Analysis", chart_data)
         
         assert len(renderer.prs.slides) == initial_count + 1
+
+    def test_add_two_column_slide(self, sample_bullets):
+        """Test adding a two-column slide."""
+        renderer = PPTRenderer()
+        renderer.apply_style("corporate")
+        
+        initial_count = len(renderer.prs.slides)
+        renderer.add_two_column_slide(
+            title="Comparison",
+            left_bullets=sample_bullets,
+            right_bullets=sample_bullets,
+            left_title="Pros",
+            right_title="Cons"
+        )
+        assert len(renderer.prs.slides) == initial_count + 1
+
+    def test_add_comparison_slide(self, sample_bullets):
+        """Test adding a comparison slide helper."""
+        renderer = PPTRenderer()
+        renderer.apply_style("corporate")
+        
+        initial_count = len(renderer.prs.slides)
+        item_a = {"name": "A", "points": sample_bullets}
+        item_b = {"name": "B", "points": sample_bullets}
+        
+        renderer.add_comparison_slide("A vs B", item_a, item_b)
+        assert len(renderer.prs.slides) == initial_count + 1
+
+    def test_add_quote_slide(self):
+        """Test adding a quote slide."""
+        renderer = PPTRenderer()
+        renderer.apply_style("creative")
+        
+        initial_count = len(renderer.prs.slides)
+        renderer.add_quote_slide(
+            quote="Innovation distinguishes between a leader and a follower.",
+            author="Steve Jobs",
+            context="Apple"
+        )
+        assert len(renderer.prs.slides) == initial_count + 1
+
+    def test_add_statistics_slide(self):
+        """Test adding a statistics slide."""
+        renderer = PPTRenderer()
+        renderer.apply_style("technology")
+        
+        stats = [
+            {"value": "85%", "label": "Growth"},
+            {"value": "2025", "label": "Year"},
+            {"value": "1M+", "label": "Users"}
+        ]
+        
+        initial_count = len(renderer.prs.slides)
+        renderer.add_statistics_slide("Key Metrics", stats)
+        assert len(renderer.prs.slides) == initial_count + 1
+
+    def test_render_quote_slide_spec(self):
+        """Test rendering a quote slide from SlideSpec."""
+        renderer = PPTRenderer()
+        renderer.apply_style("creative")
+
+        initial_count = len(renderer.prs.slides)
+        renderer.render_slide(
+            SlideSpec(
+                layout=SlideLayout.QUOTE,
+                title="Quote",
+                quote_text="Innovation distinguishes between a leader and a follower.",
+                quote_author="Steve Jobs",
+                quote_context="Apple",
+            )
+        )
+        assert len(renderer.prs.slides) == initial_count + 1
+
+    def test_render_two_column_slide_spec(self, sample_bullets):
+        """Test rendering a two-column slide from SlideSpec."""
+        renderer = PPTRenderer()
+        renderer.apply_style("corporate")
+
+        initial_count = len(renderer.prs.slides)
+        renderer.render_slide(
+            SlideSpec(
+                layout=SlideLayout.TWO_COLUMN,
+                title="Two Column",
+                left_title="Left",
+                right_title="Right",
+                left_bullets=sample_bullets,
+                right_bullets=sample_bullets,
+            )
+        )
+        assert len(renderer.prs.slides) == initial_count + 1
+
+    def test_render_comparison_slide_spec(self, sample_bullets):
+        """Test rendering a comparison slide from SlideSpec."""
+        renderer = PPTRenderer()
+        renderer.apply_style("corporate")
+
+        initial_count = len(renderer.prs.slides)
+        renderer.render_slide(
+            SlideSpec(
+                layout=SlideLayout.COMPARISON,
+                title="Current vs Future",
+                left_title="Current",
+                right_title="Future",
+                left_bullets=sample_bullets,
+                right_bullets=sample_bullets,
+            )
+        )
+        assert len(renderer.prs.slides) == initial_count + 1
+
+    @pytest.mark.skipif(not os.path.exists("tests/test_image.jpg"), reason="Test image needed")
+    def test_add_fullscreen_image_slide(self, tmp_path):
+        """Test adding a fullscreen image slide."""
+        renderer = PPTRenderer()
+        
+        # Create a dummy image
+        from PIL import Image
+        img_path = str(tmp_path / "test_img.jpg")
+        img = Image.new('RGB', (100, 100), color = 'red')
+        img.save(img_path)
+        
+        initial_count = len(renderer.prs.slides)
+        renderer.add_fullscreen_image_slide(
+            img_path,
+            caption="Test Image",
+            overlay_title="Impact"
+        )
+        assert len(renderer.prs.slides) == initial_count + 1
+
 
 
 class TestSave:

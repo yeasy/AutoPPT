@@ -5,76 +5,81 @@ All notable changes to AutoPPT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-01-11
+## [Unreleased]
 
-### Added - Visual & Content Upgrade
-- **High-Density Content**: Prompts now generate 5-8 substantive bullet points with sub-bullets, data, and statistics.
-- **Modern Styling System**: 
-  - Gradient background support.
-  - Decorative accent lines for headers.
-  - Enhanced typography for titles and special slides.
-- **New Slide Types**:
-  - `Fullscreen Image`: For impactful visual breaks or section headers.
-  - `Statistics`: Dedicated layout for showcasing key metrics (big numbers).
-- **5 New Premium Themes**:
-  - `luxury` (Gold/Dark)
-  - `magazine` (Editorial style)
-  - `tech_gradient` (Indigo/Purple)
-  - `ocean` (Deep Blue)
-  - `sunset` (Warm Gradients)
-- **Smart Layout Handling**: Generator now automatically selects between Content, Statistics, Image, and Chart layouts based on context.
+### Added
+- Slide planning layer with `SlidePlan` and `slide_planner.py`.
+- Editable `DeckSpec` workflow with save, load, regenerate, and remix helpers.
+- Web slide workbench for post-generation single-slide operations.
+- Deterministic sample library and README preview generation.
 
 ### Changed
-- Updated `SlideConfig` to support `slide_type` and `statistics` data fields.
+- Richer layout flow now treats comparison, two-column, and quote slides as first-class editable layouts.
+- Rendering now uses theme tokens for spacing, panels, image treatment, and typography.
+- Repository docs are split into separate English and Chinese files where needed.
+
+## [0.5.0] - 2026-01-20
+
+### Added
+- Auto-style selection with the `--auto-style` flag.
+- Outline preview flow with `--outline-only` and `--confirm-outline`.
+- Five new creative themes: `chalkboard`, `blueprint`, `sketch`, `retro`, and `neon`.
+- `style_selector` module with English and Chinese keyword support.
+- Web UI enhancements for automatic style recommendation.
+- Generator helpers for outline-only workflows.
+
+### Changed
+- Updated README with new CLI flags and 18 visual themes.
+- Total built-in visual themes increased from 13 to 18.
+
+## [0.4.0] - 2026-01-11
+
+### Added
+- Higher-density content prompts with stronger bullets, data, and statistics.
+- Modern styling system with gradient backgrounds, accent lines, and stronger typography.
+- New slide types for fullscreen images and key statistics.
+- Five premium themes: `luxury`, `magazine`, `tech_gradient`, `ocean`, and `sunset`.
+- Smarter layout handling across content, statistics, image, and chart slides.
+
+### Changed
+- Updated `SlideConfig` to support `slide_type` and `statistics`.
 - Refactored `ppt_renderer` to support cleaner XML-based gradient fills.
 
 ## [0.3.0] - 2025-12-31
 
 ### Added
-- **PyPI Packaging**: Structured as `autoppt` package with `pyproject.toml` and CLI entry point.
-- **Automated Safety Audit**: Integrated Git pre-commit hook to block sensitive data (API keys, local paths) and unwanted files (.log).
-- **Unit Test Suite**: Comprehensive pytest tests (38/38 passing).
-- **Documentation Workflow**: New `.agent/workflows/update-docs.md`.
-- **Enhanced Gitignore**: Comprehensive `.gitignore`.
-- **Cleaner History**: Used `git-filter-repo` to remove old logs.
-- **Config Cleanup**: Refactored `.env.example` for better clarity.
-
+- PyPI packaging with `pyproject.toml` and a CLI entry point.
+- Automated safety audit hooks for sensitive data and unwanted files.
+- Comprehensive pytest suite.
+- Documentation workflow support.
+- Expanded `.gitignore`.
+- Cleaner repository history after log cleanup.
+- Clearer `.env.example`.
 
 ### Removed
-- **Cleanup**: Removed 11 unnecessary files from project root:
-  - `generate_hq_research_samples.py`
-  - `regenerate_v0.1_samples.py`
-  - `populate_high_quality_samples.py`
-  - `list_models_v2.py`
-  - `available_models.txt`
-  - `run_demo.sh`
-  - Multiple `.log` files
+- Old utility scripts and obsolete log files from the project root.
 
 ### Dependencies
-- Added: `streamlit`, `pytest`, `pytest-cov`
-
----
+- Added `streamlit`, `pytest`, and `pytest-cov`.
 
 ## [0.2.0] - 2025-12-30
 
 ### Added
-- **Anthropic Claude Support**: Full `AnthropicProvider` with retry logic.
-- **Wikipedia Integration**: Enhanced research with Wikipedia API.
-- **Chart Generation**: Bar, pie, line, and column charts.
-- **4 New Visual Themes**: corporate, academic, startup, dark.
-- **Progress Indicators**: tqdm integration.
-- **Custom Exceptions**: Friendly error messages.
-- **Logging System**: Configurable verbosity.
+- Anthropic Claude provider with retry logic.
+- Wikipedia integration.
+- Bar, pie, line, and column chart generation.
+- Four visual themes: `corporate`, `academic`, `startup`, and `dark`.
+- Progress indicators.
+- Custom exceptions.
+- Configurable logging.
 
 ### Changed
 - Dynamic retry delays from config.
 - Improved image download stability.
 
 ### Fixed
-- Missing `import os` in ppt_renderer.py.
+- Missing `import os` in `ppt_renderer.py`.
 - Citations slide styling.
-
----
 
 ## [0.1.0] - 2025-12-30
 
@@ -83,10 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenAI and Google Gemini providers.
 - Mock provider for testing.
 - DuckDuckGo research integration.
-- 4 visual themes.
-- 6 sample presentations.
-
----
+- Four visual themes.
+- Six sample presentations.
 
 [0.3.0]: https://github.com/yeasy/autoppt/compare/v0.2...v0.3
 [0.2.0]: https://github.com/yeasy/autoppt/compare/v0.1...v0.2

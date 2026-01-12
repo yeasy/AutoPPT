@@ -1,22 +1,3 @@
-# Core dependencies
-python-pptx
-pydantic
-python-dotenv
-requests
-
-# LLM Providers
-openai
-google-genai
-anthropic
-
-# Research & Web
-ddgs
-wikipedia
-
-# UI
-tqdm
-streamlit
-
-# Testing
-pytest
-pytest-cov
+# Dependencies are defined in pyproject.toml.
+# Install runtime package from local source.
+-e .
