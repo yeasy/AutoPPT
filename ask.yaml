@@ -1,0 +1,23 @@
+version: "1.0"
+repos:
+    - name: community
+      type: topic
+      url: agent-skill
+    - name: anthropics
+      type: dir
+      url: anthropics/skills/skills
+    - name: scientific
+      type: dir
+      url: K-Dense-AI/claude-scientific-skills/scientific-skills
+    - name: superpowers
+      type: dir
+      url: obra/superpowers/skills
+    - name: openai
+      type: dir
+      url: openai/skills/skills
+    - name: matlab
+      type: dir
+      url: matlab/skills/skills
+    - name: composio
+      type: dir
+      url: ComposioHQ/awesome-claude-skills
