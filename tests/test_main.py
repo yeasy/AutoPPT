@@ -33,6 +33,8 @@ def test_main_success_mock(mock_generator, mock_validate, mock_initialize, mock_
     )
 
     mock_gen_instance = mock_generator.return_value
+    mock_gen_instance.__enter__ = MagicMock(return_value=mock_gen_instance)
+    mock_gen_instance.__exit__ = MagicMock(return_value=False)
     mock_gen_instance.generate.return_value = "output/Test_Topic.pptx"
 
     main()
@@ -64,9 +66,13 @@ def test_main_custom_output(mock_generator, mock_validate, mock_initialize, mock
         verbose=True,
     )
 
+    mock_gen_instance = mock_generator.return_value
+    mock_gen_instance.__enter__ = MagicMock(return_value=mock_gen_instance)
+    mock_gen_instance.__exit__ = MagicMock(return_value=False)
+
     main()
 
-    _, kwargs = mock_generator.return_value.generate.call_args
+    _, kwargs = mock_gen_instance.generate.call_args
     assert kwargs["output_file"] == "custom/path.pptx"
 
 
@@ -116,7 +122,10 @@ def test_main_generator_error(mock_generator, mock_validate, mock_initialize, mo
         verbose=False,
     )
 
-    mock_generator.return_value.generate.side_effect = AutoPPTError("Generation failed")
+    mock_gen_instance = mock_generator.return_value
+    mock_gen_instance.__enter__ = MagicMock(return_value=mock_gen_instance)
+    mock_gen_instance.__exit__ = MagicMock(return_value=False)
+    mock_gen_instance.generate.side_effect = AutoPPTError("Generation failed")
 
     with pytest.raises(SystemExit) as wrapped:
         main()
