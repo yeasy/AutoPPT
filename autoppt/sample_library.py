@@ -1,8 +1,12 @@
 from dataclasses import dataclass
+import logging
 import math
 from pathlib import Path
 import tempfile
 import textwrap
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from .data_types import ChartData, ChartType, DeckSpec, SlideLayout, SlideSpec, StatisticData
@@ -173,7 +177,7 @@ def _gradient_image(size: tuple[int, int], start: tuple[int, int, int], end: tup
     return image
 
 
-def _build_visual_asset(asset_dir: Path, name: str, palette: dict[str, tuple[int, int, int]], motif: str) -> str:
+def _build_visual_asset(asset_dir: Path, name: str, palette: dict[str, Any], motif: str) -> str:
     asset_dir.mkdir(parents=True, exist_ok=True)
     output_path = asset_dir / f"{name}.png"
     image = _gradient_image((1600, 900), palette["start"], palette["end"]).convert("RGBA")
@@ -327,7 +331,7 @@ def _draw_showcase_card(
     draw.text((42, 36), label, fill=(245, 249, 255), font=caption_font)
     draw.text((42, 108), definition.title, fill=(255, 255, 255), font=title_font)
 
-    subtitle = deck.slides[0].subtitle or definition.description
+    subtitle = (deck.slides[0].subtitle if deck.slides else None) or definition.description
     subtitle_lines = textwrap.wrap(subtitle, width=30 if locale == "en" else 16)[:2]
     y = 156
     for line in subtitle_lines:
@@ -343,7 +347,7 @@ def _draw_showcase_card(
         draw.ellipse((42, y + 8, 54, y + 20), fill=accent + (255,))
         line_y = y
         for index, line in enumerate(wrapped):
-            x = 68 if index == 0 else 68
+            x = 68
             draw.text((x, line_y), line, fill=(241, 245, 250), font=body_font)
             line_y += 25
         y = line_y + 12
@@ -402,7 +406,7 @@ def _draw_real_preview_card(
     label = f"{len(deck.slides)} slides" if locale == "en" else f"{len(deck.slides)} 页"
     draw.text((42, 34), label, fill=(245, 249, 255), font=body_font)
     draw.text((42, card_size[1] - 144), definition.title, fill=(255, 255, 255), font=title_font)
-    subtitle = deck.slides[0].subtitle or definition.description
+    subtitle = (deck.slides[0].subtitle if deck.slides else None) or definition.description
     subtitle_lines = textwrap.wrap(subtitle, width=28 if locale == "en" else 14)[:2]
     y = card_size[1] - 102
     for line in subtitle_lines:
@@ -473,7 +477,7 @@ def render_readme_showcase_previews(output_dir: str | Path) -> list[Path]:
         canvas = Image.alpha_composite(canvas, glow)
         draw = ImageDraw.Draw(canvas)
 
-        locale = config["locale"]
+        locale: str = config["locale"]  # type: ignore[assignment]
         title_font = _load_font(
             ["/System/Library/Fonts/Supplemental/Avenir Next Demi Bold.ttf", "/System/Library/Fonts/Supplemental/Arial Bold.ttf"],
             54,
@@ -492,8 +496,10 @@ def render_readme_showcase_previews(output_dir: str | Path) -> list[Path]:
                 24,
             )
 
-        draw.text((96, 72), config["title"], fill=(255, 255, 255), font=title_font)
-        for index, line in enumerate(textwrap.wrap(config["subtitle"], width=68 if locale == "en" else 28)):
+        title_text: str = config["title"]  # type: ignore[assignment]
+        subtitle_text: str = config["subtitle"]  # type: ignore[assignment]
+        draw.text((96, 72), title_text, fill=(255, 255, 255), font=title_font)
+        for index, line in enumerate(textwrap.wrap(subtitle_text, width=68 if locale == "en" else 28)):
             draw.text((96, 144 + index * 30), line, fill=(216, 226, 238), font=subtitle_font)
 
         preview_cache: list[Path] = []
@@ -556,10 +562,18 @@ def get_sample_definition(sample_id: str) -> SampleDefinition:
 
 
 def build_sample_deck(sample_id: str, asset_dir: str | Path | None = None) -> DeckSpec:
+    """Build a sample deck spec.
+
+    When *asset_dir* is ``None`` a temporary directory is created and the caller
+    is responsible for cleaning it up after the returned ``DeckSpec`` is no
+    longer needed.  Prefer passing an explicit directory managed via
+    ``tempfile.TemporaryDirectory`` to avoid leaks.
+    """
     definition = get_sample_definition(sample_id)
     builder = _SAMPLE_BUILDERS[sample_id]
     if asset_dir is None:
         asset_dir = Path(tempfile.mkdtemp(prefix=f"autoppt-sample-assets-{sample_id}-"))
+        logger.warning("build_sample_deck created temp asset dir %s; caller must clean up", asset_dir)
     return builder(definition, Path(asset_dir))
 
 
@@ -568,10 +582,13 @@ def render_sample(sample_id: str, output_dir: str | Path) -> Path:
     output_root = Path(output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
     output_path = output_root / definition.filename
-    generator = Generator(provider_name="mock")
-    asset_dir = Path(tempfile.mkdtemp(prefix=f"autoppt-sample-assets-{sample_id}-"))
-    deck = build_sample_deck(sample_id, asset_dir=asset_dir)
-    generator.save_deck(deck, str(output_path))
+    with tempfile.TemporaryDirectory(prefix=f"autoppt-sample-assets-{sample_id}-") as asset_dir:
+        deck = build_sample_deck(sample_id, asset_dir=asset_dir)
+        generator = Generator(provider_name="mock")
+        try:
+            generator.save_deck(deck, str(output_path))
+        finally:
+            generator.close()
     return output_path
 
 

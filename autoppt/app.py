@@ -6,6 +6,7 @@ Run with: streamlit run autoppt/app.py
 """
 import os
 import tempfile
+import logging
 import time
 
 import streamlit as st
@@ -15,6 +16,8 @@ from .config import Config
 from .data_types import SlideLayout
 from .llm_provider import get_provider_models, get_supported_providers
 from .style_selector import auto_select_style, get_all_styles, get_style_description
+
+logger = logging.getLogger(__name__)
 
 Config.initialize()
 
@@ -29,7 +32,7 @@ WORKBENCH_LAYOUT_OPTIONS = {
     "Image": SlideLayout.IMAGE,
 }
 
-SESSION_DEFAULTS = {
+SESSION_DEFAULTS: dict[str, object] = {
     "generated_deck_spec": None,
     "generated_file_bytes": None,
     "generated_filename": None,
@@ -40,7 +43,8 @@ SESSION_DEFAULTS = {
     "generated_language": "English",
 }
 for session_key, default_value in SESSION_DEFAULTS.items():
-    st.session_state.setdefault(session_key, default_value)
+    if session_key not in st.session_state:
+        st.session_state[session_key] = list(default_value) if isinstance(default_value, list) else default_value
 
 
 def _editable_slide_options(deck_spec):
@@ -202,31 +206,36 @@ if generate_button:
             try:
                 from .generator import Generator
 
-                safe_topic = "".join(char for char in topic if char.isalnum() or char in (" ", "-", "_"))[:50]
+                safe_topic = "".join(char for char in topic if char.isalnum() or char in (" ", "-", "_"))[:50].strip() or "presentation"
                 progress_bar = st.progress(0, text="Initializing generator...")
 
                 with tempfile.TemporaryDirectory(prefix="autoppt-web-") as output_dir:
                     output_file = os.path.join(output_dir, f"{safe_topic.replace(' ', '_')}.pptx")
                     gen = Generator(provider_name=provider, model=model)
-                    progress_bar.progress(10, text="Generating outline...")
-                    result = gen.generate(
-                        topic=topic,
-                        style=effective_style,
-                        output_file=output_file,
-                        slides_count=slides_count,
-                        language=language,
-                    )
-                    with open(result, "rb") as file_handle:
-                        file_bytes = file_handle.read()
+                    try:
+                        progress_bar.progress(10, text="Generating outline...")
+                        result = gen.generate(
+                            topic=topic,
+                            style=effective_style,
+                            output_file=output_file,
+                            slides_count=slides_count,
+                            language=language,
+                        )
+                        with open(result, "rb") as file_handle:
+                            file_bytes = file_handle.read()
+                        deck_spec = gen.last_deck_spec
+                        quality_report = gen.last_quality_report
+                    finally:
+                        gen.close()
 
                 progress_bar.progress(100, text="✅ Complete!")
                 time.sleep(0.5)
                 progress_bar.empty()
 
-                st.session_state.generated_deck_spec = gen.last_deck_spec
+                st.session_state.generated_deck_spec = deck_spec
                 st.session_state.generated_file_bytes = file_bytes
                 st.session_state.generated_filename = f"{safe_topic.replace(' ', '_')}.pptx"
-                st.session_state.generated_quality_issues = list(gen.last_quality_report.issues)
+                st.session_state.generated_quality_issues = list(quality_report.issues)
                 st.session_state.generated_provider = provider
                 st.session_state.generated_model = model
                 st.session_state.generated_style = effective_style
@@ -234,9 +243,9 @@ if generate_button:
 
                 st.success("🎉 Presentation generated successfully!")
                 st.info(f"📁 File size: {len(file_bytes) / 1024:.1f} KB")
-                if gen.last_quality_report.has_issues:
-                    with st.expander(f"⚠️ Deck QA detected {len(gen.last_quality_report.issues)} issue(s)"):
-                        for issue in gen.last_quality_report.issues:
+                if quality_report.has_issues:
+                    with st.expander(f"⚠️ Deck QA detected {len(quality_report.issues)} issue(s)"):
+                        for issue in quality_report.issues:
                             st.write(f"Slide {issue.slide_index}: {issue.message}")
                 st.download_button(
                     label="📥 Download Presentation",
@@ -246,8 +255,8 @@ if generate_button:
                     use_container_width=True,
                 )
             except Exception as exc:
-                st.error(f"❌ Error generating presentation: {exc}")
-                st.exception(exc)
+                logger.exception("Error generating presentation")
+                st.error("❌ Error generating presentation. Please check logs or try again.")
 
 if st.session_state.generated_file_bytes:
     st.divider()
@@ -302,39 +311,44 @@ if editable_options:
                     provider_name=st.session_state.generated_provider,
                     model=st.session_state.generated_model,
                 )
-                target_layout = WORKBENCH_LAYOUT_OPTIONS[target_layout_label]
-                if remix_button:
-                    updated_deck = remix_gen.remix_slide(
-                        deck_spec=current_deck,
-                        slide_index=selected_index,
-                        instruction=remix_instruction.strip(),
-                        style=st.session_state.generated_style,
-                        language=st.session_state.generated_language,
-                        target_layout=target_layout,
+                try:
+                    target_layout = WORKBENCH_LAYOUT_OPTIONS[target_layout_label]
+                    if remix_button:
+                        updated_deck = remix_gen.remix_slide(
+                            deck_spec=current_deck,
+                            slide_index=selected_index,
+                            instruction=remix_instruction.strip(),
+                            style=st.session_state.generated_style,
+                            language=st.session_state.generated_language,
+                            target_layout=target_layout,
+                        )
+                    else:
+                        updated_deck = remix_gen.regenerate_slide(
+                            deck_spec=current_deck,
+                            slide_index=selected_index,
+                            style=st.session_state.generated_style,
+                            language=st.session_state.generated_language,
+                            target_layout=target_layout,
+                        )
+                    remixed_bytes = _render_deck_file(
+                        remix_gen,
+                        updated_deck,
+                        st.session_state.generated_filename or "autoppt_remix.pptx",
                     )
-                else:
-                    updated_deck = remix_gen.regenerate_slide(
-                        deck_spec=current_deck,
-                        slide_index=selected_index,
-                        style=st.session_state.generated_style,
-                        language=st.session_state.generated_language,
-                        target_layout=target_layout,
-                    )
-                remixed_bytes = _render_deck_file(
-                    remix_gen,
-                    updated_deck,
-                    st.session_state.generated_filename or "autoppt_remix.pptx",
-                )
 
-                st.session_state.generated_deck_spec = remix_gen.last_deck_spec
-                st.session_state.generated_file_bytes = remixed_bytes
-                st.session_state.generated_quality_issues = list(remix_gen.last_quality_report.issues)
-                action_label = "regenerated" if regenerate_button else "remixed"
-                st.success(f"✅ Selected slide {action_label} successfully.")
-                st.rerun()
+                    remix_deck_spec = remix_gen.last_deck_spec
+                    remix_quality_issues = list(remix_gen.last_quality_report.issues)
+                    st.session_state.generated_deck_spec = remix_deck_spec
+                    st.session_state.generated_file_bytes = remixed_bytes
+                    st.session_state.generated_quality_issues = remix_quality_issues
+                    action_label = "regenerated" if regenerate_button else "remixed"
+                    st.success(f"✅ Selected slide {action_label} successfully.")
+                    st.rerun()
+                finally:
+                    remix_gen.close()
             except Exception as exc:
-                st.error(f"❌ Error updating slide: {exc}")
-                st.exception(exc)
+                logger.exception("Error updating slide")
+                st.error("❌ Error updating slide. Please check logs or try again.")
 
 st.divider()
 st.markdown(

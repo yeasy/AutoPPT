@@ -32,7 +32,21 @@ class Generator:
         self.last_deck_spec: Optional[DeckSpec] = None
         self.last_outline: Optional[PresentationOutline] = None
         self.provider_name = provider_name
-        self.assets_dir = tempfile.mkdtemp(prefix="autoppt-assets-")
+        self._assets_tmpdir: Optional[tempfile.TemporaryDirectory[str]] = tempfile.TemporaryDirectory(prefix="autoppt-assets-")
+        self.assets_dir = self._assets_tmpdir.name
+
+    def close(self) -> None:
+        """Clean up temporary assets directory."""
+        if self._assets_tmpdir is not None:
+            self._assets_tmpdir.cleanup()
+            self._assets_tmpdir = None
+        self.assets_dir = ""
+
+    def __enter__(self) -> "Generator":
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
 
     def generate(
         self,
@@ -272,6 +286,8 @@ class Generator:
         target_layout: SlideLayout | SlideType | str | None = None,
     ) -> DeckSpec:
         updated_deck = deck_spec.model_copy(deep=True)
+        if slide_index < 0 or slide_index >= len(updated_deck.slides):
+            raise IndexError(f"slide_index {slide_index} out of range (deck has {len(updated_deck.slides)} slides)")
         target_slide = updated_deck.slides[slide_index]
         if not target_slide.editable or target_slide.layout in {SlideLayout.TITLE, SlideLayout.SECTION, SlideLayout.CITATIONS}:
             raise ValueError("Only generated content slides can be remixed.")
@@ -381,6 +397,9 @@ class Generator:
         if not image_url:
             return None
 
+        if not self.assets_dir:
+            logger.warning("Cannot download image: assets directory is not available")
+            return None
         local_path = os.path.join(self.assets_dir, f"section_{section_index}_slide_{slide_index}.jpg")
         if self.researcher.download_image(image_url, local_path):
             return local_path
@@ -460,7 +479,7 @@ Quote author hint: '{plan.quote_author or "Named source"}'
 Quote context hint: '{plan.quote_context or plan.section_title or topic}'
 
 === RESEARCH CONTEXT ===
-{context[:12000]}
+{context[:12000]}{"[...truncated]" if len(context) > 12000 else ""}
 
 === SLIDE TYPE SELECTION ===
 Choose exactly one:

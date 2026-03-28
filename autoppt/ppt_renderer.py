@@ -12,7 +12,7 @@ from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
 
-from .data_types import DeckSpec, SlideConfig, SlideLayout, SlideSpec, UserPresentation
+from .data_types import ChartData, DeckSpec, SlideLayout, SlideSpec
 from .themes import get_theme
 
 logger = logging.getLogger(__name__)
@@ -106,10 +106,12 @@ class PPTRenderer:
         return self.current_style[key]
 
     def _slide_width_inches(self) -> float:
-        return self.prs.slide_width / 914400
+        w = self.prs.slide_width
+        return (w if w is not None else 9144000) / 914400
 
     def _slide_height_inches(self) -> float:
-        return self.prs.slide_height / 914400
+        h = self.prs.slide_height
+        return (h if h is not None else 6858000) / 914400
 
     def _apply_background(self, slide) -> None:
         if self.current_style.get("gradient"):
@@ -242,21 +244,26 @@ class PPTRenderer:
                 p.level = 0
 
     def _cover_image(self, image_path: str, target_ratio: float) -> str:
-        with Image.open(image_path) as image:
-            image = image.convert("RGB")
-            width, height = image.size
+        with Image.open(image_path) as raw_image:
+            img = raw_image.convert("RGB")
+            width, height = img.size
             current_ratio = width / max(height, 1)
             if current_ratio > target_ratio:
                 target_width = int(height * target_ratio)
                 left = max((width - target_width) // 2, 0)
-                image = image.crop((left, 0, left + target_width, height))
+                img = img.crop((left, 0, left + target_width, height))
             else:
                 target_height = int(width / target_ratio)
                 top = max((height - target_height) // 2, 0)
-                image = image.crop((0, top, width, top + target_height))
+                img = img.crop((0, top, width, top + target_height))
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp:
-                image.save(temp.name, format="PNG")
-                return temp.name
+                temp_path = temp.name
+            try:
+                img.save(temp_path, format="PNG")
+            except Exception:
+                os.unlink(temp_path)
+                raise
+            return temp_path
 
     def _add_cover_picture(self, slide, image_path: str, left: float, top: float, width: float, height: float) -> bool:
         if not image_path or not os.path.exists(image_path):
@@ -311,7 +318,7 @@ class PPTRenderer:
         accent.fill.fore_color.rgb = self._theme("accent_color")
         accent.line.fill.background()
 
-    def add_content_slide(self, title: str, bullets: list, notes: str = "", image_path: str = None):
+    def add_content_slide(self, title: str, bullets: list, notes: str = "", image_path: Optional[str] = None):
         slide = self._add_blank_slide()
         self._add_title_text(slide, title)
 
@@ -577,11 +584,11 @@ class PPTRenderer:
             )
 
     def add_statistics_slide(self, title: str, stats: List[Dict[str, str]], notes: str = "") -> None:
-        slide = self._add_blank_slide()
-        self._add_title_text(slide, title)
         stats = stats[:4]
         if not stats:
             return
+        slide = self._add_blank_slide()
+        self._add_title_text(slide, title)
 
         left = self._theme("content_left_in")
         gap = self._theme("stat_card_gap_in")
