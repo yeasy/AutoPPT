@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autoppt"
-version = "0.5.0"
+version = "0.5.1"
 authors = [
   { name="yeasy", email="yeasy@example.com" },
 ]
@@ -19,7 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
-    "Topic :: Office/Business :: Financial :: Spreadsheet",
+    "Topic :: Office/Business",
     "Topic :: Multimedia :: Graphics :: Presentation",
 ]
 dependencies = [
@@ -63,3 +63,4 @@ python_version = "3.10"
 warn_return_any = true
 warn_unused_ignores = true
 ignore_missing_imports = true
+plugins = ["pydantic.mypy"]

@@ -18,6 +18,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rendering now uses theme tokens for spacing, panels, image treatment, and typography.
 - Repository docs are split into separate English and Chinese files where needed.
 
+## [0.5.1] - 2026-03-27
+
+### Fixed
+- Empty statistics slides no longer leave orphaned blank slides in the deck.
+- Slide dimension helpers use explicit `None` checks instead of falsy fallback.
+- Temp file leak in `_cover_image` when image save fails.
+- Use-after-close guard prevents silent writes to current directory after `Generator.close()`.
+- Research context truncation now appends `[...truncated]` for LLM awareness.
+- Mutable session state defaults no longer shared across Streamlit sessions.
+- Empty sanitized topic falls back to `"presentation"` instead of producing a bare `.pptx` filename.
+- Post-close access to `Generator` attributes captured before `close()` in both generation and remix paths.
+- Multi-master templates no longer overwrite layouts with duplicate indices.
+- Null layout guard in slide planner prevents `AttributeError` during remix.
+- SSRF DNS resolution failures now emit debug-level log for diagnosis.
+- OpenAI localhost detection uses consistent `_is_local_base_url` helper.
+- Slide count validation runs before the info banner is logged.
+- Outline file path construction handles `.pptx` in directory names.
+- `RateLimitError` correctly formats message when `retry_after=0`.
+- Unknown theme names log a warning before falling back to minimalist.
+- Error slide truncation indicator shows `...` suffix.
+
+### Changed
+- Removed deprecated `version` key from `docker-compose.yml`.
+- Corrected PyPI classifier to `Topic :: Office/Business`.
+- Enabled `pydantic.mypy` plugin for stricter type checking.
+- Removed unused `json` import from `template_handler.py`.
+- Fixed typo "segway" to "segue" in template layout matching.
+- Type annotations use `Optional[]` consistently in `exceptions.py`.
+
 ## [0.5.0] - 2026-01-20
 
 ### Added
@@ -59,7 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Old utility scripts and obsolete log files from the project root.
 
-### Dependencies
+### Changed
 - Added `streamlit`, `pytest`, and `pytest-cov`.
 
 ## [0.2.0] - 2025-12-30
@@ -91,6 +120,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Four visual themes.
 - Six sample presentations.
 
+[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/yeasy/autoppt/compare/v0.5...v0.5.1
+[0.5.0]: https://github.com/yeasy/autoppt/compare/v0.4...v0.5
+[0.4.0]: https://github.com/yeasy/autoppt/compare/v0.3...v0.4
 [0.3.0]: https://github.com/yeasy/autoppt/compare/v0.2...v0.3
 [0.2.0]: https://github.com/yeasy/autoppt/compare/v0.1...v0.2
 [0.1.0]: https://github.com/yeasy/autoppt/releases/tag/v0.1
