@@ -168,47 +168,49 @@ class Researcher:
                     timeout=Config.IMAGE_DOWNLOAD_TIMEOUT,
                     stream=True,
                     headers={"User-Agent": "AutoPPT/0.5"},
+                    allow_redirects=False,
                 )
-                if response.status_code != 200:
-                    logger.warning("Image download returned status %s", response.status_code)
-                    continue
-
-                content_type = response.headers.get("Content-Type", "").lower()
-                if content_type and not content_type.startswith("image/"):
-                    logger.warning("Skipping non-image response from %s (%s)", url, content_type)
-                    response.close()
-                    return False
-
-                content_length = response.headers.get("Content-Length")
                 try:
-                    if content_length and int(content_length) > Config.IMAGE_DOWNLOAD_MAX_BYTES:
-                        logger.warning("Skipping oversized image from %s", url)
-                        response.close()
+                    if response.status_code != 200:
+                        logger.warning("Image download returned status %s", response.status_code)
+                        continue
+
+                    content_type = response.headers.get("Content-Type", "").lower()
+                    if content_type and not content_type.startswith("image/"):
+                        logger.warning("Skipping non-image response from %s (%s)", url, content_type)
                         return False
-                except (ValueError, TypeError):
-                    pass
 
-                total_bytes = 0
-                oversized = False
-                with open(save_path, "wb") as file_handle:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if not chunk:
-                            continue
-                        total_bytes += len(chunk)
-                        if total_bytes > Config.IMAGE_DOWNLOAD_MAX_BYTES:
-                            logger.warning("Skipping image larger than %s bytes from %s", Config.IMAGE_DOWNLOAD_MAX_BYTES, url)
-                            oversized = True
-                            break
-                        file_handle.write(chunk)
-                if oversized:
+                    content_length = response.headers.get("Content-Length")
                     try:
-                        os.remove(save_path)
-                    except OSError:
+                        if content_length and int(content_length) > Config.IMAGE_DOWNLOAD_MAX_BYTES:
+                            logger.warning("Skipping oversized image from %s", url)
+                            return False
+                    except (ValueError, TypeError):
                         pass
-                    return False
 
-                logger.debug("Downloaded image to %s", save_path)
-                return True
+                    total_bytes = 0
+                    oversized = False
+                    with open(save_path, "wb") as file_handle:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            if not chunk:
+                                continue
+                            total_bytes += len(chunk)
+                            if total_bytes > Config.IMAGE_DOWNLOAD_MAX_BYTES:
+                                logger.warning("Skipping image larger than %s bytes from %s", Config.IMAGE_DOWNLOAD_MAX_BYTES, url)
+                                oversized = True
+                                break
+                            file_handle.write(chunk)
+                    if oversized:
+                        try:
+                            os.remove(save_path)
+                        except OSError:
+                            pass
+                        return False
+
+                    logger.debug("Downloaded image to %s", save_path)
+                    return True
+                finally:
+                    response.close()
             except Exception as exc:
                 logger.warning("Image download attempt %s/%s failed: %s", attempt + 1, retries, exc)
                 if attempt < retries - 1:

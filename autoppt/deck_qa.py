@@ -77,10 +77,7 @@ class DeckQA:
         if slide.layout == SlideLayout.STATISTICS and (not slide.statistics or len(slide.statistics) < 2):
             issues.append(self._issue("thin_statistics", "Statistics slide should contain at least two key stats.", index, slide))
 
-        if slide.layout == SlideLayout.CHART and slide.chart_data:
-            if len(slide.chart_data.categories) != len(slide.chart_data.values):
-                issues.append(self._issue("chart_mismatch", "Chart categories and values length do not match.", index, slide))
-        elif slide.layout == SlideLayout.CHART:
+        if slide.layout == SlideLayout.CHART and not slide.chart_data:
             issues.append(self._issue("missing_chart", "Chart slide has no chart data.", index, slide))
 
         if slide.layout == SlideLayout.IMAGE and not slide.image_path:

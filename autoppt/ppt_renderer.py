@@ -64,29 +64,37 @@ class PPTRenderer:
                 notes=slide_spec.speaker_notes or "",
             )
             return
-        if slide_spec.layout == SlideLayout.QUOTE and slide_spec.quote_text and slide_spec.quote_author:
-            self.add_quote_slide(
-                slide_spec.quote_text,
-                slide_spec.quote_author,
-                context=slide_spec.quote_context or "",
-                notes=slide_spec.speaker_notes or "",
-            )
-            return
-        if slide_spec.layout == SlideLayout.STATISTICS and slide_spec.statistics:
-            stats_dicts = [{"value": stat.value, "label": stat.label} for stat in slide_spec.statistics]
-            self.add_statistics_slide(slide_spec.title, stats_dicts, slide_spec.speaker_notes or "")
-            return
-        if slide_spec.layout == SlideLayout.IMAGE and slide_spec.image_path:
-            self.add_fullscreen_image_slide(
-                slide_spec.image_path,
-                caption=slide_spec.image_caption or "",
-                overlay_title=slide_spec.title,
-            )
-            return
-        if slide_spec.layout == SlideLayout.CHART and slide_spec.chart_data:
-            self.add_chart_slide(slide_spec.title, slide_spec.chart_data, slide_spec.speaker_notes or "")
-            return
-        if slide_spec.layout == SlideLayout.CITATIONS:
+        if slide_spec.layout == SlideLayout.QUOTE:
+            if slide_spec.quote_text and slide_spec.quote_author:
+                self.add_quote_slide(
+                    slide_spec.quote_text,
+                    slide_spec.quote_author,
+                    context=slide_spec.quote_context or "",
+                    notes=slide_spec.speaker_notes or "",
+                )
+                return
+            logger.warning("Quote slide '%s' missing text or author, falling back to content", slide_spec.title)
+        elif slide_spec.layout == SlideLayout.STATISTICS:
+            if slide_spec.statistics:
+                stats_dicts = [{"value": stat.value, "label": stat.label} for stat in slide_spec.statistics]
+                self.add_statistics_slide(slide_spec.title, stats_dicts, slide_spec.speaker_notes or "")
+                return
+            logger.warning("Statistics slide '%s' has no data, falling back to content", slide_spec.title)
+        elif slide_spec.layout == SlideLayout.IMAGE:
+            if slide_spec.image_path:
+                self.add_fullscreen_image_slide(
+                    slide_spec.image_path,
+                    caption=slide_spec.image_caption or "",
+                    overlay_title=slide_spec.title,
+                )
+                return
+            logger.warning("Image slide '%s' has no image, falling back to content", slide_spec.title)
+        elif slide_spec.layout == SlideLayout.CHART:
+            if slide_spec.chart_data:
+                self.add_chart_slide(slide_spec.title, slide_spec.chart_data, slide_spec.speaker_notes or "")
+                return
+            logger.warning("Chart slide '%s' has no data, falling back to content", slide_spec.title)
+        elif slide_spec.layout == SlideLayout.CITATIONS:
             self.add_citations_slide(slide_spec.citations)
             return
 
@@ -98,7 +106,14 @@ class PPTRenderer:
         )
 
     def _add_blank_slide(self):
-        slide = self.prs.slides.add_slide(self.prs.slide_layouts[6])
+        blank_layout = None
+        for layout in self.prs.slide_layouts:
+            if layout.name.lower() == "blank":
+                blank_layout = layout
+                break
+        if blank_layout is None:
+            blank_layout = self.prs.slide_layouts[min(6, len(self.prs.slide_layouts) - 1)]
+        slide = self.prs.slides.add_slide(blank_layout)
         self._apply_background(slide)
         return slide
 
@@ -123,7 +138,7 @@ class PPTRenderer:
                 bg.fill.gradient_stops[1].color.rgb = self._theme("gradient_end")
                 return
             except Exception as exc:
-                logger.debug("Gradient fallback: %s", exc)
+                logger.warning("Gradient fallback: %s", exc)
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = self._theme("bg_color")
 

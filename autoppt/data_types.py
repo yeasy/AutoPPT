@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ChartType(str, Enum):
@@ -19,6 +19,14 @@ class ChartData(BaseModel):
     categories: List[str] = Field(description="Category labels for the X-axis or pie slices")
     values: List[float] = Field(description="Numeric values corresponding to each category")
     series_name: str = Field(default="Series 1", description="Name of the data series")
+
+    @model_validator(mode="after")
+    def _check_lengths(self) -> "ChartData":
+        if len(self.categories) != len(self.values):
+            raise ValueError(
+                f"categories ({len(self.categories)}) and values ({len(self.values)}) must have the same length"
+            )
+        return self
 
 
 class SlideType(str, Enum):

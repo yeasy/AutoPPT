@@ -572,8 +572,9 @@ def build_sample_deck(sample_id: str, asset_dir: str | Path | None = None) -> De
     definition = get_sample_definition(sample_id)
     builder = _SAMPLE_BUILDERS[sample_id]
     if asset_dir is None:
-        asset_dir = Path(tempfile.mkdtemp(prefix=f"autoppt-sample-assets-{sample_id}-"))
-        logger.warning("build_sample_deck created temp asset dir %s; caller must clean up", asset_dir)
+        raise ValueError(
+            "asset_dir is required; pass a tempfile.TemporaryDirectory path to avoid leaks"
+        )
     return builder(definition, Path(asset_dir))
 
 
