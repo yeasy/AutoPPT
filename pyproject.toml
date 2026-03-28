@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autoppt"
-version = "0.5.1"
+version = "0.5.2"
 authors = [
   { name="yeasy", email="yeasy@example.com" },
 ]

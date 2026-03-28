@@ -7,16 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-03-28
+
 ### Added
 - Slide planning layer with `SlidePlan` and `slide_planner.py`.
 - Editable `DeckSpec` workflow with save, load, regenerate, and remix helpers.
 - Web slide workbench for post-generation single-slide operations.
 - Deterministic sample library and README preview generation.
+- Prompt input sanitization strips control characters and truncates user-supplied fields.
+- `ChartData` Pydantic validator ensures categories and values have matching lengths.
 
 ### Changed
 - Richer layout flow now treats comparison, two-column, and quote slides as first-class editable layouts.
 - Rendering now uses theme tokens for spacing, panels, image treatment, and typography.
 - Repository docs are split into separate English and Chinese files where needed.
+- Slide-building exception catch narrowed from `Exception` to `(AutoPPTError, ValueError)`.
+- Gradient application failures now log at WARNING instead of DEBUG.
+- Render slide dispatch uses `elif` for clearer fallback control flow.
+
+### Fixed
+- `_is_local_base_url` now uses URL parsing instead of substring matching to prevent bypasses.
+- Image downloads disable HTTP redirects to prevent redirect-based SSRF.
+- Blank layout selection searches by name instead of hardcoded index, preventing `IndexError` on custom templates.
+- Incomplete QUOTE/STATISTICS/IMAGE/CHART slides log a warning before falling back to content layout.
+- Streaming HTTP response leak in researcher fixed with `try/finally` block.
+- Double-close safety in `Generator.close()` prevents repeated cleanup failures.
+- Anthropic code fence extraction handles language-tagged fences like ` ```python `.
+- `build_sample_deck()` raises `ValueError` for `None` asset directory instead of silently leaking temp dirs.
+- Subprocess `--` separator in thumbnail generation prevents flag injection from filenames.
+
+### Removed
+- Redundant `chart_mismatch` QA check superseded by `ChartData` Pydantic validator.
 
 ## [0.5.1] - 2026-03-27
 
@@ -120,7 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Four visual themes.
 - Six sample presentations.
 
-[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/yeasy/autoppt/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/yeasy/autoppt/compare/v0.5...v0.5.1
 [0.5.0]: https://github.com/yeasy/autoppt/compare/v0.4...v0.5
 [0.4.0]: https://github.com/yeasy/autoppt/compare/v0.3...v0.4
