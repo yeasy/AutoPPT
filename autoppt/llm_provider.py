@@ -2,7 +2,7 @@ import logging
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, get_args, get_origin
 
 from google import genai
 from google.genai import types
@@ -43,11 +43,13 @@ def _is_rate_limit_error(exc: Exception) -> bool:
     return "429" in message or "rate limit" in message or "quota" in message
 
 
-def _run_with_retries(provider_name: str, operation):
+def _run_with_retries(provider_name: str, operation: Callable[[], Any]) -> Any:
+    last_exc: Optional[Exception] = None
     for attempt in range(Config.API_RETRY_ATTEMPTS):
         try:
             return operation()
         except Exception as exc:
+            last_exc = exc
             if _is_rate_limit_error(exc):
                 if attempt < Config.API_RETRY_ATTEMPTS - 1:
                     logger.warning(
@@ -61,6 +63,7 @@ def _run_with_retries(provider_name: str, operation):
                     continue
                 raise RateLimitError(provider_name, Config.API_RETRY_DELAY_SECONDS) from exc
             raise
+    raise RuntimeError(f"No retry attempts configured for {provider_name}") from last_exc
 
 
 class BaseLLMProvider(ABC):
@@ -79,7 +82,7 @@ class OpenAIProvider(BaseLLMProvider):
         env_base = os.getenv("OPENAI_API_BASE")
         base = base_url or env_base
 
-        if base and "v1" not in base and "localhost" in base:
+        if base and "v1" not in base and _is_local_base_url(base):
             base = f"{base.rstrip('/')}/v1"
 
         resolved_api_key = api_key or Config.OPENAI_API_KEY
@@ -104,7 +107,10 @@ class OpenAIProvider(BaseLLMProvider):
                 temperature=0.7,
             ),
         )
-        return response.choices[0].message.content
+        result: Optional[str] = response.choices[0].message.content
+        if result is None:
+            raise ValueError("OpenAI returned a message with no content")
+        return result
 
     def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
         completion = _run_with_retries(
@@ -118,7 +124,10 @@ class OpenAIProvider(BaseLLMProvider):
                 response_format=schema,
             ),
         )
-        return completion.choices[0].message.parsed
+        parsed: Optional[T] = completion.choices[0].message.parsed
+        if parsed is None:
+            raise ValueError("OpenAI structured output parsing returned None")
+        return parsed
 
 
 class GoogleProvider(BaseLLMProvider):
@@ -142,7 +151,10 @@ class GoogleProvider(BaseLLMProvider):
                 contents=prompt,
             ),
         )
-        return response.text
+        text: Optional[str] = response.text
+        if text is None:
+            raise ValueError("Google returned a response with no text content")
+        return text
 
     def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
         response = _run_with_retries(
@@ -158,7 +170,10 @@ class GoogleProvider(BaseLLMProvider):
                 contents=prompt,
             ),
         )
-        return response.parsed
+        parsed: Optional[T] = response.parsed
+        if parsed is None:
+            raise ValueError("Google structured output parsing returned None")
+        return parsed
 
 
 class AnthropicProvider(BaseLLMProvider):
@@ -187,7 +202,10 @@ class AnthropicProvider(BaseLLMProvider):
                 messages=[{"role": "user", "content": prompt}],
             ),
         )
-        return message.content[0].text
+        if not message.content:
+            raise ValueError("Anthropic returned an empty response")
+        text: str = message.content[0].text
+        return text
 
     def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
         import json
@@ -210,14 +228,21 @@ Respond ONLY with the JSON object, no additional text.
                 messages=[{"role": "user", "content": enhanced_prompt}],
             ),
         )
+        if not message.content:
+            raise ValueError("Anthropic returned an empty response")
         response_text = message.content[0].text
-        logger.debug("Raw Anthropic response: %s", response_text)
+        logger.debug("Raw Anthropic response length: %d chars", len(response_text))
         if "```json" in response_text:
             response_text = response_text.split("```json", 1)[1].split("```", 1)[0].strip()
         elif "```" in response_text:
             response_text = response_text.split("```", 1)[1].split("```", 1)[0].strip()
 
-        data = json.loads(response_text)
+        try:
+            data = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Anthropic returned invalid JSON: {response_text[:200]}"
+            ) from e
         return schema.model_validate(data)
 
 
@@ -251,9 +276,47 @@ class MockProvider(BaseLLMProvider):
         quote_author_hint = self._extract_hint(prompt_lower, "quote author hint")
         quote_context_hint = self._extract_hint(prompt_lower, "quote context hint")
 
-        dummy_data = {}
+        def _is_str_type(annotation: Any) -> bool:
+            """Check if annotation is str or Optional[str]."""
+            if annotation is str:
+                return True
+            origin = get_origin(annotation)
+            if origin is type(None):
+                return False
+            args = get_args(annotation)
+            # Handle Optional[str] (Union[str, None])
+            if args and str in args and type(None) in args and len(args) == 2:
+                return True
+            return False
+
+        def _is_list_str_type(annotation: Any) -> bool:
+            """Check if annotation is List[str], list[str], or Optional variants."""
+            origin = get_origin(annotation)
+            args = get_args(annotation)
+            if origin is list and args == (str,):
+                return True
+            # Handle Optional[List[str]]
+            if args and type(None) in args:
+                for arg in args:
+                    if arg is type(None):
+                        continue
+                    inner_origin = get_origin(arg)
+                    inner_args = get_args(arg)
+                    if inner_origin is list and inner_args == (str,):
+                        return True
+            return False
+
+        def _is_list_section_type(annotation: Any) -> bool:
+            """Check if annotation is List[PresentationSection] or similar."""
+            origin = get_origin(annotation)
+            args = get_args(annotation)
+            if origin is list and args and args[0] is PresentationSection:
+                return True
+            return False
+
+        dummy_data: Dict[str, Any] = {}
         for field_name, field in schema.model_fields.items():
-            if field.annotation == str:
+            if _is_str_type(field.annotation):
                 if "title" in field_name.lower():
                     dummy_data[field_name] = f"Overview of {topic}"
                 elif "image_query" in field_name.lower():
@@ -270,7 +333,7 @@ class MockProvider(BaseLLMProvider):
                     dummy_data[field_name] = right_title_hint.title() if right_title_hint else "Future State"
                 else:
                     dummy_data[field_name] = f"Comprehensive analysis and professional insight into {topic}."
-            elif field.annotation == List[str]:
+            elif _is_list_str_type(field.annotation):
                 if field_name == "left_bullets":
                     dummy_data[field_name] = [
                         f"Current operating model for {topic}",
@@ -322,7 +385,7 @@ class MockProvider(BaseLLMProvider):
                     values=[10.5, 15.2, 22.8, 35.0],
                     series_name="Revenue ($M)",
                 )
-            elif field.annotation == List[PresentationSection]:
+            elif _is_list_section_type(field.annotation):
                 dummy_data[field_name] = [
                     PresentationSection(title=f"Fundamentals of {topic}", slides=[f"Introduction to {topic}", f"Core Concepts of {topic}"]),
                     PresentationSection(title=f"Advanced Applications: {topic}", slides=[f"Case Study: {topic}", "Economic Impact"]),

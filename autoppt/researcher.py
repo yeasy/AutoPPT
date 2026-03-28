@@ -1,10 +1,15 @@
+import ipaddress
 import logging
 import os
+import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TypeVar
+from urllib.parse import urlparse
 
-import requests
+_V = TypeVar("_V")
+
+import requests  # type: ignore[import-untyped]
 from ddgs import DDGS
 
 from .config import Config
@@ -24,7 +29,7 @@ class Researcher:
         self._article_cache: Dict[Tuple[str, int], Optional[str]] = {}
         self._context_cache: Dict[Tuple[Tuple[str, ...], bool, bool, str, bool], str] = {}
 
-    def _remember(self, cache: Dict, key, value):
+    def _remember(self, cache: Dict, key: object, value: _V) -> _V:
         if len(cache) >= Config.RESEARCH_CACHE_SIZE:
             oldest_key = next(iter(cache))
             cache.pop(oldest_key, None)
@@ -49,6 +54,22 @@ class Researcher:
             "russian": "ru",
         }
         return mapping.get(normalized, "en")
+
+    @staticmethod
+    def _is_safe_url(url: str) -> bool:
+        """Reject URLs that target private/reserved IP ranges (SSRF protection)."""
+        try:
+            parsed = urlparse(url)
+            if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
+                return False
+            for info in socket.getaddrinfo(parsed.hostname, None):
+                addr = ipaddress.ip_address(info[4][0])
+                if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+                    return False
+        except (socket.gaierror, ValueError, OSError) as exc:
+            logger.debug("URL safety check failed for %s: %s", url, exc)
+            return False
+        return True
 
     def _is_offline(self, offline: Optional[bool] = None) -> bool:
         if offline is not None:
@@ -92,7 +113,6 @@ class Researcher:
             if not search_results:
                 logger.warning("No Wikipedia results for '%s'", query)
                 return self._remember(self._wiki_cache, cache_key, None)
-
             page_title = search_results[0]
             page = wikipedia.page(page_title, auto_suggest=False)
             summary = wikipedia.summary(page_title, sentences=sentences)
@@ -137,6 +157,10 @@ class Researcher:
             logger.info("Offline mode enabled, skipping image download from: %s", url)
             return False
 
+        if not self._is_safe_url(url):
+            logger.warning("Blocked image download from non-public URL: %s", url)
+            return False
+
         for attempt in range(retries):
             try:
                 response = requests.get(
@@ -152,14 +176,20 @@ class Researcher:
                 content_type = response.headers.get("Content-Type", "").lower()
                 if content_type and not content_type.startswith("image/"):
                     logger.warning("Skipping non-image response from %s (%s)", url, content_type)
+                    response.close()
                     return False
 
                 content_length = response.headers.get("Content-Length")
-                if content_length and int(content_length) > Config.IMAGE_DOWNLOAD_MAX_BYTES:
-                    logger.warning("Skipping oversized image from %s", url)
-                    return False
+                try:
+                    if content_length and int(content_length) > Config.IMAGE_DOWNLOAD_MAX_BYTES:
+                        logger.warning("Skipping oversized image from %s", url)
+                        response.close()
+                        return False
+                except (ValueError, TypeError):
+                    pass
 
                 total_bytes = 0
+                oversized = False
                 with open(save_path, "wb") as file_handle:
                     for chunk in response.iter_content(chunk_size=8192):
                         if not chunk:
@@ -167,13 +197,15 @@ class Researcher:
                         total_bytes += len(chunk)
                         if total_bytes > Config.IMAGE_DOWNLOAD_MAX_BYTES:
                             logger.warning("Skipping image larger than %s bytes from %s", Config.IMAGE_DOWNLOAD_MAX_BYTES, url)
-                            file_handle.close()
-                            try:
-                                os.remove(save_path)
-                            except OSError:
-                                pass
-                            return False
+                            oversized = True
+                            break
                         file_handle.write(chunk)
+                if oversized:
+                    try:
+                        os.remove(save_path)
+                    except OSError:
+                        pass
+                    return False
 
                 logger.debug("Downloaded image to %s", save_path)
                 return True
@@ -199,7 +231,6 @@ class Researcher:
         if offline_enabled:
             logger.info("Offline mode enabled, skipping web research for %s query terms", len(queries))
             return self._remember(self._context_cache, cache_key, "")
-
         aggregated_chunks: List[str] = []
         seen_urls = set()
 
@@ -247,15 +278,17 @@ class Researcher:
         logger.info("Gathered context from %s unique sources (%s chars)", len(seen_urls), len(aggregated_context))
         return self._remember(self._context_cache, cache_key, aggregated_context)
 
-    def fetch_article_content(self, url: str, max_chars: int = 5000) -> Optional[str]:
+    def fetch_article_content(self, url: str, max_chars: int = 5000, offline: Optional[bool] = None) -> Optional[str]:
         cache_key = (url, max_chars)
         if cache_key in self._article_cache:
             return self._article_cache[cache_key]
 
-        if Config.is_offline_mode():
+        if self._is_offline(offline):
             logger.info("Offline mode enabled, skipping article fetch for: %s", url)
             return self._remember(self._article_cache, cache_key, None)
-
+        if not self._is_safe_url(url):
+            logger.warning("Blocked article fetch from non-public URL: %s", url)
+            return self._remember(self._article_cache, cache_key, None)
         try:
             import trafilatura
 
@@ -263,7 +296,6 @@ class Researcher:
             if not downloaded:
                 logger.debug("Could not download: %s", url)
                 return self._remember(self._article_cache, cache_key, None)
-
             text = trafilatura.extract(
                 downloaded,
                 include_comments=False,
@@ -275,11 +307,10 @@ class Researcher:
             if text and len(text) > 100:
                 logger.debug("Extracted %s chars from %s", len(text), url)
                 return self._remember(self._article_cache, cache_key, text[:max_chars])
-
             return self._remember(self._article_cache, cache_key, None)
         except ImportError:
             logger.warning("trafilatura not installed. Install with: pip install trafilatura")
-            return None
+            return self._remember(self._article_cache, cache_key, None)
         except Exception as exc:
             logger.debug("Article extraction failed for %s: %s", url, exc)
-            return None
+            return self._remember(self._article_cache, cache_key, None)
