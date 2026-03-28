@@ -52,6 +52,7 @@ def convert_to_pdf(pptx_path: Path, output_dir: Path) -> Optional[Path]:
         "pdf",
         "--outdir",
         str(output_dir),
+        "--",
         str(pptx_path),
     ]
 
@@ -78,6 +79,7 @@ def convert_pdf_to_images(pdf_path: Path, output_dir: Path) -> List[Path]:
         "-jpeg",
         "-r",
         str(CONVERSION_DPI),
+        "--",
         str(pdf_path),
         str(output_dir / "slide"),
     ]

@@ -35,7 +35,13 @@ def get_provider_models(provider_name: str) -> List[str]:
 def _is_local_base_url(base_url: Optional[str]) -> bool:
     if not base_url:
         return False
-    return any(host in base_url for host in ("localhost", "127.0.0.1"))
+    try:
+        from urllib.parse import urlparse
+
+        hostname = urlparse(base_url).hostname
+        return hostname in ("localhost", "127.0.0.1", "::1")
+    except Exception:
+        return False
 
 
 def _is_rate_limit_error(exc: Exception) -> bool:
@@ -235,7 +241,11 @@ Respond ONLY with the JSON object, no additional text.
         if "```json" in response_text:
             response_text = response_text.split("```json", 1)[1].split("```", 1)[0].strip()
         elif "```" in response_text:
-            response_text = response_text.split("```", 1)[1].split("```", 1)[0].strip()
+            block = response_text.split("```", 1)[1].split("```", 1)[0]
+            lines = block.split("\n", 1)
+            if len(lines) > 1 and not lines[0].strip().startswith(("{", "[")):
+                block = lines[1]
+            response_text = block.strip()
 
         try:
             data = json.loads(response_text)

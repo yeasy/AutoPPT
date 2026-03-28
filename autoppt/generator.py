@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import tempfile
 from typing import Optional
 
@@ -8,6 +9,7 @@ from tqdm import tqdm
 from .config import Config
 from .data_types import DeckSpec, PresentationOutline, SlideConfig, SlideLayout, SlidePlan, SlideType
 from .deck_qa import DeckQA, DeckQualityReport
+from .exceptions import AutoPPTError
 from .layout_selector import LayoutSelector
 from .llm_provider import get_provider
 from .ppt_renderer import PPTRenderer
@@ -16,6 +18,15 @@ from .slide_planner import SlidePlanner
 from .thumbnail import generate_thumbnails
 
 logger = logging.getLogger(__name__)
+
+_MAX_PROMPT_FIELD_LEN = 500
+_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def _sanitize_prompt_field(value: str) -> str:
+    """Truncate and strip control characters from user-supplied prompt fields."""
+    cleaned = _CONTROL_CHAR_RE.sub("", value)
+    return cleaned[:_MAX_PROMPT_FIELD_LEN]
 
 
 class Generator:
@@ -37,10 +48,11 @@ class Generator:
 
     def close(self) -> None:
         """Clean up temporary assets directory."""
-        if self._assets_tmpdir is not None:
-            self._assets_tmpdir.cleanup()
-            self._assets_tmpdir = None
+        tmpdir = self._assets_tmpdir
+        self._assets_tmpdir = None
         self.assets_dir = ""
+        if tmpdir is not None:
+            tmpdir.cleanup()
 
     def __enter__(self) -> "Generator":
         return self
@@ -76,12 +88,14 @@ class Generator:
         )
 
     def _create_outline(self, topic: str, slides_count: int, language: str) -> PresentationOutline:
+        safe_topic = _sanitize_prompt_field(topic)
+        safe_language = _sanitize_prompt_field(language)
         prompt = f"""
-        Create a professional hierarchical outline for a {slides_count}-slide presentation on: '{topic}'.
+        Create a professional hierarchical outline for a {slides_count}-slide presentation on: '{safe_topic}'.
         Divide the presentation into 3-5 logical sections.
         Each section should contain a list of relevant slide topics.
         Ensure the structure flows logically from introduction to conclusion.
-        Language: {language}.
+        Language: {safe_language}.
         """
         return self.llm.generate_structure(prompt, PresentationOutline)
 
@@ -208,7 +222,7 @@ class Generator:
                                 plan=plan,
                             )
                         )
-                    except Exception as exc:
+                    except (AutoPPTError, ValueError) as exc:
                         logger.error("Error generating slide '%s': %s", slide_title, exc)
                         deck_spec.slides.append(self.layout_selector.error_slide(slide_title, str(exc)))
                     pbar.update(1)
@@ -449,6 +463,8 @@ class Generator:
         topic: str,
         plan: SlidePlan,
     ) -> SlideConfig:
+        safe_style = _sanitize_prompt_field(style)
+        safe_language = _sanitize_prompt_field(language)
         system_prompt = f"""You are a world-class presentation architect and research analyst.
 
 Standards:
@@ -456,27 +472,39 @@ Standards:
 - Favor precision, named entities, dates, and specific metrics
 - Prefer the planned layout unless the research clearly supports a stronger one
 
-Style: {style}
-Output Language: {language}
+Style: {safe_style}
+Output Language: {safe_language}
 """
+
+        safe_title = _sanitize_prompt_field(slide_title)
+        safe_topic = _sanitize_prompt_field(topic)
+        safe_section = _sanitize_prompt_field(plan.section_title)
+        safe_objective = _sanitize_prompt_field(plan.objective or f"Explain why {slide_title} matters")
+        safe_visual = _sanitize_prompt_field(plan.visual_intent or "Use the clearest layout")
+        safe_rationale = _sanitize_prompt_field(plan.rationale or "Best fit for the title")
+        safe_remix = _sanitize_prompt_field(plan.remix_instruction or "None")
+        safe_left = _sanitize_prompt_field(plan.left_title or "Column A")
+        safe_right = _sanitize_prompt_field(plan.right_title or "Column B")
+        safe_author = _sanitize_prompt_field(plan.quote_author or "Named source")
+        safe_context = _sanitize_prompt_field(plan.quote_context or plan.section_title or topic)
 
         prompt = f"""
 === TASK ===
-Create expert-level slide content for '{slide_title}'.
-Presentation topic: '{topic}'
-Section: '{plan.section_title}'
+Create expert-level slide content for '{safe_title}'.
+Presentation topic: '{safe_topic}'
+Section: '{safe_section}'
 
 === SLIDE PLAN ===
 Preferred slide type: '{plan.slide_type.value}'
-Objective: '{plan.objective or f"Explain why {slide_title} matters"}'
+Objective: '{safe_objective}'
 Evidence focus: {", ".join(plan.evidence_focus) if plan.evidence_focus else "Use the strongest evidence available"}
-Visual intent: '{plan.visual_intent or "Use the clearest layout"}'
-Reason for layout: '{plan.rationale or "Best fit for the title"}'
-Remix instruction: '{plan.remix_instruction or "None"}'
-Left title hint: '{plan.left_title or "Column A"}'
-Right title hint: '{plan.right_title or "Column B"}'
-Quote author hint: '{plan.quote_author or "Named source"}'
-Quote context hint: '{plan.quote_context or plan.section_title or topic}'
+Visual intent: '{safe_visual}'
+Reason for layout: '{safe_rationale}'
+Remix instruction: '{safe_remix}'
+Left title hint: '{safe_left}'
+Right title hint: '{safe_right}'
+Quote author hint: '{safe_author}'
+Quote context hint: '{safe_context}'
 
 === RESEARCH CONTEXT ===
 {context[:12000]}{"[...truncated]" if len(context) > 12000 else ""}
