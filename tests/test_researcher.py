@@ -1,6 +1,8 @@
 """
 Unit tests for Researcher module.
 """
+import socket
+
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -174,6 +176,34 @@ class TestCaching:
 
         assert context_a == context_b
         mock_search.assert_called_once()
+
+
+class TestSSRFProtection:
+    """Tests for _is_safe_url SSRF protection."""
+
+    def test_rejects_private_ip(self):
+        assert Researcher._is_safe_url("http://127.0.0.1/img.jpg") is False
+
+    def test_rejects_private_network(self):
+        assert Researcher._is_safe_url("http://192.168.1.1/img.jpg") is False
+
+    def test_rejects_link_local(self):
+        assert Researcher._is_safe_url("http://169.254.1.1/img.jpg") is False
+
+    def test_rejects_non_http_scheme(self):
+        assert Researcher._is_safe_url("file:///etc/passwd") is False
+        assert Researcher._is_safe_url("ftp://example.com/file") is False
+
+    def test_rejects_empty_hostname(self):
+        assert Researcher._is_safe_url("http://") is False
+
+    @patch("socket.getaddrinfo", side_effect=socket.gaierror("DNS failure"))
+    def test_rejects_dns_failure(self, mock_dns):
+        assert Researcher._is_safe_url("http://nonexistent.invalid/img.jpg") is False
+
+    @patch("socket.getaddrinfo", return_value=[(2, 1, 6, '', ('93.184.216.34', 0))])
+    def test_allows_public_url(self, mock_dns):
+        assert Researcher._is_safe_url("https://example.com/image.jpg") is True
 
 
 class TestOfflineMode:

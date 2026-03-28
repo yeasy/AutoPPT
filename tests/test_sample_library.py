@@ -1,3 +1,5 @@
+import tempfile
+
 from pptx import Presentation
 from PIL import Image
 
@@ -14,11 +16,12 @@ def test_sample_library_builds_all_defined_decks():
 
     assert len(definitions) >= 11
     for definition in definitions:
-        deck = build_sample_deck(definition.sample_id)
-        assert deck.title
-        assert deck.style == definition.style
-        assert deck.language == definition.language
-        assert len(deck.slides) >= 6
+        with tempfile.TemporaryDirectory(prefix="test-sample-") as asset_dir:
+            deck = build_sample_deck(definition.sample_id, asset_dir=asset_dir)
+            assert deck.title
+            assert deck.style == definition.style
+            assert deck.language == definition.language
+            assert len(deck.slides) >= 6
 
 
 def test_sample_library_renders_sample_pptx(tmp_path):

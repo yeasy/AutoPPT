@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 from pptx import Presentation
 
-from autoppt.data_types import DeckSpec, PresentationOutline, PresentationSection, SlideConfig, SlidePlan, SlideType
+from autoppt.data_types import DeckSpec, PresentationOutline, PresentationSection, SlideConfig, SlideLayout, SlidePlan, SlideSpec, SlideType
 from autoppt.generator import Generator
 from autoppt.llm_provider import MockProvider
 
@@ -366,6 +366,44 @@ def test_regenerate_slide_preserves_editable_metadata():
     assert regenerated_slide.citations == ["https://example.com/regenerated"]
 
 
+def test_generator_double_close_is_safe():
+    gen = Generator(provider_name="mock")
+    gen.close()
+    gen.close()  # second close must not raise
+    assert gen.assets_dir == ""
+    assert gen._assets_tmpdir is None
+
+
+def test_generator_context_manager_double_close_is_safe():
+    with Generator(provider_name="mock") as gen:
+        gen.close()
+    # __exit__ calls close() again - must not raise
+    assert gen.assets_dir == ""
+
+
+def test_update_slide_out_of_range_raises():
+    gen = Generator(provider_name="mock")
+    deck_spec = DeckSpec(title="D", topic="T", slides=[])
+    with pytest.raises(IndexError, match="out of range"):
+        gen.regenerate_slide(deck_spec, 0)
+
+
+def test_update_slide_non_editable_raises():
+    gen = Generator(provider_name="mock")
+    deck_spec = DeckSpec(
+        title="D", topic="T",
+        slides=[SlideSpec(layout=SlideLayout.TITLE, title="Title", editable=False)],
+    )
+    with pytest.raises(ValueError, match="content slides"):
+        gen.regenerate_slide(deck_spec, 0)
+
+
+def test_coerce_slide_type_rejects_structural_layouts():
+    gen = Generator(provider_name="mock")
+    with pytest.raises(ValueError, match="cannot be used"):
+        gen._coerce_slide_type(SlideLayout.TITLE)
+
+
 def test_save_and_load_deck_spec_round_trip(tmp_path):
     gen = Generator(provider_name="mock")
     deck_spec = DeckSpec(title="Round Trip", topic="AI", style="corporate", language="English", slides=[])
@@ -377,3 +415,33 @@ def test_save_and_load_deck_spec_round_trip(tmp_path):
     assert output_path.exists()
     assert loaded.title == "Round Trip"
     assert loaded.style == "corporate"
+
+
+def test_sanitize_prompt_field_truncates_long_input():
+    from autoppt.generator import _sanitize_prompt_field, _MAX_PROMPT_FIELD_LEN
+
+    long_input = "A" * 1000
+    result = _sanitize_prompt_field(long_input)
+    assert len(result) == _MAX_PROMPT_FIELD_LEN
+
+
+def test_sanitize_prompt_field_strips_null_bytes():
+    from autoppt.generator import _sanitize_prompt_field
+
+    result = _sanitize_prompt_field("hello\x00world")
+    assert "\x00" not in result
+    assert result == "helloworld"
+
+
+def test_sanitize_prompt_field_strips_control_characters():
+    from autoppt.generator import _sanitize_prompt_field
+
+    result = _sanitize_prompt_field("hello\x01\x08\x0b\x7fworld")
+    assert result == "helloworld"
+
+
+def test_sanitize_prompt_field_preserves_newlines_and_tabs():
+    from autoppt.generator import _sanitize_prompt_field
+
+    result = _sanitize_prompt_field("hello\n\tworld")
+    assert result == "hello\n\tworld"

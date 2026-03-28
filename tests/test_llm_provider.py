@@ -92,6 +92,133 @@ class TestGetProvider:
         assert "unknown_provider" in str(exc_info.value)
 
 
+class TestRetryLogic:
+    """Tests for _run_with_retries."""
+
+    def test_retries_on_rate_limit(self):
+        from autoppt.llm_provider import _run_with_retries, _is_rate_limit_error
+        from autoppt.exceptions import RateLimitError
+        from unittest.mock import patch
+
+        call_count = 0
+
+        def flaky_op():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise Exception("429 rate limit exceeded")
+            return "success"
+
+        with patch("autoppt.llm_provider.Config") as mock_config:
+            mock_config.API_RETRY_ATTEMPTS = 3
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+            result = _run_with_retries("test", flaky_op)
+
+        assert result == "success"
+        assert call_count == 2
+
+    def test_raises_non_rate_limit_error_immediately(self):
+        from autoppt.llm_provider import _run_with_retries
+        from unittest.mock import patch
+
+        def bad_op():
+            raise TypeError("something wrong")
+
+        with patch("autoppt.llm_provider.Config") as mock_config:
+            mock_config.API_RETRY_ATTEMPTS = 3
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+            with pytest.raises(TypeError, match="something wrong"):
+                _run_with_retries("test", bad_op)
+
+    def test_rate_limit_detection(self):
+        from autoppt.llm_provider import _is_rate_limit_error
+        assert _is_rate_limit_error(Exception("Error 429: rate limit")) is True
+        assert _is_rate_limit_error(Exception("quota exceeded")) is True
+        assert _is_rate_limit_error(Exception("something else")) is False
+
+
+class TestCodeFenceStripping:
+    """Tests for Anthropic code fence extraction via the real provider path."""
+
+    def test_strips_json_fence(self):
+        """Ensure ```json fenced responses are parsed correctly."""
+        from unittest.mock import MagicMock, patch
+        from autoppt.data_types import SlideConfig
+
+        fake_content = MagicMock()
+        fake_content.text = '```json\n{"title":"Test","bullets":["A"],"slide_type":"content","citations":[]}\n```'
+        fake_message = MagicMock()
+        fake_message.content = [fake_content]
+
+        with patch("autoppt.llm_provider.Config") as mock_config, \
+             patch("anthropic.Anthropic") as mock_anthropic_cls:
+            mock_config.ANTHROPIC_API_KEY = "test-key"
+            mock_config.DEFAULT_ANTHROPIC_MODEL = "claude-test"
+            mock_config.API_RETRY_ATTEMPTS = 1
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+            client = mock_anthropic_cls.return_value
+            client.messages.create.return_value = fake_message
+
+            from autoppt.llm_provider import AnthropicProvider
+            provider = AnthropicProvider.__new__(AnthropicProvider)
+            provider.client = client
+            provider.model = "claude-test"
+
+            result = provider.generate_structure("test", SlideConfig)
+            assert result.title == "Test"
+
+    def test_strips_generic_fence_with_language_tag(self):
+        """Ensure ```python fenced responses strip the language tag."""
+        from unittest.mock import MagicMock, patch
+        from autoppt.data_types import SlideConfig
+
+        fake_content = MagicMock()
+        fake_content.text = '```python\n{"title":"Test","bullets":["B"],"slide_type":"content","citations":[]}\n```'
+        fake_message = MagicMock()
+        fake_message.content = [fake_content]
+
+        with patch("autoppt.llm_provider.Config") as mock_config, \
+             patch("anthropic.Anthropic") as mock_anthropic_cls:
+            mock_config.ANTHROPIC_API_KEY = "test-key"
+            mock_config.DEFAULT_ANTHROPIC_MODEL = "claude-test"
+            mock_config.API_RETRY_ATTEMPTS = 1
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+            client = mock_anthropic_cls.return_value
+            client.messages.create.return_value = fake_message
+
+            from autoppt.llm_provider import AnthropicProvider
+            provider = AnthropicProvider.__new__(AnthropicProvider)
+            provider.client = client
+            provider.model = "claude-test"
+
+            result = provider.generate_structure("test", SlideConfig)
+            assert result.title == "Test"
+
+
+class TestIsLocalBaseUrl:
+    """Tests for _is_local_base_url hostname parsing."""
+
+    def test_localhost_is_local(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("http://localhost:8080/v1") is True
+
+    def test_loopback_is_local(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("http://127.0.0.1:11434") is True
+
+    def test_evil_subdomain_not_local(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("https://not-127.0.0.1.evil.com") is False
+
+    def test_evil_path_not_local(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("https://evil.com/localhost/proxy") is False
+
+    def test_none_is_not_local(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url(None) is False
+
+
 class TestProviderInterface:
     """Tests for BaseLLMProvider interface compliance."""
     
