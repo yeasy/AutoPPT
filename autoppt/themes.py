@@ -1,6 +1,9 @@
+import logging
 from typing import Any, Dict
 
 from pptx.dml.color import RGBColor
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_THEME: Dict[str, Any] = {
@@ -301,7 +304,11 @@ THEME_DEFINITIONS: Dict[str, Dict[str, Any]] = {
 def get_theme(name: str) -> Dict[str, Any]:
     theme_name = (name or "minimalist").lower()
     theme = dict(DEFAULT_THEME)
-    theme.update(dict(THEME_DEFINITIONS.get(theme_name, THEME_DEFINITIONS["minimalist"])))
+    overrides = THEME_DEFINITIONS.get(theme_name)
+    if overrides is None:
+        logger.warning("Unknown theme '%s', falling back to minimalist", theme_name)
+        overrides = THEME_DEFINITIONS.get("minimalist", {})
+    theme.update(dict(overrides))
     return theme
 
 

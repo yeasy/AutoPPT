@@ -195,7 +195,7 @@ class LayoutSelector:
         return SlideSpec(
             layout=SlideLayout.CONTENT,
             title=slide_title,
-            bullets=[f"Content generation failed: {error_message[:50]}"],
+            bullets=[f"Content generation failed: {error_message[:50]}{'...' if len(error_message) > 50 else ''}"],
             speaker_notes="Please regenerate this slide.",
         )
 

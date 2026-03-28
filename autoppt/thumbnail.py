@@ -43,8 +43,8 @@ def check_dependencies() -> Tuple[bool, List[str]]:
 
 def convert_to_pdf(pptx_path: Path, output_dir: Path) -> Optional[Path]:
     """Convert PPTX to PDF using LibreOffice."""
-    logger.info(f"Converting {pptx_path} to PDF...")
-    
+    logger.info("Converting %s to PDF...", pptx_path)
+
     cmd = [
         "soffice",
         "--headless",
@@ -54,22 +54,25 @@ def convert_to_pdf(pptx_path: Path, output_dir: Path) -> Optional[Path]:
         str(output_dir),
         str(pptx_path),
     ]
-    
+
     try:
-        subprocess.run(cmd, check=True, capture_output=True)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
         pdf_path = output_dir / f"{pptx_path.stem}.pdf"
         if pdf_path.exists():
             return pdf_path
         return None
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to convert PPTX to PDF: {e}")
+        logger.error("Failed to convert PPTX to PDF: %s", e)
+        return None
+    except subprocess.TimeoutExpired:
+        logger.error("LibreOffice conversion timed out for %s", pptx_path)
         return None
 
 
 def convert_pdf_to_images(pdf_path: Path, output_dir: Path) -> List[Path]:
     """Convert PDF pages to images using pdftoppm."""
-    logger.info(f"Converting PDF to images...")
-    
+    logger.info("Converting PDF to images...")
+
     cmd = [
         "pdftoppm",
         "-jpeg",
@@ -78,15 +81,18 @@ def convert_pdf_to_images(pdf_path: Path, output_dir: Path) -> List[Path]:
         str(pdf_path),
         str(output_dir / "slide"),
     ]
-    
+
     try:
-        subprocess.run(cmd, check=True, capture_output=True)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
         # pdftoppm generates files like slide-1.jpg, slide-01.jpg, etc.
         # sort them by number
         images = sorted(list(output_dir.glob("slide-*.jpg")), key=lambda p: int(p.stem.split("-")[-1]))
         return images
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to convert PDF to images: {e}")
+        logger.error("Failed to convert PDF to images: %s", e)
+        return []
+    except subprocess.TimeoutExpired:
+        logger.error("PDF to image conversion timed out for %s", pdf_path)
         return []
 
 
@@ -95,7 +101,7 @@ def create_grid_image(
     cols: int,
     thumb_width: int,
     start_index: int
-) -> Image.Image:
+) -> Image.Image | None:
     """Create a single grid image from a list of slide images."""
     if not images:
         return None
@@ -131,7 +137,7 @@ def create_grid_image(
             # Try generic Linux/Mac location
             font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", font_size)
         except IOError:
-            font = ImageFont.load_default()
+            font = ImageFont.load_default()  # type: ignore[assignment]
     
     # Place images
     for idx, img_path in enumerate(images):
@@ -189,7 +195,7 @@ def generate_thumbnails(
     # Check dependencies
     is_ok, missing = check_dependencies()
     if not is_ok:
-        logger.warning(f"Missing dependencies for thumbnail generation: {', '.join(missing)}")
+        logger.warning("Missing dependencies for thumbnail generation: %s", ", ".join(missing))
         logger.warning("Please install LibreOffice and poppler-utils.")
         return []
 
@@ -240,13 +246,15 @@ def generate_thumbnails(
                     filename = f"{prefix_name}.jpg"
                     
                 output_path = output_dir / filename
+                if grid_img is None:
+                    continue
                 grid_img.save(output_path, quality=JPEG_QUALITY)
                 generated_files.append(str(output_path))
                 
-                logger.info(f"Created thumbnail grid: {output_path}")
-                
+                logger.info("Created thumbnail grid: %s", output_path)
+
     except Exception as e:
-        logger.error(f"Error generating thumbnails: {e}", exc_info=True)
+        logger.error("Error generating thumbnails: %s", e, exc_info=True)
         return []
         
     return generated_files

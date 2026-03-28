@@ -2,7 +2,6 @@
 Template handler for working with existing PowerPoint presentations.
 """
 import logging
-import json
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 
@@ -29,15 +28,13 @@ class TemplateHandler:
         self.prs = Presentation(str(self.template_path))
         self.layouts = self._analyze_layouts()
         
-    def _analyze_layouts(self) -> Dict[str, Any]:
+    def _analyze_layouts(self) -> Dict[int, Dict[str, Any]]:
         """Analyze available slide layouts."""
-        layouts = {}
-        
-        # Analyze slide masters
+        layouts: Dict[int, Dict[str, Any]] = {}
+        flat_index = 0
+
         for i, slide_master in enumerate(self.prs.slide_masters):
-            # Analyze layouts within master
             for j, layout in enumerate(slide_master.slide_layouts):
-                # Try to determine layout type based on placeholders
                 layout_info = {
                     "index": j,
                     "master_index": i,
@@ -51,9 +48,8 @@ class TemplateHandler:
                         for ph in layout.placeholders
                     ]
                 }
-                
-                # key by index but also keep map logic
-                layouts[j] = layout_info
+                layouts[flat_index] = layout_info
+                flat_index += 1
                 
         return layouts
     
@@ -66,12 +62,12 @@ class TemplateHandler:
         try:
             md = MarkItDown()
             result = md.convert(str(self.template_path))
-            return result.text_content
+            return str(result.text_content)
         except Exception as e:
-            logger.error(f"Failed to extract text from template: {e}")
+            logger.error("Failed to extract text from template: %s", e)
             return ""
 
-    def get_layout_by_name(self, name_pattern: str) -> Optional[int]:
+    def get_layout_by_name(self, name_pattern: str) -> int | None:
         """Find a layout index by name matching."""
         name_pattern = name_pattern.lower()
         for idx, info in self.layouts.items():
@@ -86,7 +82,7 @@ class TemplateHandler:
         # Common PowerPoint layout names
         mappings = {
             "title": ["title slide", "intro"],
-            "section": ["section header", "segway"],
+            "section": ["section header", "segue"],
             "content": ["title and content", "content"],
             "two_column": ["two content", "comparison"],
             "blank": ["blank"],

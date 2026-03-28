@@ -123,7 +123,7 @@ class SlidePlanner:
             plan.rationale = "Title suggests a product, scene, or visual showcase."
             return plan
 
-        if current_slide and current_slide.layout.value in {"comparison", "two_column", "quote"}:
+        if current_slide and current_slide.layout is not None and current_slide.layout.value in {"comparison", "two_column", "quote"}:
             plan.slide_type = SlideType(current_slide.layout.value)
             plan.left_title = current_slide.left_title
             plan.right_title = current_slide.right_title
@@ -253,8 +253,7 @@ class SlidePlanner:
         if slide_config.image_query:
             return SlideType.IMAGE
         if slide_config.left_bullets and slide_config.right_bullets:
-            title_lower = slide_config.title.lower()
-            if self._infer_comparison_titles(title_lower):
+            if self._infer_comparison_titles(slide_config.title):
                 return SlideType.COMPARISON
             return SlideType.TWO_COLUMN
         return None

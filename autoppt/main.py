@@ -7,6 +7,8 @@ Generate professional PowerPoint presentations using AI and real-time research.
 import argparse
 import logging
 import os
+import re
+from pathlib import Path
 import sys
 
 from .config import Config
@@ -78,12 +80,16 @@ Examples:
     if args.output:
         output_filename = args.output
     else:
-        output_filename = f"{Config.OUTPUT_DIR}/{args.topic.replace(' ', '_')}.pptx"
+        safe_name = re.sub(r"[^\w\-]", "_", args.topic)[:100]
+        output_filename = os.path.join(Config.OUTPUT_DIR, f"{safe_name}.pptx")
 
     selected_style = args.style
     if args.auto_style:
         selected_style = auto_select_style(args.topic, args.language)
         logger.info("🎨 Auto-selected style: %s (%s)", selected_style, get_style_description(selected_style))
+
+    if not 3 <= args.slides <= 50:
+        parser.error("--slides must be between 3 and 50")
 
     logger.info("=" * 50)
     logger.info("AutoPPT - AI Presentation Generator")
@@ -105,62 +111,62 @@ Examples:
         from .generator import Generator
 
         os.makedirs(os.path.dirname(output_filename) or Config.OUTPUT_DIR, exist_ok=True)
-        gen = Generator(provider_name=args.provider, model=args.model)
 
-        if args.outline_only:
-            outline = gen.generate_outline(args.topic, args.slides, args.language)
-            outline_file = output_filename.replace(".pptx", "_outline.md")
-            gen.save_outline(outline, outline_file)
+        with Generator(provider_name=args.provider, model=args.model) as gen:
+            if args.outline_only:
+                outline = gen.generate_outline(args.topic, args.slides, args.language)
+                outline_file = str(Path(output_filename).with_suffix("")) + "_outline.md"
+                gen.save_outline(outline, outline_file)
+                logger.info("=" * 50)
+                logger.info("✅ Outline saved to: %s", outline_file)
+                logger.info("=" * 50)
+                print("\n" + gen.outline_to_markdown(outline))
+                return
+
+            if args.confirm_outline:
+                outline = gen.generate_outline(args.topic, args.slides, args.language)
+                print("\n" + "=" * 50)
+                print("📋 OUTLINE PREVIEW")
+                print("=" * 50)
+                print(gen.outline_to_markdown(outline))
+                print("=" * 50)
+
+                try:
+                    response = input("\n✅ Continue with this outline? [Y/n/q]: ").strip().lower()
+                    if response in ("n", "no"):
+                        logger.info("Outline rejected. Please modify topic or try again.")
+                        sys.exit(0)
+                    if response in ("q", "quit"):
+                        logger.info("Generation cancelled.")
+                        sys.exit(0)
+                except EOFError:
+                    logger.warning("No interactive input available; proceeding with current outline.")
+
+                result = gen.generate_from_outline(
+                    outline,
+                    args.topic,
+                    style=selected_style,
+                    output_file=output_filename,
+                    language=args.language,
+                    template_path=args.template,
+                    create_thumbnails=args.thumbnails,
+                )
+            else:
+                result = gen.generate(
+                    args.topic,
+                    style=selected_style,
+                    output_file=output_filename,
+                    slides_count=args.slides,
+                    language=args.language,
+                    template_path=args.template,
+                    create_thumbnails=args.thumbnails,
+                )
+
             logger.info("=" * 50)
-            logger.info("✅ Outline saved to: %s", outline_file)
+            logger.info("✅ SUCCESS! Presentation saved to: %s", result)
+            if gen.last_quality_report.has_issues:
+                logger.warning("Deck QA reported %s issue(s).", len(gen.last_quality_report.issues))
             logger.info("=" * 50)
-            print("\n" + gen.outline_to_markdown(outline))
-            return
-
-        if args.confirm_outline:
-            outline = gen.generate_outline(args.topic, args.slides, args.language)
-            print("\n" + "=" * 50)
-            print("📋 OUTLINE PREVIEW")
-            print("=" * 50)
-            print(gen.outline_to_markdown(outline))
-            print("=" * 50)
-
-            try:
-                response = input("\n✅ Continue with this outline? [Y/n/q]: ").strip().lower()
-                if response in ("n", "no"):
-                    logger.info("Outline rejected. Please modify topic or try again.")
-                    sys.exit(0)
-                if response in ("q", "quit"):
-                    logger.info("Generation cancelled.")
-                    sys.exit(0)
-            except EOFError:
-                pass
-
-            result = gen.generate_from_outline(
-                outline,
-                args.topic,
-                style=selected_style,
-                output_file=output_filename,
-                language=args.language,
-                template_path=args.template,
-                create_thumbnails=args.thumbnails,
-            )
-        else:
-            result = gen.generate(
-                args.topic,
-                style=selected_style,
-                output_file=output_filename,
-                slides_count=args.slides,
-                language=args.language,
-                template_path=args.template,
-                create_thumbnails=args.thumbnails,
-            )
-
-        logger.info("=" * 50)
-        logger.info("✅ SUCCESS! Presentation saved to: %s", result)
-        if gen.last_quality_report.has_issues:
-            logger.warning("Deck QA reported %s issue(s).", len(gen.last_quality_report.issues))
-        logger.info("=" * 50)
     except APIKeyError as exc:
         logger.error("❌ API Key Error: %s", exc.message)
         logger.info("💡 Tip: Set up your API key in the .env file, or use --provider mock for testing.")
