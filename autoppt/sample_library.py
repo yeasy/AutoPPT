@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import logging
 import math
 from pathlib import Path
+import shutil
 import tempfile
 import textwrap
 from typing import Any
@@ -168,6 +169,8 @@ def _content_with_image(
 
 def _gradient_image(size: tuple[int, int], start: tuple[int, int, int], end: tuple[int, int, int]) -> Image.Image:
     width, height = size
+    if width <= 0 or height <= 0:
+        raise ValueError(f"Image size must be positive, got {size}")
     image = Image.new("RGB", size, start)
     draw = ImageDraw.Draw(image)
     for y in range(height):
@@ -223,6 +226,13 @@ def _load_font(candidates: list[str], size: int):
             return ImageFont.truetype(path, size)
         except OSError:
             continue
+    # Try common cross-platform font names that Pillow can resolve via fontconfig
+    for name in ("DejaVuSans.ttf", "Arial.ttf", "LiberationSans-Regular.ttf"):
+        try:
+            return ImageFont.truetype(name, size)
+        except OSError:
+            continue
+    logger.warning("No suitable font found from %s; using default bitmap font", candidates)
     return ImageFont.load_default()
 
 
@@ -346,7 +356,7 @@ def _draw_showcase_card(
         wrapped = textwrap.wrap(bullet, width=34 if locale == "en" else 18)[:2]
         draw.ellipse((42, y + 8, 54, y + 20), fill=accent + (255,))
         line_y = y
-        for index, line in enumerate(wrapped):
+        for line in wrapped:
             x = 68
             draw.text((x, line_y), line, fill=(241, 245, 250), font=body_font)
             line_y += 25
@@ -420,7 +430,7 @@ def _draw_real_preview_card(
     return card
 
 
-def _real_preview_image_for_sample(sample_id: str, deck: DeckSpec) -> Path | None:
+def _real_preview_image_for_sample(sample_id: str, deck: DeckSpec, *, cache_dir: Path) -> Path | None:
     deps_ok, _missing = check_dependencies()
     if not deps_ok:
         return None
@@ -437,9 +447,9 @@ def _real_preview_image_for_sample(sample_id: str, deck: DeckSpec) -> Path | Non
         preview_path = temp_root / f"{sample_id}-preview.jpg"
         with Image.open(images[0]) as image:
             image.convert("RGB").save(preview_path, format="JPEG", quality=92)
-        final_path = Path(tempfile.mkdtemp(prefix=f"autoppt-real-preview-cache-{sample_id}-")) / preview_path.name
-        final_path.parent.mkdir(parents=True, exist_ok=True)
-        preview_path.replace(final_path)
+        final_path = cache_dir / preview_path.name
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(preview_path), str(final_path))
         return final_path
 
 
@@ -464,8 +474,7 @@ def render_readme_showcase_previews(output_dir: str | Path) -> list[Path]:
 
     created: list[Path] = []
     for filename, config in manifests.items():
-        canvas = Image.new("RGB", (1800, 980), color=(8, 12, 22))
-        canvas = _gradient_image(canvas.size, (10, 16, 28), (24, 40, 70))
+        canvas = _gradient_image((1800, 980), (10, 16, 28), (24, 40, 70))
         canvas = canvas.convert("RGBA")
 
         glow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
@@ -502,15 +511,13 @@ def render_readme_showcase_previews(output_dir: str | Path) -> list[Path]:
         for index, line in enumerate(textwrap.wrap(subtitle_text, width=68 if locale == "en" else 28)):
             draw.text((96, 144 + index * 30), line, fill=(216, 226, 238), font=subtitle_font)
 
-        preview_cache: list[Path] = []
         with tempfile.TemporaryDirectory(prefix="autoppt-readme-preview-") as asset_dir:
             cards = []
             for sample_id in config["sample_ids"]:
                 definition = get_sample_definition(sample_id)
                 deck = build_sample_deck(sample_id, asset_dir=asset_dir)
-                preview_path = _real_preview_image_for_sample(sample_id, deck)
+                preview_path = _real_preview_image_for_sample(sample_id, deck, cache_dir=Path(asset_dir))
                 if preview_path:
-                    preview_cache.append(preview_path)
                     cards.append(_draw_real_preview_card(definition, deck, preview_path, (500, 650), locale))
                 else:
                     cards.append(_draw_showcase_card(definition, deck, (500, 650), locale))
@@ -518,13 +525,6 @@ def render_readme_showcase_previews(output_dir: str | Path) -> list[Path]:
             x_positions = [96, 648, 1200]
             for x, card in zip(x_positions, cards):
                 canvas.paste(card, (x, 264), card)
-
-        for preview in preview_cache:
-            try:
-                preview.unlink()
-                preview.parent.rmdir()
-            except OSError:
-                pass
 
         output_path = output_root / filename
         canvas.convert("RGB").save(output_path, format="PNG")
@@ -585,11 +585,8 @@ def render_sample(sample_id: str, output_dir: str | Path) -> Path:
     output_path = output_root / definition.filename
     with tempfile.TemporaryDirectory(prefix=f"autoppt-sample-assets-{sample_id}-") as asset_dir:
         deck = build_sample_deck(sample_id, asset_dir=asset_dir)
-        generator = Generator(provider_name="mock")
-        try:
+        with Generator(provider_name="mock") as generator:
             generator.save_deck(deck, str(output_path))
-        finally:
-            generator.close()
     return output_path
 
 
@@ -1167,3 +1164,12 @@ _SAMPLE_BUILDERS = {
     "feature_layouts_cn": _build_feature_layouts_cn,
     "feature_workbench": _build_feature_workbench,
 }
+
+if __debug__:
+    _defined_ids = {d.sample_id for d in SAMPLE_DEFINITIONS}
+    _builder_ids = set(_SAMPLE_BUILDERS.keys())
+    if _defined_ids != _builder_ids:
+        raise RuntimeError(
+            f"SAMPLE_DEFINITIONS and _SAMPLE_BUILDERS are out of sync: "
+            f"defined only: {_defined_ids - _builder_ids}, builders only: {_builder_ids - _defined_ids}"
+        )

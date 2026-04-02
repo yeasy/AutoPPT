@@ -19,7 +19,7 @@ from .style_selector import auto_select_style, get_all_styles, get_style_descrip
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     supported_themes = get_all_styles()
     supported_providers = get_supported_providers()
 
@@ -77,7 +77,20 @@ Examples:
     log_level = logging.DEBUG if args.verbose else logging.INFO
     Config.initialize(configure_logging=True, log_level=log_level)
 
+    if not args.topic or not args.topic.strip():
+        parser.error("--topic must not be empty")
+    if len(args.topic) > 1000:
+        parser.error("--topic must not exceed 1000 characters")
+    if args.template and not os.path.isfile(args.template):
+        parser.error(f"Template file not found: {args.template}")
+    if not 3 <= args.slides <= 50:
+        parser.error("--slides must be between 3 and 50")
+
     if args.output:
+        resolved_output = os.path.realpath(args.output)
+        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+            if resolved_output.startswith(prefix):
+                parser.error(f"Output path is not allowed: {args.output}")
         output_filename = args.output
     else:
         safe_name = re.sub(r"[^\w\-]", "_", args.topic)[:100]
@@ -87,9 +100,6 @@ Examples:
     if args.auto_style:
         selected_style = auto_select_style(args.topic, args.language)
         logger.info("🎨 Auto-selected style: %s (%s)", selected_style, get_style_description(selected_style))
-
-    if not 3 <= args.slides <= 50:
-        parser.error("--slides must be between 3 and 50")
 
     logger.info("=" * 50)
     logger.info("AutoPPT - AI Presentation Generator")
@@ -110,7 +120,9 @@ Examples:
 
         from .generator import Generator
 
-        os.makedirs(os.path.dirname(output_filename) or Config.OUTPUT_DIR, exist_ok=True)
+        output_dir = os.path.dirname(output_filename)
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
 
         with Generator(provider_name=args.provider, model=args.model) as gen:
             if args.outline_only:
