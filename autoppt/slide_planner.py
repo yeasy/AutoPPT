@@ -16,6 +16,12 @@ class SlidePlanner:
         ("before", "after"),
     )
 
+    _LAYOUT_TO_TYPE = {
+        "comparison": SlideType.COMPARISON,
+        "two_column": SlideType.TWO_COLUMN,
+        "quote": SlideType.QUOTE,
+    }
+
     def plan(
         self,
         slide_title: str,
@@ -27,8 +33,9 @@ class SlidePlanner:
         current_slide: SlideSpec | None = None,
         force_slide_type: SlideType | None = None,
     ) -> SlidePlan:
+        slide_title = str(slide_title or "").strip() or section_title or "Untitled Slide"
         title_lower = slide_title.lower()
-        context_lower = context.lower()
+        context_lower = (context or "").lower()
         remix_lower = (remix_instruction or "").lower()
         plan = SlidePlan(
             title=slide_title,
@@ -37,7 +44,7 @@ class SlidePlanner:
             language=language,
             slide_type=SlideType.CONTENT,
             objective=f"Explain why {slide_title} matters for {topic}.",
-            evidence_focus=[section_title, topic, slide_title],
+            evidence_focus=[s.strip() for s in (section_title, topic, slide_title) if s and s.strip()],
             research_queries=[
                 f"{slide_title} {section_title} {topic}".strip(),
                 f"{topic} {slide_title} latest evidence".strip(),
@@ -46,7 +53,7 @@ class SlidePlanner:
             remix_instruction=remix_instruction,
         )
 
-        if current_slide and current_slide.layout not in {None, ""}:
+        if current_slide:
             plan.visual_intent = current_slide.layout.value
             if not remix_instruction:
                 plan.rationale = f"Preserve the existing {current_slide.layout.value} layout unless a better fit is obvious."
@@ -66,7 +73,7 @@ class SlidePlanner:
             plan.rationale = "Remix instruction explicitly requests a quote-centric slide."
             return plan
 
-        if any(token in remix_lower for token in ("compare", "comparison", "versus", "vs", "tradeoff")):
+        if any(token in remix_lower for token in ("compare", "comparison", "versus", "tradeoff")) or re.search(r"\bvs\b", remix_lower):
             plan.slide_type = SlideType.COMPARISON
             self._fill_layout_hints(plan, slide_title, section_title, topic)
             plan.visual_intent = "Show two contrasted sides with parallel bullets."
@@ -123,8 +130,8 @@ class SlidePlanner:
             plan.rationale = "Title suggests a product, scene, or visual showcase."
             return plan
 
-        if current_slide and current_slide.layout is not None and current_slide.layout.value in {"comparison", "two_column", "quote"}:
-            plan.slide_type = SlideType(current_slide.layout.value)
+        if current_slide and current_slide.layout is not None and current_slide.layout.value in self._LAYOUT_TO_TYPE:
+            plan.slide_type = self._LAYOUT_TO_TYPE[current_slide.layout.value]
             plan.left_title = current_slide.left_title
             plan.right_title = current_slide.right_title
             plan.quote_author = current_slide.quote_author
@@ -146,10 +153,13 @@ class SlidePlanner:
 
         if effective_type == SlideType.QUOTE:
             quote_text = slide_config.quote_text or (self._first_sentence(slide_config.bullets[0]) if slide_config.bullets else None)
-            data["slide_type"] = SlideType.QUOTE if quote_text and (slide_config.quote_author or plan.quote_author) else SlideType.CONTENT
-            data["quote_text"] = quote_text
-            data["quote_author"] = slide_config.quote_author or plan.quote_author
-            data["quote_context"] = slide_config.quote_context or plan.quote_context
+            if quote_text and (slide_config.quote_author or plan.quote_author):
+                data["slide_type"] = SlideType.QUOTE
+                data["quote_text"] = quote_text
+                data["quote_author"] = slide_config.quote_author or plan.quote_author
+                data["quote_context"] = slide_config.quote_context or plan.quote_context
+            else:
+                data["slide_type"] = SlideType.CONTENT
 
         elif effective_type == SlideType.COMPARISON:
             left_bullets, right_bullets = self._split_bullets(slide_config)
@@ -176,7 +186,8 @@ class SlidePlanner:
         quote_tokens = ("quote", "vision", "principle", "leadership", "philosophy", "mantra", "lesson")
         if any(token in title_lower for token in quote_tokens):
             return True
-        return '"' in context_lower and "—" in context_lower
+        has_quote = any(q in context_lower for q in ('"', '\u201c', '\u201d'))
+        return has_quote and "\u2014" in context_lower
 
     def _looks_like_two_column(self, title_lower: str) -> bool:
         two_column_tokens = (
@@ -210,21 +221,21 @@ class SlidePlanner:
         ) >= 2
 
     def _looks_like_image(self, title_lower: str) -> bool:
-        image_tokens = ("showcase", "product", "demo", "experience", "scene", "photo", "visual", "journey")
+        image_tokens = ("showcase", "demo", "scene", "photo", "gallery", "portfolio")
         return any(token in title_lower for token in image_tokens)
 
     def _infer_comparison_titles(self, slide_title: str) -> tuple[str, str] | None:
         compact = re.sub(r"\s+", " ", slide_title.strip())
-        if " vs " in compact.lower():
-            left, right = re.split(r"\bvs\.?\b", compact, maxsplit=1, flags=re.IGNORECASE)
-            left = left.strip(" :-")
-            right = right.strip(" :-")
+        if " vs " in compact.lower() or " vs." in compact.lower():
+            left, right = re.split(r"\bvs\.?\s*", compact, maxsplit=1, flags=re.IGNORECASE)
+            left = left.strip(" :-.")
+            right = right.strip(" :-.")
             if left and right:
                 return left, right
 
         lower = compact.lower()
         for left, right in self._COMPARISON_PAIRS:
-            if left in lower and right in lower:
+            if re.search(rf"\b{re.escape(left)}\b", lower) and re.search(rf"\b{re.escape(right)}\b", lower):
                 return left.title(), right.title()
 
         comparison_tokens = ("compare", "comparison", "tradeoff", "versus", "benefits and risks")
@@ -235,7 +246,7 @@ class SlidePlanner:
     def _infer_two_column_titles(self, slide_title: str) -> tuple[str, str] | None:
         lower = slide_title.lower()
         for left, right in self._COMPARISON_PAIRS:
-            if left in lower and right in lower:
+            if re.search(rf"\b{re.escape(left)}\b", lower) and re.search(rf"\b{re.escape(right)}\b", lower):
                 return left.title(), right.title()
         if "framework" in lower or "pillars" in lower:
             return "Core Elements", "Execution Moves"
@@ -250,7 +261,7 @@ class SlidePlanner:
             return SlideType.STATISTICS
         if slide_config.chart_data:
             return SlideType.CHART
-        if slide_config.image_query:
+        if slide_config.image_query and not slide_config.bullets:
             return SlideType.IMAGE
         if slide_config.left_bullets and slide_config.right_bullets:
             if self._infer_comparison_titles(slide_config.title):
@@ -261,6 +272,8 @@ class SlidePlanner:
     def _split_bullets(self, slide_config: SlideConfig) -> tuple[list[str], list[str]]:
         if slide_config.left_bullets and slide_config.right_bullets:
             return slide_config.left_bullets, slide_config.right_bullets
+        if len(slide_config.bullets) < 2:
+            return slide_config.bullets, []
         midpoint = max(1, len(slide_config.bullets) // 2)
         return slide_config.bullets[:midpoint], slide_config.bullets[midpoint:]
 

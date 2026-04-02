@@ -1,4 +1,8 @@
+import logging
+
 from .data_types import DeckSpec, SlideConfig, SlideLayout, SlidePlan, SlideSpec, SlideType
+
+logger = logging.getLogger(__name__)
 
 
 class LayoutSelector:
@@ -20,7 +24,18 @@ class LayoutSelector:
     def section_slide(self, title: str) -> SlideSpec:
         return SlideSpec(layout=SlideLayout.SECTION, title=title)
 
+    @staticmethod
+    def _safe_layout_from_plan(plan: SlidePlan | None) -> SlideLayout | None:
+        if not plan:
+            return None
+        try:
+            return SlideLayout(plan.slide_type.value)
+        except ValueError:
+            return None
+
     def _split_bullets_into_columns(self, bullets: list[str]) -> tuple[list[str], list[str]]:
+        if len(bullets) < 2:
+            return bullets, []
         midpoint = max(1, len(bullets) // 2)
         return bullets[:midpoint], bullets[midpoint:]
 
@@ -35,7 +50,7 @@ class LayoutSelector:
             "source_topic": plan.topic if plan else None,
             "source_section": plan.section_title if plan else None,
             "source_title": plan.title if plan else slide_config.title,
-            "planned_layout": SlideLayout(plan.slide_type.value) if plan else None,
+            "planned_layout": self._safe_layout_from_plan(plan),
             "layout_rationale": plan.rationale if plan else None,
             "plan": plan,
             "source_config": slide_config,
@@ -51,16 +66,18 @@ class LayoutSelector:
                 **metadata,
             )
 
-        if slide_config.slide_type == SlideType.QUOTE and slide_config.quote_text and slide_config.quote_author:
-            return self.quote_slide(
-                title=slide_config.title,
-                quote_text=slide_config.quote_text,
-                quote_author=slide_config.quote_author,
-                quote_context=slide_config.quote_context or "",
-                speaker_notes=slide_config.speaker_notes,
-                citations=slide_config.citations,
-                **metadata,
-            )
+        if slide_config.slide_type == SlideType.QUOTE:
+            if slide_config.quote_text and slide_config.quote_author:
+                return self.quote_slide(
+                    title=slide_config.title,
+                    quote_text=slide_config.quote_text,
+                    quote_author=slide_config.quote_author,
+                    quote_context=slide_config.quote_context or "",
+                    speaker_notes=slide_config.speaker_notes,
+                    citations=slide_config.citations,
+                    **metadata,
+                )
+            logger.warning("QUOTE slide '%s' missing quote_text or author, demoting to CONTENT", slide_config.title)
 
         if slide_config.slide_type == SlideType.COMPARISON:
             left_bullets, right_bullets = self._split_bullets_into_columns(slide_config.bullets)
@@ -103,15 +120,17 @@ class LayoutSelector:
                 **metadata,
             )
 
-        if slide_config.slide_type == SlideType.CHART and slide_config.chart_data:
-            return SlideSpec(
-                layout=SlideLayout.CHART,
-                title=slide_config.title,
-                speaker_notes=slide_config.speaker_notes,
-                citations=slide_config.citations,
-                chart_data=slide_config.chart_data,
-                **metadata,
-            )
+        if slide_config.slide_type == SlideType.CHART:
+            if slide_config.chart_data:
+                return SlideSpec(
+                    layout=SlideLayout.CHART,
+                    title=slide_config.title,
+                    speaker_notes=slide_config.speaker_notes,
+                    citations=slide_config.citations,
+                    chart_data=slide_config.chart_data,
+                    **metadata,
+                )
+            logger.warning("CHART slide '%s' missing chart_data, demoting to CONTENT", slide_config.title)
 
         return SlideSpec(
             layout=SlideLayout.CONTENT,
@@ -160,8 +179,8 @@ class LayoutSelector:
             title=title,
             left_title=str(item_a.get("name", "Option A")),
             right_title=str(item_b.get("name", "Option B")),
-            left_bullets=[str(point) for point in item_a.get("points", [])],
-            right_bullets=[str(point) for point in item_b.get("points", [])],
+            left_bullets=self._coerce_points(item_a.get("points", [])),
+            right_bullets=self._coerce_points(item_b.get("points", [])),
             speaker_notes=speaker_notes,
             citations=citations or [],
             **metadata,
@@ -261,6 +280,15 @@ class LayoutSelector:
 
         return slide_spec.model_copy(deep=True)
 
+    @staticmethod
+    def _coerce_points(points: list[str] | str | None) -> list[str]:
+        """Ensure points is a list of strings, not a bare string iterated char-by-char."""
+        if points is None:
+            return []
+        if isinstance(points, str):
+            return [points]
+        return [str(p) for p in points]
+
     def _columns_for_slide(self, slide_spec: SlideSpec) -> tuple[list[str], list[str]]:
         if slide_spec.left_bullets and slide_spec.right_bullets:
             return slide_spec.left_bullets, slide_spec.right_bullets
@@ -270,7 +298,7 @@ class LayoutSelector:
         if slide_spec.bullets:
             return slide_spec.bullets
         if slide_spec.left_bullets or slide_spec.right_bullets:
-            return [*slide_spec.left_bullets, *slide_spec.right_bullets]
+            return [*(slide_spec.left_bullets or []), *(slide_spec.right_bullets or [])]
         if slide_spec.quote_text:
             return [slide_spec.quote_text]
         if slide_spec.statistics:
