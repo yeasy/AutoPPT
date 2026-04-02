@@ -2,7 +2,8 @@
 Template handler for working with existing PowerPoint presentations.
 """
 import logging
-from typing import Dict, List, Optional, Any
+import zipfile
+from typing import Any, Dict
 from pathlib import Path
 
 from pptx import Presentation
@@ -12,22 +13,43 @@ try:
 except ImportError:
     HAS_MARKITDOWN = False
 
+from .config import Config
+
 logger = logging.getLogger(__name__)
 
 class TemplateHandler:
     """Handles loading and analysis of PowerPoint templates."""
-    
+
     def __init__(self, template_path: str):
         """
         Initialize with a path to a PPTX template.
         """
         self.template_path = Path(template_path).resolve()
+        resolved_str = str(self.template_path)
+        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+            if resolved_str.startswith(prefix):
+                raise ValueError(f"Access to system path is not allowed: {template_path}")
         if not self.template_path.exists():
             raise FileNotFoundError(f"Template not found: {template_path}")
-            
+        if self.template_path.suffix.lower() != ".pptx":
+            raise ValueError(f"Invalid template file type: {self.template_path.suffix} (expected .pptx)")
+        file_size = self.template_path.stat().st_size
+        if file_size > Config.MAX_TEMPLATE_BYTES:
+            raise ValueError(f"Template file too large: {file_size} bytes (max {Config.MAX_TEMPLATE_BYTES})")
+
+        try:
+            with zipfile.ZipFile(str(self.template_path), "r") as zf:
+                total = sum(info.file_size for info in zf.infolist())
+                if total > Config.MAX_DECOMPRESSED_BYTES:
+                    raise ValueError(
+                        f"Template decompressed size ({total} bytes) exceeds limit ({Config.MAX_DECOMPRESSED_BYTES})"
+                    )
+        except zipfile.BadZipFile as exc:
+            raise ValueError(f"Invalid PPTX file: {exc}") from exc
+
         self.prs = Presentation(str(self.template_path))
         self.layouts = self._analyze_layouts()
-        
+
     def _analyze_layouts(self) -> Dict[int, Dict[str, Any]]:
         """Analyze available slide layouts."""
         layouts: Dict[int, Dict[str, Any]] = {}
@@ -50,15 +72,15 @@ class TemplateHandler:
                 }
                 layouts[flat_index] = layout_info
                 flat_index += 1
-                
+
         return layouts
-    
+
     def extract_text_content(self) -> str:
         """Extract text content from the template using MarkItDown."""
         if not HAS_MARKITDOWN:
             logger.warning("markitdown not installed, cannot extract text content")
             return ""
-            
+
         try:
             md = MarkItDown()
             result = md.convert(str(self.template_path))
@@ -74,7 +96,7 @@ class TemplateHandler:
             if name_pattern in info["name"].lower():
                 return idx
         return None
-        
+
     def get_best_layout_for_type(self, slide_type: str) -> int:
         """
         Get the best layout index for a given slide type.
@@ -88,15 +110,15 @@ class TemplateHandler:
             "blank": ["blank"],
             "picture": ["picture", "image"]
         }
-        
+
         patterns = mappings.get(slide_type, [])
         for pattern in patterns:
             idx = self.get_layout_by_name(pattern)
             if idx is not None:
                 return idx
-                
+
         # Fallback to first non-title layout for content
         if slide_type == "content":
             return 1 if 1 in self.layouts else 0
-            
+
         return 0

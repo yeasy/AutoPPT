@@ -4,6 +4,7 @@ AutoPPT Web Interface
 
 Run with: streamlit run autoppt/app.py
 """
+import html as html_mod
 import os
 import tempfile
 import logging
@@ -60,7 +61,8 @@ def _editable_slide_options(deck_spec):
 
 def _render_deck_file(remix_gen, deck_spec, filename):
     with tempfile.TemporaryDirectory(prefix="autoppt-remix-") as output_dir:
-        output_file = os.path.join(output_dir, filename or "autoppt_remix.pptx")
+        safe_name = os.path.basename(filename or "autoppt_remix.pptx") or "autoppt_remix.pptx"
+        output_file = os.path.join(output_dir, safe_name)
         remix_gen.save_deck(deck_spec, output_file)
         with open(output_file, "rb") as file_handle:
             return file_handle.read()
@@ -109,7 +111,7 @@ with st.sidebar:
     provider = st.selectbox(
         "🤖 AI Provider",
         options=provider_options,
-        index=provider_options.index("mock"),
+        index=provider_options.index("mock") if "mock" in provider_options else 0,
         help="Select the AI provider. Use mock for testing without API keys.",
     )
 
@@ -145,6 +147,7 @@ with st.sidebar:
     language = st.text_input(
         "🌐 Language",
         value="English",
+        max_chars=50,
         help="Output language for the presentation content.",
     )
 
@@ -165,6 +168,7 @@ with col1:
         "Enter your presentation topic",
         placeholder="e.g., The Future of Artificial Intelligence\n人工智能的发展历史\nClimate Change and Renewable Energy",
         height=100,
+        max_chars=500,
         label_visibility="collapsed",
     )
 
@@ -176,17 +180,21 @@ if auto_style and topic:
 
 with col2:
     st.header("📋 Preview")
+    _preview_topic = html_mod.escape(topic) if topic else "Not specified"
+    _preview_language = html_mod.escape(language) if language else "English"
+    _preview_style = html_mod.escape(style_display) if style_display else "default"
+    _preview_provider = html_mod.escape(provider) if provider else "openai"
     st.info(
         f"""
-**Topic:** {topic or 'Not specified'}
+**Topic:** {_preview_topic}
 
-**Provider:** {provider}
+**Provider:** {_preview_provider}
 
-**Style:** {style_display}
+**Style:** {_preview_style}
 
 **Slides:** {slides_count}
 
-**Language:** {language}
+**Language:** {_preview_language}
 """
     )
 
@@ -211,8 +219,7 @@ if generate_button:
 
                 with tempfile.TemporaryDirectory(prefix="autoppt-web-") as output_dir:
                     output_file = os.path.join(output_dir, f"{safe_topic.replace(' ', '_')}.pptx")
-                    gen = Generator(provider_name=provider, model=model)
-                    try:
+                    with Generator(provider_name=provider, model=model) as gen:
                         progress_bar.progress(10, text="Generating outline...")
                         result = gen.generate(
                             topic=topic,
@@ -225,8 +232,6 @@ if generate_button:
                             file_bytes = file_handle.read()
                         deck_spec = gen.last_deck_spec
                         quality_report = gen.last_quality_report
-                    finally:
-                        gen.close()
 
                 progress_bar.progress(100, text="✅ Complete!")
                 time.sleep(0.5)
@@ -283,7 +288,7 @@ if editable_options:
         options=[label for _, label in editable_options],
         key="remix_slide_selector",
     )
-    selected_index = next(index for index, label in editable_options if label == selected_label)
+    selected_index = next((index for index, label in editable_options if label == selected_label), 0)
     selected_slide = st.session_state.generated_deck_spec.slides[selected_index]
     target_layout_label = st.selectbox(
         "Preferred layout",
@@ -307,11 +312,10 @@ if editable_options:
                 from .generator import Generator
 
                 current_deck = st.session_state.generated_deck_spec
-                remix_gen = Generator(
+                with Generator(
                     provider_name=st.session_state.generated_provider,
                     model=st.session_state.generated_model,
-                )
-                try:
+                ) as remix_gen:
                     target_layout = WORKBENCH_LAYOUT_OPTIONS[target_layout_label]
                     if remix_button:
                         updated_deck = remix_gen.remix_slide(
@@ -336,7 +340,7 @@ if editable_options:
                         st.session_state.generated_filename or "autoppt_remix.pptx",
                     )
 
-                    remix_deck_spec = remix_gen.last_deck_spec
+                    remix_deck_spec = updated_deck
                     remix_quality_issues = list(remix_gen.last_quality_report.issues)
                     st.session_state.generated_deck_spec = remix_deck_spec
                     st.session_state.generated_file_bytes = remixed_bytes
@@ -344,8 +348,6 @@ if editable_options:
                     action_label = "regenerated" if regenerate_button else "remixed"
                     st.success(f"✅ Selected slide {action_label} successfully.")
                     st.rerun()
-                finally:
-                    remix_gen.close()
             except Exception as exc:
                 logger.exception("Error updating slide")
                 st.error("❌ Error updating slide. Please check logs or try again.")
@@ -354,7 +356,7 @@ st.divider()
 st.markdown(
     f"""
 <div style="text-align: center; color: #888; font-size: 0.9rem;">
-    <p>AutoPPT v{__version__} | <a href="https://github.com/yeasy/autoppt">GitHub</a> | Apache 2.0 License</p>
+    <p>AutoPPT v{html_mod.escape(__version__)} | <a href="https://github.com/yeasy/autoppt">GitHub</a> | Apache 2.0 License</p>
 </div>
 """,
     unsafe_allow_html=True,

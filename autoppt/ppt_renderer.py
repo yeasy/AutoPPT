@@ -1,9 +1,11 @@
 import logging
 import os
 import tempfile
+import zipfile
 from typing import Any, Dict, List, Optional
 
 from PIL import Image
+Image.MAX_IMAGE_PIXELS = 25_000_000  # Prevent decompression bombs before full decode
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
@@ -12,15 +14,37 @@ from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
 
+from .config import Config
 from .data_types import ChartData, DeckSpec, SlideLayout, SlideSpec
+from .exceptions import RenderError
 from .themes import get_theme
 
 logger = logging.getLogger(__name__)
 
+def _check_zip_bomb(path: str) -> None:
+    """Reject PPTX files whose decompressed content exceeds the safety limit."""
+    try:
+        with zipfile.ZipFile(path, "r") as zf:
+            total = sum(info.file_size for info in zf.infolist())
+            if total > Config.MAX_DECOMPRESSED_BYTES:
+                raise RenderError(
+                    "init",
+                    f"Template decompressed size ({total} bytes) exceeds limit ({Config.MAX_DECOMPRESSED_BYTES})",
+                )
+    except zipfile.BadZipFile as exc:
+        raise RenderError("init", f"Invalid PPTX file: {exc}") from exc
+
 
 class PPTRenderer:
     def __init__(self, template_path: Optional[str] = None, preserve_template_slides: bool = False):
+        self._has_template = bool(template_path)
         if template_path:
+            if not os.path.isfile(template_path):
+                raise RenderError("init", f"Template not found: {template_path}")
+            size = os.path.getsize(template_path)
+            if size > Config.MAX_TEMPLATE_BYTES:
+                raise RenderError("init", f"Template file too large: {size} bytes (max {Config.MAX_TEMPLATE_BYTES})")
+            _check_zip_bomb(template_path)
             self.prs = Presentation(template_path)
             if not preserve_template_slides:
                 xml_slides = self.prs.slides._sldIdLst
@@ -35,7 +59,8 @@ class PPTRenderer:
         logger.info("Applied theme: %s", style_name)
 
     def render_deck(self, deck_spec: DeckSpec) -> None:
-        self.apply_style(deck_spec.style)
+        if not self._has_template:
+            self.apply_style(deck_spec.style)
         for slide_spec in deck_spec.slides:
             self.render_slide(slide_spec)
 
@@ -74,13 +99,21 @@ class PPTRenderer:
                 )
                 return
             logger.warning("Quote slide '%s' missing text or author, falling back to content", slide_spec.title)
-        elif slide_spec.layout == SlideLayout.STATISTICS:
+            self.add_content_slide(
+                slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or "", image_path=slide_spec.image_path
+            )
+            return
+        if slide_spec.layout == SlideLayout.STATISTICS:
             if slide_spec.statistics:
                 stats_dicts = [{"value": stat.value, "label": stat.label} for stat in slide_spec.statistics]
                 self.add_statistics_slide(slide_spec.title, stats_dicts, slide_spec.speaker_notes or "")
                 return
             logger.warning("Statistics slide '%s' has no data, falling back to content", slide_spec.title)
-        elif slide_spec.layout == SlideLayout.IMAGE:
+            self.add_content_slide(
+                slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or "", image_path=slide_spec.image_path
+            )
+            return
+        if slide_spec.layout == SlideLayout.IMAGE:
             if slide_spec.image_path:
                 self.add_fullscreen_image_slide(
                     slide_spec.image_path,
@@ -89,12 +122,20 @@ class PPTRenderer:
                 )
                 return
             logger.warning("Image slide '%s' has no image, falling back to content", slide_spec.title)
-        elif slide_spec.layout == SlideLayout.CHART:
+            self.add_content_slide(
+                slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or "", image_path=slide_spec.image_path
+            )
+            return
+        if slide_spec.layout == SlideLayout.CHART:
             if slide_spec.chart_data:
                 self.add_chart_slide(slide_spec.title, slide_spec.chart_data, slide_spec.speaker_notes or "")
                 return
             logger.warning("Chart slide '%s' has no data, falling back to content", slide_spec.title)
-        elif slide_spec.layout == SlideLayout.CITATIONS:
+            self.add_content_slide(
+                slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or "", image_path=slide_spec.image_path
+            )
+            return
+        if slide_spec.layout == SlideLayout.CITATIONS:
             self.add_citations_slide(slide_spec.citations)
             return
 
@@ -259,16 +300,20 @@ class PPTRenderer:
                 p.level = 0
 
     def _cover_image(self, image_path: str, target_ratio: float) -> str:
+        target_ratio = max(target_ratio, 0.001)
         with Image.open(image_path) as raw_image:
+            w, h = raw_image.size
+            if w * h > 25_000_000:
+                raise RenderError("_cover_image", f"Image too large: {w}x{h} pixels")
             img = raw_image.convert("RGB")
             width, height = img.size
             current_ratio = width / max(height, 1)
             if current_ratio > target_ratio:
-                target_width = int(height * target_ratio)
+                target_width = max(int(height * target_ratio), 1)
                 left = max((width - target_width) // 2, 0)
                 img = img.crop((left, 0, left + target_width, height))
             else:
-                target_height = int(width / target_ratio)
+                target_height = max(int(width / target_ratio), 1)
                 top = max((height - target_height) // 2, 0)
                 img = img.crop((0, top, width, top + target_height))
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp:
@@ -293,7 +338,7 @@ class PPTRenderer:
             except OSError:
                 pass
 
-    def add_title_slide(self, title: str, subtitle: str = ""):
+    def add_title_slide(self, title: str, subtitle: str = "") -> None:
         slide = self._add_blank_slide()
         self._add_title_text(slide, title, subtitle, eyebrow="AutoPPT", hero=True)
 
@@ -319,7 +364,7 @@ class PPTRenderer:
             bullet=True,
         )
 
-    def add_section_header(self, title: str):
+    def add_section_header(self, title: str) -> None:
         slide = self._add_blank_slide()
         self._add_title_text(slide, title, eyebrow="Section", hero=True)
         accent = slide.shapes.add_shape(
@@ -333,7 +378,7 @@ class PPTRenderer:
         accent.fill.fore_color.rgb = self._theme("accent_color")
         accent.line.fill.background()
 
-    def add_content_slide(self, title: str, bullets: list, notes: str = "", image_path: Optional[str] = None):
+    def add_content_slide(self, title: str, bullets: List[str], notes: str = "", image_path: Optional[str] = None) -> None:
         slide = self._add_blank_slide()
         self._add_title_text(slide, title)
 
@@ -466,6 +511,9 @@ class PPTRenderer:
         )
 
     def add_quote_slide(self, quote: str, author: str, context: str = "", notes: str = "") -> None:
+        if not quote or not author:
+            logger.warning("Skipping quote slide: missing quote or author")
+            return
         slide = self._add_blank_slide()
         self._add_panel(slide, 1.0, 1.2, self._slide_width_inches() - 2.0, 4.8, transparency=0.12)
 
@@ -504,6 +552,25 @@ class PPTRenderer:
     def add_chart_slide(self, title: str, chart_data: "ChartData", notes: str = "") -> None:
         from .data_types import ChartType
 
+        if not chart_data.categories:
+            logger.warning("Chart slide '%s' has no categories, skipping", title)
+            return
+
+        categories = list(chart_data.categories)
+        values = list(chart_data.values)
+        if len(values) != len(categories):
+            shorter = min(len(values), len(categories))
+            logger.warning(
+                "Chart slide '%s': values length (%d) != categories length (%d), truncating to %d",
+                title, len(values), len(categories), shorter,
+            )
+            categories = categories[:shorter]
+            values = values[:shorter]
+
+        if not categories:
+            logger.warning("Chart slide '%s' has no data after truncation, skipping", title)
+            return
+
         slide = self._add_blank_slide()
         self._add_title_text(slide, title)
         self._add_panel(
@@ -516,8 +583,8 @@ class PPTRenderer:
         )
 
         chart_data_obj = CategoryChartData()
-        chart_data_obj.categories = chart_data.categories
-        chart_data_obj.add_series(chart_data.series_name, chart_data.values)
+        chart_data_obj.categories = categories
+        chart_data_obj.add_series(chart_data.series_name, values)
 
         chart_type_map = {
             ChartType.BAR: XL_CHART_TYPE.BAR_CLUSTERED,
@@ -534,7 +601,8 @@ class PPTRenderer:
             chart_data_obj,
         ).chart
         chart.has_title = True
-        chart.chart_title.text_frame.text = chart_data.title
+        if chart_data.title is not None:
+            chart.chart_title.text_frame.text = chart_data.title
         self._set_notes(slide, notes)
 
     def add_citations_slide(self, citations: List[str]) -> None:
@@ -599,7 +667,9 @@ class PPTRenderer:
             )
 
     def add_statistics_slide(self, title: str, stats: List[Dict[str, str]], notes: str = "") -> None:
-        stats = stats[:4]
+        if len(stats) > 4:
+            logger.warning("Truncating statistics from %d to 4 items", len(stats))
+            stats = stats[:4]
         if not stats:
             return
         slide = self._add_blank_slide()
@@ -637,5 +707,13 @@ class PPTRenderer:
         self._set_notes(slide, notes)
 
     def save(self, output_path: str) -> None:
-        self.prs.save(output_path)
-        logger.info("Saved presentation to %s", output_path)
+        """Save the presentation, rejecting writes to sensitive system paths."""
+        resolved = os.path.realpath(output_path)
+        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+            if resolved.startswith(prefix):
+                raise RenderError("save", f"Access to system path is not allowed: {output_path}")
+        try:
+            self.prs.save(resolved)
+        except Exception as exc:
+            raise RenderError("save", str(exc)) from exc
+        logger.info("Saved presentation to %s", resolved)
