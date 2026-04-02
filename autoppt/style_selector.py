@@ -83,6 +83,22 @@ STYLE_KEYWORDS = {
         "luxury", "premium", "exclusive", "high-end", "elegant",
         "奢华", "高端", "尊贵",
     ],
+    "magazine": [
+        "magazine", "editorial", "journalism", "media", "press",
+        "杂志", "编辑", "媒体",
+    ],
+    "tech_gradient": [
+        "saas", "platform", "devtools", "developer tools", "api platform",
+        "saas平台", "开发者工具",
+    ],
+    "ocean": [
+        "ocean", "marine", "maritime", "shipping", "sea", "aquatic",
+        "海洋", "航海", "水产",
+    ],
+    "sunset": [
+        "wellness", "mindfulness", "yoga", "meditation", "lifestyle",
+        "健康", "冥想", "瑜伽", "生活方式",
+    ],
 }
 
 

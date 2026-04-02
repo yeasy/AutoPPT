@@ -15,7 +15,7 @@ class AutoPPTError(Exception):
 
 class APIKeyError(AutoPPTError):
     """Raised when an API key is missing or invalid."""
-    
+
     def __init__(self, provider: str, message: Optional[str] = None):
         self.provider = provider
         self.message = message or f"API key for '{provider}' is missing or invalid. Please check your .env file."
@@ -24,7 +24,7 @@ class APIKeyError(AutoPPTError):
 
 class RateLimitError(AutoPPTError):
     """Raised when API rate limits are exceeded."""
-    
+
     def __init__(self, provider: str, retry_after: Optional[int] = None):
         self.provider = provider
         self.retry_after = retry_after
@@ -35,19 +35,9 @@ class RateLimitError(AutoPPTError):
         super().__init__(self.message)
 
 
-class ResearchError(AutoPPTError):
-    """Raised when research/web search operations fail."""
-    
-    def __init__(self, query: str, reason: Optional[str] = None):
-        self.query = query
-        self.reason = reason or "Unknown error"
-        self.message = f"Failed to research '{query}': {self.reason}"
-        super().__init__(self.message)
-
-
 class RenderError(AutoPPTError):
     """Raised when PPT rendering operations fail."""
-    
+
     def __init__(self, operation: str, reason: Optional[str] = None):
         self.operation = operation
         self.reason = reason or "Unknown error"
@@ -55,11 +45,3 @@ class RenderError(AutoPPTError):
         super().__init__(self.message)
 
 
-class ModelNotFoundError(AutoPPTError):
-    """Raised when the specified LLM model is not available."""
-    
-    def __init__(self, model: str, provider: str):
-        self.model = model
-        self.provider = provider
-        self.message = f"Model '{model}' is not available for provider '{provider}'."
-        super().__init__(self.message)

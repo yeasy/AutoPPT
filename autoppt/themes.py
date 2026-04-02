@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from pptx.dml.color import RGBColor
 
@@ -301,7 +301,7 @@ THEME_DEFINITIONS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def get_theme(name: str) -> Dict[str, Any]:
+def get_theme(name: Optional[str]) -> Dict[str, Any]:
     theme_name = (name or "minimalist").lower()
     theme = dict(DEFAULT_THEME)
     overrides = THEME_DEFINITIONS.get(theme_name)

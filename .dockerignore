@@ -3,9 +3,11 @@
 .github
 .gitignore
 .env
-.env.example
+.env.*
 .idea
 .venv
+.agent/
+.claude/
 *.egg-info
 __pycache__
 *.pyc
@@ -22,3 +24,6 @@ CHANGELOG.md
 LICENSE
 docs/
 tests/
+dist/
+build/
+uv.lock

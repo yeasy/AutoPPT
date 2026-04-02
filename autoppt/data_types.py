@@ -1,3 +1,4 @@
+import math
 from enum import Enum
 from typing import List, Optional
 
@@ -22,10 +23,14 @@ class ChartData(BaseModel):
 
     @model_validator(mode="after")
     def _check_lengths(self) -> "ChartData":
+        if not self.categories:
+            raise ValueError("categories must not be empty")
         if len(self.categories) != len(self.values):
             raise ValueError(
                 f"categories ({len(self.categories)}) and values ({len(self.values)}) must have the same length"
             )
+        if any(not math.isfinite(v) for v in self.values):
+            raise ValueError("values must be finite numbers (no NaN or inf)")
         return self
 
 

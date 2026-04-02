@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -18,38 +19,60 @@ class Config:
     GOOGLE_API_KEY: Optional[str] = None
     OFFLINE_MODE = False
 
-    DEFAULT_OPENAI_MODEL = "gpt-4o"
-    DEFAULT_GOOGLE_MODEL = "gemini-2.0-flash"
-    DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
+    DEFAULT_OPENAI_MODEL = "gpt-4.1"
+    DEFAULT_GOOGLE_MODEL = "gemini-2.5-flash"
+    DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
     OUTPUT_DIR = "output"
 
     API_RETRY_ATTEMPTS = 3
     API_RETRY_DELAY_SECONDS = 60
+    TRANSIENT_RETRY_BASE_SECONDS = 5
     IMAGE_DOWNLOAD_TIMEOUT = 30
     IMAGE_DOWNLOAD_MAX_BYTES = 10 * 1024 * 1024
     RESEARCH_CACHE_SIZE = 128
     RESEARCH_FETCH_WORKERS = 4
 
+    MAX_TEMPLATE_BYTES = 50 * 1024 * 1024  # 50 MB
+    MAX_DECOMPRESSED_BYTES = 200 * 1024 * 1024  # 200 MB
+
+    BLOCKED_SYSTEM_PREFIXES = (
+        "/etc/", "/private/etc/",
+        "/proc/", "/sys/",
+        "/dev/", "/private/var/run/", "/var/run/",
+    )
+
     _env_loaded = False
+    _lock = threading.Lock()
 
     @classmethod
     def initialize(cls, configure_logging: bool = False, log_level: int = logging.INFO) -> None:
-        if not cls._env_loaded:
-            load_dotenv()
-            cls._env_loaded = True
-        cls.refresh()
-        if configure_logging:
-            cls.configure_logging(log_level)
+        with cls._lock:
+            if not cls._env_loaded:
+                load_dotenv()
+                cls._env_loaded = True
+            cls._refresh_locked()
+            if configure_logging:
+                cls._configure_logging_locked(log_level)
 
     @classmethod
     def refresh(cls) -> None:
-        cls.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-        cls.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-        cls.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        with cls._lock:
+            cls._refresh_locked()
+
+    @classmethod
+    def _refresh_locked(cls) -> None:
+        cls.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip() or None
+        cls.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip() or None
+        cls.GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "").strip() or None
         cls.OFFLINE_MODE = os.getenv("AUTOPPT_OFFLINE", "").strip().lower() in {"1", "true", "yes", "on"}
 
     @classmethod
     def configure_logging(cls, level: int = logging.INFO) -> None:
+        with cls._lock:
+            cls._configure_logging_locked(level)
+
+    @classmethod
+    def _configure_logging_locked(cls, level: int = logging.INFO) -> None:
         root_logger = logging.getLogger()
         if root_logger.handlers:
             root_logger.setLevel(level)
