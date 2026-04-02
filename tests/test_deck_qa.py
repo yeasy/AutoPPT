@@ -85,7 +85,8 @@ def test_deck_qa_flags_thin_statistics():
 
 
 def test_chart_data_rejects_mismatched_lengths():
-    with pytest.raises(Exception):
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
         ChartData(chart_type=ChartType.BAR, title="T", categories=["A", "B"], values=[1.0])
 
 
@@ -119,6 +120,50 @@ def test_deck_qa_clean_deck_has_no_issues():
     assert not report.has_issues
 
 
+def test_deck_qa_flags_empty_title_slide():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[SlideSpec(layout=SlideLayout.TITLE, title="")],
+    )
+    report = DeckQA().analyze(deck)
+    assert report.has_issues
+    assert report.issues[0].code == "empty_title"
+
+
+def test_deck_qa_flags_empty_section_slide():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[SlideSpec(layout=SlideLayout.SECTION, title="   ")],
+    )
+    report = DeckQA().analyze(deck)
+    assert report.has_issues
+    assert report.issues[0].code == "empty_title"
+
+
+def test_deck_qa_title_slide_with_valid_title_is_clean():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[SlideSpec(layout=SlideLayout.TITLE, title="Welcome")],
+    )
+    report = DeckQA().analyze(deck)
+    assert not report.has_issues
+
+
+def test_deck_qa_flags_empty_citations():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[SlideSpec(layout=SlideLayout.CITATIONS, title="References", citations=[])],
+    )
+
+    report = DeckQA().analyze(deck)
+
+    assert any(issue.code == "empty_citations" for issue in report.issues)
+
+
 def test_layout_selector_builds_quote_slide():
     slide = LayoutSelector().quote_slide(
         title="Founder's Principle",
@@ -130,3 +175,131 @@ def test_layout_selector_builds_quote_slide():
     assert slide.layout == SlideLayout.QUOTE
     assert slide.title == "Founder's Principle"
     assert slide.quote_author == "Steve Jobs"
+
+
+def test_deck_qa_flags_empty_string_bullets():
+    """Content slide with only empty-string bullets should be flagged."""
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[SlideSpec(layout=SlideLayout.CONTENT, title="Blank Bullets", bullets=["", "  ", ""])],
+    )
+
+    report = DeckQA().analyze(deck)
+    assert any(issue.code == "empty_content" for issue in report.issues)
+
+
+def test_deck_qa_passes_non_empty_bullets():
+    """Content slide with real bullets should not be flagged as empty."""
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[SlideSpec(layout=SlideLayout.CONTENT, title="Valid", bullets=["Real point"])],
+    )
+
+    report = DeckQA().analyze(deck)
+    assert not any(issue.code == "empty_content" for issue in report.issues)
+
+
+def test_deck_qa_empty_deck_reports_issue():
+    """An empty deck should be flagged as an issue."""
+    deck = DeckSpec(title="Deck", topic="Topic", slides=[])
+    report = DeckQA().analyze(deck)
+    assert report.has_issues
+    assert any(issue.code == "empty_deck" for issue in report.issues)
+
+
+def test_deck_qa_flags_whitespace_only_left_column():
+    """Two-column slide with whitespace-only left bullets should be flagged."""
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.TWO_COLUMN,
+                title="Bad Columns",
+                left_bullets=["", "  "],
+                right_bullets=["Real content"],
+                left_title="Left",
+                right_title="Right",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert any(issue.code == "incomplete_columns" for issue in report.issues)
+
+
+def test_deck_qa_flags_whitespace_only_comparison_right():
+    """Comparison slide with whitespace-only right bullets should be flagged."""
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.COMPARISON,
+                title="Bad Comparison",
+                left_bullets=["Real point"],
+                right_bullets=["", " ", "\t"],
+                left_title="A",
+                right_title="B",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert any(issue.code == "incomplete_comparison" for issue in report.issues)
+
+
+def test_deck_qa_ignores_whitespace_bullets_for_dense_content():
+    """A slide with 10 bullets where 8 are whitespace should NOT trigger dense_content."""
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.CONTENT,
+                title="Sparse",
+                bullets=["Real one", "Real two", "", " ", "  ", "\t", "", " ", "", "  "],
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert not any(issue.code == "dense_content" for issue in report.issues)
+
+
+def test_deck_qa_passes_real_column_bullets():
+    """Two-column slide with real bullets should not be flagged."""
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.TWO_COLUMN,
+                title="Good Columns",
+                left_bullets=["Point A"],
+                right_bullets=["Point B"],
+                left_title="Left",
+                right_title="Right",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert not any(issue.code == "incomplete_columns" for issue in report.issues)
+
+
+def test_deck_qa_duplicate_empty_titles_flagged_as_empty():
+    """Two slides with empty titles should each be flagged with empty_title,
+    but NOT as duplicate_title (empty strings are skipped by the dedup logic)."""
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(layout=SlideLayout.TITLE, title=""),
+            SlideSpec(layout=SlideLayout.TITLE, title=""),
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert report.has_issues
+    empty_title_issues = [i for i in report.issues if i.code == "empty_title"]
+    assert len(empty_title_issues) == 2
+    # Empty titles are not tracked as duplicates
+    assert not any(i.code == "duplicate_title" for i in report.issues)

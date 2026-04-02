@@ -13,6 +13,7 @@ from autoppt.data_types import (
     SlidePlan,
     SlideSpec,
     SlideType,
+    StatisticData,
     PresentationSection,
     PresentationOutline,
     UserPresentation
@@ -21,7 +22,7 @@ from autoppt.data_types import (
 
 class TestChartType:
     """Tests for ChartType enum."""
-    
+
     def test_chart_types_exist(self):
         """Test that all expected chart types exist."""
         assert ChartType.BAR == "bar"
@@ -32,7 +33,7 @@ class TestChartType:
 
 class TestChartData:
     """Tests for ChartData model."""
-    
+
     def test_valid_chart_data(self):
         """Test creating valid ChartData."""
         chart = ChartData(
@@ -41,13 +42,13 @@ class TestChartData:
             categories=["North", "South", "East", "West"],
             values=[100.0, 200.0, 150.0, 180.0]
         )
-        
+
         assert chart.chart_type == ChartType.BAR
         assert chart.title == "Sales by Region"
         assert len(chart.categories) == 4
         assert len(chart.values) == 4
         assert chart.series_name == "Series 1"  # Default value
-    
+
     def test_chart_data_custom_series_name(self):
         """Test ChartData with custom series name."""
         chart = ChartData(
@@ -57,27 +58,27 @@ class TestChartData:
             values=[50.0, 30.0, 20.0],
             series_name="2025 Data"
         )
-        
+
         assert chart.series_name == "2025 Data"
 
 
 class TestSlideConfig:
     """Tests for SlideConfig model."""
-    
+
     def test_minimal_slide_config(self):
         """Test SlideConfig with minimal required fields."""
         slide = SlideConfig(
             title="Introduction",
             bullets=["Point 1", "Point 2", "Point 3"]
         )
-        
+
         assert slide.title == "Introduction"
         assert len(slide.bullets) == 3
         assert slide.image_query is None
         assert slide.speaker_notes is None
         assert slide.citations == []
         assert slide.chart_data is None
-    
+
     def test_full_slide_config(self):
         """Test SlideConfig with all fields."""
         chart = ChartData(
@@ -86,7 +87,7 @@ class TestSlideConfig:
             categories=["Q1", "Q2", "Q3", "Q4"],
             values=[10.0, 25.0, 40.0, 60.0]
         )
-        
+
         slide = SlideConfig(
             title="Market Analysis",
             bullets=["Growth is accelerating", "Q4 shows 50% increase"],
@@ -95,14 +96,14 @@ class TestSlideConfig:
             citations=["https://example.com/report"],
             chart_data=chart
         )
-        
+
         assert slide.title == "Market Analysis"
         assert slide.image_query is not None
         assert slide.speaker_notes is not None
         assert len(slide.citations) == 1
         assert slide.chart_data is not None
         assert slide.chart_data.chart_type == ChartType.LINE
-    
+
     def test_slide_config_missing_required_fields(self):
         """Test that missing required fields raises error."""
         with pytest.raises(ValidationError):
@@ -129,21 +130,21 @@ class TestSlideConfig:
 
 class TestPresentationSection:
     """Tests for PresentationSection model."""
-    
+
     def test_valid_section(self):
         """Test creating valid PresentationSection."""
         section = PresentationSection(
             title="Introduction",
             slides=["Overview", "Background", "Objectives"]
         )
-        
+
         assert section.title == "Introduction"
         assert len(section.slides) == 3
 
 
 class TestPresentationOutline:
     """Tests for PresentationOutline model."""
-    
+
     def test_valid_outline(self):
         """Test creating valid PresentationOutline."""
         outline = PresentationOutline(
@@ -154,7 +155,7 @@ class TestPresentationOutline:
                 PresentationSection(title="Conclusion", slides=["Summary", "Future"])
             ]
         )
-        
+
         assert outline.title == "AI in Healthcare"
         assert len(outline.sections) == 3
         assert outline.sections[1].title == "Applications"
@@ -162,7 +163,7 @@ class TestPresentationOutline:
 
 class TestUserPresentation:
     """Tests for UserPresentation model."""
-    
+
     def test_valid_user_presentation(self):
         """Test creating valid UserPresentation."""
         presentation = UserPresentation(
@@ -172,7 +173,7 @@ class TestUserPresentation:
                 PresentationSection(title="Part 2", slides=["Slide B"])
             ]
         )
-        
+
         assert presentation.title == "My Presentation"
         assert len(presentation.sections) == 2
 
@@ -203,3 +204,122 @@ class TestDeckSpec:
         assert deck.language == "English"
         assert deck.slides[0].plan is not None
         assert deck.slides[0].plan.slide_type == SlideType.TWO_COLUMN
+
+
+class TestChartDataValidation:
+    """Tests for ChartData validation edge cases."""
+
+    def test_empty_categories_raises_validation_error(self):
+        """ChartData with empty categories list should raise ValidationError."""
+        with pytest.raises(ValidationError, match="categories must not be empty"):
+            ChartData(
+                chart_type="bar",
+                title="T",
+                categories=[],
+                values=[],
+                series_name="S",
+            )
+
+    def test_nan_value_raises_validation_error(self):
+        """ChartData with NaN values should raise ValidationError."""
+        with pytest.raises(ValidationError, match="finite"):
+            ChartData(
+                chart_type="bar",
+                title="T",
+                categories=["A"],
+                values=[float("nan")],
+            )
+
+    def test_inf_value_raises_validation_error(self):
+        """ChartData with inf values should raise ValidationError."""
+        with pytest.raises(ValidationError, match="finite"):
+            ChartData(
+                chart_type="bar",
+                title="T",
+                categories=["A"],
+                values=[float("inf")],
+            )
+
+    def test_negative_inf_value_raises_validation_error(self):
+        """ChartData with -inf values should raise ValidationError."""
+        with pytest.raises(ValidationError, match="finite"):
+            ChartData(
+                chart_type="bar",
+                title="T",
+                categories=["A"],
+                values=[float("-inf")],
+            )
+
+    def test_mismatched_categories_values_length(self):
+        """ChartData with different-length categories and values should raise ValidationError."""
+        with pytest.raises(ValidationError, match="same length"):
+            ChartData(
+                chart_type="bar",
+                title="Mismatched",
+                categories=["A", "B", "C"],
+                values=[1.0, 2.0],
+            )
+
+
+class TestSlideConfigCrossFieldConsistency:
+    """Tests for SlideConfig cross-field consistency edge cases."""
+
+    def test_chart_type_with_no_chart_data(self):
+        """SlideConfig with slide_type=CHART but chart_data=None should construct without error."""
+        slide = SlideConfig(
+            title="Chart Slide",
+            slide_type=SlideType.CHART,
+            bullets=["Placeholder"],
+            chart_data=None,
+        )
+        assert slide.slide_type == SlideType.CHART
+        assert slide.chart_data is None
+
+    def test_quote_type_with_no_quote_text(self):
+        """SlideConfig with slide_type=QUOTE but quote_text=None should construct without error."""
+        slide = SlideConfig(
+            title="Quote Slide",
+            slide_type=SlideType.QUOTE,
+            bullets=["Placeholder"],
+            quote_text=None,
+        )
+        assert slide.slide_type == SlideType.QUOTE
+        assert slide.quote_text is None
+
+    def test_statistics_type_with_no_statistics(self):
+        """SlideConfig with slide_type=STATISTICS but statistics=None should construct without error."""
+        slide = SlideConfig(
+            title="Stats Slide",
+            slide_type=SlideType.STATISTICS,
+            bullets=["Placeholder"],
+            statistics=None,
+        )
+        assert slide.slide_type == SlideType.STATISTICS
+        assert slide.statistics is None
+
+
+class TestPresentationOutlineEdgeCases:
+    """Tests for PresentationOutline edge cases."""
+
+    def test_outline_with_empty_sections(self):
+        """PresentationOutline with an empty sections list should construct without error."""
+        outline = PresentationOutline(
+            title="Empty Deck",
+            sections=[],
+        )
+        assert outline.title == "Empty Deck"
+        assert outline.sections == []
+
+
+class TestDeckSpecEdgeCases:
+    """Tests for DeckSpec edge cases."""
+
+    def test_deck_spec_with_empty_slides(self):
+        """DeckSpec with an empty slides list should construct without error."""
+        deck = DeckSpec(
+            title="Empty Deck",
+            topic="Testing",
+            slides=[],
+        )
+        assert deck.title == "Empty Deck"
+        assert deck.slides == []
