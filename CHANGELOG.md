@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-04-02
+
+### Changed
+- Default OpenAI model updated from `gpt-4o` to `gpt-4.1`.
+- Default Anthropic model updated from `claude-sonnet-4-5-20250514` to `claude-sonnet-4-6`.
+- Default Google model updated from `gemini-2.0-flash` to `gemini-2.5-flash`.
+- Provider model lists updated with current model identifiers (added `gpt-4.1`, `gpt-5.4` series, `gemini-3-flash-preview`, `gemini-2.5-flash-lite`, `gemini-3.1-pro-preview`, `gemini-3.1-flash-lite-preview`).
+- `auto_select_style` now covers `magazine`, `tech_gradient`, `ocean`, and `sunset` themes (previously unreachable by auto-detection).
+- `_sanitize_prompt_field` now handles `None` and non-string inputs defensively.
+- `DeckQA.analyze()` now reports an `empty_deck` issue instead of silently passing.
+- `load_deck_spec` field size check now also validates `statistics` lists.
+- `Config.configure_logging` is now thread-safe (called inside the class lock).
+- Web UI uses `with Generator(...)` context manager consistently instead of manual `try/finally`.
+
+### Fixed
+- Research context sanitization now strips control characters (including null bytes) before further processing.
+- Removed unreachable dead code in article fetch redirect handling.
+- `PPTRenderer.save()` now writes to the resolved path to close a TOCTOU gap with symlinks.
+- `fetch_article_content` rejects non-text Content-Type responses to prevent binary data reaching the HTML parser.
+- `PIL.Image.MAX_IMAGE_PIXELS` set globally to 25M to prevent decompression bombs before full decode.
+- Aggregated research context is now capped at 100K characters to prevent memory exhaustion from large web results.
+- `_coerce_slide_type` now catches unmatched `SlideLayout` to `SlideType` conversion with a clear error message.
+- `add_chart_slide` guards against empty data after length-mismatch truncation.
+- Sample library sync check wrapped in `if __debug__` to avoid crashing production on partial deploys.
+- `download_image` now writes to the resolved path consistently, closing a TOCTOU gap.
+- CLI argument validation now runs before topic is used for path computation or style detection.
+- Removed dead `user_provided_output` variable in CLI entry point.
+- Web UI preview panel escapes user-supplied topic, language, style, and provider to prevent markdown injection.
+- `_is_safe_url` now unwraps IPv6-mapped IPv4 addresses before checking for private ranges.
+- `_is_safe_url` now blocks multicast and unspecified addresses (0.0.0.0, 224.0.0.0/4).
+- `TemplateHandler` now validates paths against `BLOCKED_SYSTEM_PREFIXES`.
+- CLI and thumbnail output paths are now validated against `BLOCKED_SYSTEM_PREFIXES`.
+- `generate_thumbnails` now propagates `ValueError` and `FileNotFoundError` instead of swallowing them.
+- Production `assert` in `fetch_article_content` replaced with explicit None check.
+- `_generate_from_outline_internal` no longer creates a spurious directory when `output_file` is a bare filename.
+- Web UI `_render_deck_file` guards against `os.path.basename` returning empty string on trailing-slash filenames.
+- Anthropic JSON `raw_decode` fallback now logs a warning to aid debugging.
+- Renamed shadowed `block` variable in Anthropic code fence extraction to `fenced`.
+- `_looks_like_image` heuristic tightened to avoid false positives on common business terms like "experience", "journey", "product".
+- `_infer_comparison_titles` now strips leading dots and trailing whitespace from "vs." splits (e.g., "Cloud vs. On-Premise" no longer produces a leading dot in the right title).
+- `comparison_slide` now coerces string `points` values into a single-element list instead of iterating character-by-character.
+- Anthropic `raw_decode` fallback now picks the largest JSON object in the response, reducing the chance of matching a small nested fragment.
+- `_infer_from_content` no longer promotes content slides with `image_query` to IMAGE layout when bullets are present, preventing loss of bullet content.
+
 ## [0.5.2] - 2026-03-28
 
 ### Added
@@ -27,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `_is_local_base_url` now uses URL parsing instead of substring matching to prevent bypasses.
-- Image downloads disable HTTP redirects to prevent redirect-based SSRF.
+- Image downloads validate each redirect in the chain to prevent redirect-based SSRF.
 - Blank layout selection searches by name instead of hardcoded index, preventing `IndexError` on custom templates.
 - Incomplete QUOTE/STATISTICS/IMAGE/CHART slides log a warning before falling back to content layout.
 - Streaming HTTP response leak in researcher fixed with `try/finally` block.
@@ -141,11 +185,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Four visual themes.
 - Six sample presentations.
 
-[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/yeasy/autoppt/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/yeasy/autoppt/compare/v0.5.1...v0.5.2
-[0.5.1]: https://github.com/yeasy/autoppt/compare/v0.5...v0.5.1
-[0.5.0]: https://github.com/yeasy/autoppt/compare/v0.4...v0.5
-[0.4.0]: https://github.com/yeasy/autoppt/compare/v0.3...v0.4
+[0.5.1]: https://github.com/yeasy/autoppt/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/yeasy/autoppt/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/yeasy/autoppt/compare/v0.3...v0.4.0
 [0.3.0]: https://github.com/yeasy/autoppt/compare/v0.2...v0.3
 [0.2.0]: https://github.com/yeasy/autoppt/compare/v0.1...v0.2
 [0.1.0]: https://github.com/yeasy/autoppt/releases/tag/v0.1
