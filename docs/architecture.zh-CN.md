@@ -12,7 +12,7 @@ AutoPPT 当前可以分成六个功能层。
 - 编排层：`generator.py` 负责主执行流，协调大纲生成、幻灯片规划、内容生成、remix 与最终渲染。
 - 服务层：`llm_provider.py` 与 `researcher.py` 提供可插拔的内容生成与证据获取能力。
 - 规划层：`slide_planner.py` 将大纲主题和 remix 指令转换为带布局意图的 `SlidePlan`。
-- 演示契约层：`data_types.py` 定义跨层数据边界，核心结构包括 `SlidePlan`、`DeckSpec` 与 `SlideSpec`。
+- 演示契约层：`data_types.py` 定义跨层数据边界，核心结构包括 `SlidePlan`、`DeckSpec`、`SlideSpec` 与 `SlideConfig`。
 - 渲染层：`layout_selector.py` 负责选择面向渲染器的布局类型，`ppt_renderer.py` 负责 PPTX 绘制，`themes.py` 负责主题令牌。
 
 ```mermaid
@@ -31,7 +31,9 @@ flowchart TD
     Renderer --> Themes[themes.py]
     Config -->|环境变量 / 开关| Generator
     Researcher -->|AUTOPPT_OFFLINE=1| Offline[离线闸门]
+    Generator --> DeckQA[deck_qa.py]
     Generator --> Output[(output.pptx / thumbnails)]
+    Generator --> Thumbnail[thumbnail.py]
 ```
 
 ## 模块边界
@@ -46,6 +48,11 @@ flowchart TD
 - `themes.py` 是主题定义和设计令牌的唯一可信源。
 - `style_selector.py` 将主题意图映射为具体主题名。
 - `template_handler.py` 存放模板上传与检查逻辑，为模板感知渲染做准备。
+- `data_types.py` 定义跨层的类型化边界，包括 `SlidePlan`、`DeckSpec`、`SlideSpec` 和 `SlideConfig`。
+- `exceptions.py` 定义异常层级（`AutoPPTError`、`APIKeyError`、`RateLimitError`、`RenderError`）。
+- `deck_qa.py` 提供生成后质量检查，如重复标题检测和空幻灯片检测。
+- `thumbnail.py` 渲染幻灯片缩略图网格，便于快速可视化预览。
+- `sample_library.py` 提供 `build_sample_deck()` 用于生成示例和展示 Deck。
 - `app.py` 与 `main.py` 保持轻量编排，不应承载生成策略。
 
 ## 数据流

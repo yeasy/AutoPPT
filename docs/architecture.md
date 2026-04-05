@@ -12,7 +12,7 @@ AutoPPT is split into six functional layers.
 - Orchestration Layer: `generator.py` owns run flow, coordinates outline generation, slide planning, slide content generation, remix, and final rendering.
 - Service Layer: `llm_provider.py` and `researcher.py` provide pluggable content synthesis and evidence acquisition.
 - Planning Layer: `slide_planner.py` converts outline topics and remix intent into layout-aware `SlidePlan` objects.
-- Presentation Contract Layer: `data_types.py` defines typed boundaries across layers, including `SlidePlan`, `DeckSpec`, and `SlideSpec`.
+- Presentation Contract Layer: `data_types.py` defines typed boundaries across layers, including `SlidePlan`, `DeckSpec`, `SlideSpec`, and `SlideConfig`.
 - Rendering Layer: `layout_selector.py` chooses renderer-facing layouts, `ppt_renderer.py` handles PPTX drawing, and `themes.py` owns theme tokens.
 
 ```mermaid
@@ -31,7 +31,9 @@ flowchart TD
     Renderer --> Themes[themes.py]
     Config -->|env keys / flags| Generator
     Researcher -->|AUTOPPT_OFFLINE=1| Offline[Offline gate]
+    Generator --> DeckQA[deck_qa.py]
     Generator --> Output[(output.pptx / thumbnails)]
+    Generator --> Thumbnail[thumbnail.py]
 ```
 
 ## Module Boundaries
@@ -46,6 +48,11 @@ flowchart TD
 - `themes.py` is the single source of truth for theme definitions and presentation tokens.
 - `style_selector.py` maps topic intent to a concrete theme name.
 - `template_handler.py` contains template upload and inspection logic for template-aware rendering.
+- `data_types.py` defines typed boundaries across layers, including `SlidePlan`, `DeckSpec`, `SlideSpec`, and `SlideConfig`.
+- `exceptions.py` defines the exception hierarchy (`AutoPPTError`, `APIKeyError`, `RateLimitError`, `RenderError`).
+- `deck_qa.py` provides post-generation quality checks such as duplicate title detection and empty slide detection.
+- `thumbnail.py` renders slide thumbnail grids for quick visual review.
+- `sample_library.py` provides `build_sample_deck()` for generating sample and showcase decks.
 - `app.py` and `main.py` stay thin orchestration layers and should not own generation policy.
 
 ## Data Flow

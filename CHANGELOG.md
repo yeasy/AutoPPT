@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Default OpenAI model updated from `gpt-4.1` to `gpt-5.4-mini`.
+- OpenAI model catalog reordered to list GPT-5.4 series first; added `o3`, `o3-pro`, `o3-mini`, `o4-mini` reasoning models and `gpt-5.4-pro`.
+- Anthropic Haiku model ID changed from snapshot `claude-haiku-4-5-20251001` to alias `claude-haiku-4-5`.
+- OpenAI `generate_structure` now logs a warning when called with o-series reasoning models that may have limited structured output support.
+- `SlideConfig.bullets` now defaults to an empty list instead of being required, preventing `ValidationError` for non-content slide types.
+- `StatisticData.value` and `StatisticData.label` now enforce `max_length` constraints (50 and 200 respectively).
+- Web UI error handlers now show differentiated, actionable messages for API key errors, rate limits, and generation failures instead of a generic error.
+- `TemplateHandler.get_best_layout_for_type` now has mappings for comparison, quote, chart, statistics, citations, and image slide types.
+- Modernized type annotations across all modules to use PEP 604 union syntax and built-in generics (Python 3.10+).
+- Research context is now truncated to 100,000 characters to prevent excessive prompt sizes.
+- `generate_outline` now raises `RuntimeError` when called on a closed `Generator` instance.
+
+### Fixed
+- `slide_from_config` for COMPARISON and TWO_COLUMN slides now treats explicit `left_bullets`/`right_bullets` atomically instead of mixing them with split-from-bullets via falsy `or` evaluation.
+- `slide_from_config` now demotes COMPARISON and TWO_COLUMN slides to CONTENT when either column is empty instead of creating a lopsided slide.
+- `apply_plan` now falls back to CONTENT when a COMPARISON or TWO_COLUMN plan has insufficient bullets for two columns.
+- `apply_plan` now demotes CHART to CONTENT when no `chart_data` is provided, and STATISTICS to CONTENT when no `statistics` data is provided.
+- `apply_plan` now logs a warning when a layout-locked COMPARISON or TWO_COLUMN is demoted to CONTENT due to insufficient bullets.
+- `apply_plan` now logs an info message when an inferred COMPARISON or TWO_COLUMN is demoted to CONTENT, aiding debugging.
+- `_safe_layout_from_plan` now uses `is None` check instead of falsy check for `SlidePlan`.
+- `remix_slide` now logs a warning for unsupported target layouts instead of silently returning a copy.
+- OpenAI o-series model detection tightened from `startswith("o")` to `startswith(("o3", "o4"))` to prevent false positives.
+- `style_selector` now validates (in debug mode) at import time that `STYLE_DESCRIPTIONS` and `STYLE_KEYWORDS` keys match `THEME_DEFINITIONS`.
+- `RateLimitError` now normalizes negative `retry_after` values to `None` instead of showing misleading countdown messages.
+- Anthropic `generate_structure` JSON fallback now scans for both `{` and `[` delimiters, supporting list-rooted schemas.
+- `MockProvider` topic and hint extraction now preserves original casing instead of lowercasing and title-casing.
+- `TemplateHandler.get_best_layout_for_type` now falls back to layout index 1 (content) instead of 0 (title) for unknown slide types.
+- `TemplateHandler.__init__` now checks for `..` path traversal before resolving, consistent with `Generator._validate_file_path`.
+- Slide workbench `selected_index` fallback now uses the first editable slide instead of index 0 (title slide).
+- Architecture docs now document all modules including `data_types.py`, `exceptions.py`, `deck_qa.py`, `thumbnail.py`, and `sample_library.py`.
+
 ## [0.5.3] - 2026-04-02
 
 ### Changed
