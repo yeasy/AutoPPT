@@ -1,12 +1,12 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pptx.dml.color import RGBColor
 
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_THEME: Dict[str, Any] = {
+DEFAULT_THEME: dict[str, Any] = {
     "font_name": "Aptos",
     "title_font_name": "Aptos Display",
     "accent_font_name": "Aptos",
@@ -67,7 +67,7 @@ DEFAULT_THEME: Dict[str, Any] = {
 }
 
 
-THEME_DEFINITIONS: Dict[str, Dict[str, Any]] = {
+THEME_DEFINITIONS: dict[str, dict[str, Any]] = {
     "technology": {
         "title_color": RGBColor(232, 242, 255),
         "text_color": RGBColor(201, 217, 238),
@@ -301,7 +301,7 @@ THEME_DEFINITIONS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def get_theme(name: Optional[str]) -> Dict[str, Any]:
+def get_theme(name: str | None) -> dict[str, Any]:
     theme_name = (name or "minimalist").lower()
     theme = dict(DEFAULT_THEME)
     overrides = THEME_DEFINITIONS.get(theme_name)

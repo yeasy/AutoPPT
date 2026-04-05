@@ -6,7 +6,7 @@ import socket
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple, TypeVar
+from typing import TypeVar
 from urllib.parse import urljoin, urlparse
 
 _V = TypeVar("_V")
@@ -28,14 +28,14 @@ class Researcher:
     def __init__(self) -> None:
         Config.initialize()
         self.ddgs = DDGS()
-        self._search_cache: Dict[Tuple[str, int], List[Dict[str, str]]] = {}
-        self._image_cache: Dict[Tuple[str, int], List[Dict[str, str]]] = {}
-        self._wiki_cache: Dict[Tuple[str, int, str], Optional[Dict[str, str]]] = {}
-        self._article_cache: Dict[Tuple[str, int], Optional[str]] = {}
-        self._context_cache: Dict[Tuple[Tuple[str, ...], bool, bool, str, bool], str] = {}
+        self._search_cache: dict[tuple[str, int], list[dict[str, str]]] = {}
+        self._image_cache: dict[tuple[str, int], list[dict[str, str]]] = {}
+        self._wiki_cache: dict[tuple[str, int, str], dict[str, str] | None] = {}
+        self._article_cache: dict[tuple[str, int], str | None] = {}
+        self._context_cache: dict[tuple[tuple[str, ...], bool, bool, str, bool], str] = {}
         self._cache_lock = threading.Lock()
 
-    def _remember(self, cache: Dict, key: object, value: _V) -> _V:
+    def _remember(self, cache: dict, key: object, value: _V) -> _V:
         with self._cache_lock:
             if key in cache:
                 cache.pop(key)
@@ -112,12 +112,12 @@ class Researcher:
         except OSError:
             return False
 
-    def _is_offline(self, offline: Optional[bool] = None) -> bool:
+    def _is_offline(self, offline: bool | None = None) -> bool:
         if offline is not None:
             return offline
         return Config.is_offline_mode()
 
-    def search(self, query: str, max_results: int = 3) -> List[Dict[str, str]]:
+    def search(self, query: str, max_results: int = 3) -> list[dict[str, str]]:
         cache_key = (query, max_results)
         with self._cache_lock:
             if cache_key in self._search_cache:
@@ -140,7 +140,7 @@ class Researcher:
             logger.error("Error searching for '%s': %s", query, exc)
             return []
 
-    def search_wikipedia(self, query: str, sentences: int = 5, language: str = "English") -> Optional[Dict[str, str]]:
+    def search_wikipedia(self, query: str, sentences: int = 5, language: str = "English") -> dict[str, str] | None:
         cache_key = (query, sentences, self._resolve_wikipedia_language(language))
         with self._cache_lock:
             if cache_key in self._wiki_cache:
@@ -180,7 +180,7 @@ class Researcher:
             logger.warning("Wikipedia search failed for '%s': %s", query, exc)
             return self._remember(self._wiki_cache, cache_key, None)
 
-    def search_images(self, query: str, max_results: int = 1, offline: Optional[bool] = None) -> List[Dict[str, str]]:
+    def search_images(self, query: str, max_results: int = 1, offline: bool | None = None) -> list[dict[str, str]]:
         if self._is_offline(offline):
             logger.info("Offline mode enabled, skipping image search for: %s", query)
             return []
@@ -209,7 +209,7 @@ class Researcher:
 
     _BLOCKED_PATH_SEGMENTS = {"/.ssh/", "/.gnupg/", "/.aws/", "/.config/", "/.kube/"}
 
-    def download_image(self, url: str, save_path: str, retries: int = 3, offline: Optional[bool] = None) -> bool:
+    def download_image(self, url: str, save_path: str, retries: int = 3, offline: bool | None = None) -> bool:
         if self._is_offline(offline):
             logger.info("Offline mode enabled, skipping image download from: %s", url)
             return False
@@ -318,11 +318,11 @@ class Researcher:
 
     def gather_context(
         self,
-        queries: List[str],
+        queries: list[str],
         include_wikipedia: bool = True,
         fetch_full_text: bool = True,
         language: str = "English",
-        offline: Optional[bool] = None,
+        offline: bool | None = None,
     ) -> str:
         offline_enabled = self._is_offline(offline)
         cache_key = (tuple(queries), include_wikipedia, fetch_full_text, language, offline_enabled)
@@ -333,12 +333,12 @@ class Researcher:
         if offline_enabled:
             logger.info("Offline mode enabled, skipping web research for %s query terms", len(queries))
             return self._remember(self._context_cache, cache_key, "")
-        aggregated_chunks: List[str] = []
+        aggregated_chunks: list[str] = []
         seen_urls = set()
 
         for query in queries:
             results = self.search(query)
-            full_content_by_url: Dict[str, Optional[str]] = {}
+            full_content_by_url: dict[str, str | None] = {}
 
             if fetch_full_text and results:
                 worker_count = max(1, min(len(results), Config.RESEARCH_FETCH_WORKERS))
@@ -384,7 +384,7 @@ class Researcher:
         logger.info("Gathered context from %s unique sources (%s chars)", len(seen_urls), len(aggregated_context))
         return self._remember(self._context_cache, cache_key, aggregated_context)
 
-    def fetch_article_content(self, url: str, max_chars: int = 5000, offline: Optional[bool] = None) -> Optional[str]:
+    def fetch_article_content(self, url: str, max_chars: int = 5000, offline: bool | None = None) -> str | None:
         cache_key = (url, max_chars)
         with self._cache_lock:
             if cache_key in self._article_cache:

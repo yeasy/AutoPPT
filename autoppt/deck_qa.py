@@ -1,6 +1,4 @@
 import logging
-from typing import List
-
 from pydantic import BaseModel, Field
 
 from .data_types import DeckSpec, SlideLayout, SlideSpec
@@ -16,7 +14,7 @@ class DeckIssue(BaseModel):
 
 
 class DeckQualityReport(BaseModel):
-    issues: List[DeckIssue] = Field(default_factory=list)
+    issues: list[DeckIssue] = Field(default_factory=list)
 
     @property
     def has_issues(self) -> bool:

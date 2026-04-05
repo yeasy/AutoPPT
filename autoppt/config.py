@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import logging
 import os
 import threading
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -14,12 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 class Config:
-    OPENAI_API_KEY: Optional[str] = None
-    ANTHROPIC_API_KEY: Optional[str] = None
-    GOOGLE_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: str | None = None
+    ANTHROPIC_API_KEY: str | None = None
+    GOOGLE_API_KEY: str | None = None
     OFFLINE_MODE = False
 
-    DEFAULT_OPENAI_MODEL = "gpt-4.1"
+    DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
     DEFAULT_GOOGLE_MODEL = "gemini-2.5-flash"
     DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
     OUTPUT_DIR = "output"
@@ -84,7 +85,7 @@ class Config:
         )
 
     @classmethod
-    def provider_api_key(cls, provider_name: str) -> Optional[str]:
+    def provider_api_key(cls, provider_name: str) -> str | None:
         cls.initialize()
         provider_name = provider_name.lower()
         return {
@@ -100,7 +101,7 @@ class Config:
         return bool(cls.provider_api_key(provider_name))
 
     @classmethod
-    def validate(cls, provider_name: Optional[str] = None) -> bool:
+    def validate(cls, provider_name: str | None = None) -> bool:
         cls.initialize()
 
         if provider_name:

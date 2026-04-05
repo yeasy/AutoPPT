@@ -107,7 +107,12 @@ class TestSlideConfig:
     def test_slide_config_missing_required_fields(self):
         """Test that missing required fields raises error."""
         with pytest.raises(ValidationError):
-            SlideConfig(title="Only Title")  # Missing bullets
+            SlideConfig()  # Missing title (required field)
+
+    def test_slide_config_bullets_default_empty(self):
+        """Test that bullets defaults to empty list when omitted."""
+        slide = SlideConfig(title="No Bullets")
+        assert slide.bullets == []
 
     def test_rich_slide_config_fields(self):
         """Test richer layout fields on SlideConfig."""
@@ -323,3 +328,106 @@ class TestDeckSpecEdgeCases:
         )
         assert deck.title == "Empty Deck"
         assert deck.slides == []
+
+
+class TestStatisticDataConstraints:
+    """Tests for StatisticData max_length constraints."""
+
+    def test_statistic_data_valid(self):
+        """Normal StatisticData should construct without error."""
+        stat = StatisticData(value="85%", label="Adoption Rate")
+        assert stat.value == "85%"
+        assert stat.label == "Adoption Rate"
+
+    def test_statistic_data_value_too_long(self):
+        """StatisticData with value exceeding max_length should raise."""
+        with pytest.raises(ValidationError):
+            StatisticData(value="x" * 51, label="OK")
+
+    def test_statistic_data_label_too_long(self):
+        """StatisticData with label exceeding max_length should raise."""
+        with pytest.raises(ValidationError):
+            StatisticData(value="85%", label="x" * 201)
+
+    def test_statistic_data_value_at_exact_max(self):
+        """StatisticData with value at exactly max_length should be accepted."""
+        stat = StatisticData(value="x" * 50, label="OK")
+        assert len(stat.value) == 50
+
+    def test_statistic_data_label_at_exact_max(self):
+        """StatisticData with label at exactly max_length should be accepted."""
+        stat = StatisticData(value="85%", label="x" * 200)
+        assert len(stat.label) == 200
+
+
+class TestChartTypeValidation:
+    """Tests for ChartType enum validation."""
+
+    def test_invalid_chart_type_raises(self):
+        """Passing an invalid chart type string should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            ChartData(chart_type="scatter", title="T", categories=["A"], values=[1.0])
+
+    def test_valid_chart_type_by_string(self):
+        """Passing a valid chart type string should work."""
+        chart = ChartData(chart_type="bar", title="T", categories=["A"], values=[1.0])
+        assert chart.chart_type == ChartType.BAR
+
+
+class TestSlideSpecDefaults:
+    """Tests for SlideSpec field defaults."""
+
+    def test_minimal_construction(self):
+        """SlideSpec with only layout should set all defaults."""
+        spec = SlideSpec(layout=SlideLayout.CONTENT)
+        assert spec.title == ""
+        assert spec.subtitle is None
+        assert spec.bullets == []
+        assert spec.left_bullets == []
+        assert spec.right_bullets == []
+        assert spec.editable is False
+        assert spec.planned_layout is None
+        assert spec.source_config is None
+        assert spec.plan is None
+
+    def test_editable_flag(self):
+        """Setting editable should be preserved."""
+        spec = SlideSpec(layout=SlideLayout.CONTENT, title="Test", editable=True)
+        assert spec.editable is True
+
+
+class TestSlidePlanDefaults:
+    """Tests for SlidePlan field defaults."""
+
+    def test_minimal_construction(self):
+        """SlidePlan with only title should set all defaults."""
+        plan = SlidePlan(title="Test")
+        assert plan.section_title == ""
+        assert plan.topic == ""
+        assert plan.language == "English"
+        assert plan.slide_type == SlideType.CONTENT
+        assert plan.layout_locked is False
+        assert plan.left_title is None
+        assert plan.right_title is None
+        assert plan.quote_author is None
+        assert plan.evidence_focus == []
+        assert plan.research_queries == []
+
+    def test_all_fields_construction(self):
+        """SlidePlan with all fields should preserve them."""
+        plan = SlidePlan(
+            title="Test",
+            section_title="Section",
+            topic="Topic",
+            language="Chinese",
+            slide_type=SlideType.COMPARISON,
+            left_title="A",
+            right_title="B",
+            layout_locked=True,
+            rationale="Testing",
+        )
+        assert plan.slide_type == SlideType.COMPARISON
+        assert plan.layout_locked is True
+        assert plan.left_title == "A"
+
+

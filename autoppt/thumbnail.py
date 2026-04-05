@@ -6,7 +6,6 @@ import shutil
 import tempfile
 import subprocess
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -24,7 +23,7 @@ FONT_SIZE_RATIO = 0.12  # Font size as fraction of thumbnail width
 LABEL_PADDING_RATIO = 0.4  # Label padding as fraction of font size
 
 
-def check_dependencies() -> Tuple[bool, List[str]]:
+def check_dependencies() -> tuple[bool, list[str]]:
     """Check if required external tools are installed."""
     missing = []
 
@@ -39,7 +38,7 @@ def check_dependencies() -> Tuple[bool, List[str]]:
     return len(missing) == 0, missing
 
 
-def convert_to_pdf(pptx_path: Path, output_dir: Path) -> Optional[Path]:
+def convert_to_pdf(pptx_path: Path, output_dir: Path) -> Path | None:
     """Convert PPTX to PDF using LibreOffice."""
     logger.info("Converting %s to PDF...", pptx_path)
 
@@ -68,7 +67,7 @@ def convert_to_pdf(pptx_path: Path, output_dir: Path) -> Optional[Path]:
         return None
 
 
-def convert_pdf_to_images(pdf_path: Path, output_dir: Path) -> List[Path]:
+def convert_pdf_to_images(pdf_path: Path, output_dir: Path) -> list[Path]:
     """Convert PDF pages to images using pdftoppm."""
     logger.info("Converting PDF to images...")
 
@@ -103,7 +102,7 @@ def convert_pdf_to_images(pdf_path: Path, output_dir: Path) -> List[Path]:
 
 
 def create_grid_image(
-    images: List[Path],
+    images: list[Path],
     cols: int,
     thumb_width: int,
     start_index: int
@@ -190,7 +189,7 @@ def generate_thumbnails(
     pptx_path: str,
     output_prefix: str = "thumbnails",
     cols: int = DEFAULT_COLS,
-) -> List[str]:
+) -> list[str]:
     """
     Generate thumbnail grids for a PowerPoint presentation.
 

@@ -2,7 +2,7 @@ import logging
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, get_args, get_origin
+from typing import Any, Callable, Type, TypeVar, get_args, get_origin
 
 from pydantic import BaseModel
 
@@ -13,31 +13,28 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
-PROVIDER_MODELS: Dict[str, List[str]] = {
-    "openai": ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano"],
+PROVIDER_MODELS: dict[str, list[str]] = {
+    "openai": ["gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o3-pro", "o3-mini", "o4-mini"],
     "google": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro", "gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview"],
-    "anthropic": ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"],
+    "anthropic": ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5"],
     "mock": [],
 }
 
 
-def get_supported_providers() -> List[str]:
+def get_supported_providers() -> list[str]:
     return list(PROVIDER_MODELS.keys())
 
 
-def get_provider_models(provider_name: str) -> List[str]:
+def get_provider_models(provider_name: str) -> list[str]:
     return PROVIDER_MODELS.get(provider_name.lower(), [])
 
 
-def _is_local_base_url(base_url: Optional[str]) -> bool:
+def _is_local_base_url(base_url: str | None) -> bool:
     if not base_url:
         return False
-    try:
-        from urllib.parse import urlparse
-        hostname = urlparse(base_url).hostname
-        return hostname in ("localhost", "127.0.0.1", "::1")
-    except Exception:
-        return False
+    from urllib.parse import urlparse
+    hostname = urlparse(base_url).hostname
+    return hostname in ("localhost", "127.0.0.1", "::1")
 
 
 def _is_rate_limit_error(exc: Exception) -> bool:
@@ -65,7 +62,7 @@ def _is_transient_error(exc: Exception) -> bool:
 def _run_with_retries(provider_name: str, operation: Callable[[], Any]) -> Any:
     if Config.API_RETRY_ATTEMPTS < 1:
         raise ValueError(f"API_RETRY_ATTEMPTS must be >= 1, got {Config.API_RETRY_ATTEMPTS}")
-    last_exc: Optional[Exception] = None
+    last_exc: Exception | None = None
     for attempt in range(Config.API_RETRY_ATTEMPTS):
         try:
             return operation()
@@ -112,7 +109,7 @@ class BaseLLMProvider(ABC):
 
 
 class OpenAIProvider(BaseLLMProvider):
-    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None, model: str = "gpt-4.1"):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None, model: str = "gpt-5.4-mini"):
         try:
             from openai import OpenAI
         except ImportError as exc:
@@ -141,8 +138,8 @@ class OpenAIProvider(BaseLLMProvider):
         self.model = model
 
     @staticmethod
-    def _build_messages(prompt: str, system_prompt: str) -> List[Dict[str, str]]:
-        msgs: List[Dict[str, str]] = []
+    def _build_messages(prompt: str, system_prompt: str) -> list[dict[str, str]]:
+        msgs: list[dict[str, str]] = []
         if system_prompt:
             msgs.append({"role": "system", "content": system_prompt})
         msgs.append({"role": "user", "content": prompt})
@@ -160,12 +157,14 @@ class OpenAIProvider(BaseLLMProvider):
         )
         if not response.choices:
             raise ValueError("OpenAI returned no choices in the response")
-        result: Optional[str] = response.choices[0].message.content
+        result: str | None = response.choices[0].message.content
         if result is None:
             raise ValueError("OpenAI returned a message with no content")
         return result
 
     def generate_structure(self, prompt: str, schema: Type[T], system_prompt: str = "") -> T:
+        if self.model.startswith(("o3", "o4")):
+            logger.warning("Reasoning model '%s' may have limited structured output support", self.model)
         msgs = self._build_messages(prompt, system_prompt)
         completion = _run_with_retries(
             "openai",
@@ -177,14 +176,14 @@ class OpenAIProvider(BaseLLMProvider):
         )
         if not completion.choices:
             raise ValueError("OpenAI returned no choices in the response")
-        parsed: Optional[T] = completion.choices[0].message.parsed
+        parsed: T | None = completion.choices[0].message.parsed
         if parsed is None:
             raise ValueError("OpenAI structured output parsing returned None")
         return parsed
 
 
 class GoogleProvider(BaseLLMProvider):
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.5-flash"):
+    def __init__(self, api_key: str | None = None, model: str = "gemini-2.5-flash"):
         try:
             from google import genai as _genai
         except ImportError as exc:
@@ -211,7 +210,7 @@ class GoogleProvider(BaseLLMProvider):
             ),
         )
         try:
-            text: Optional[str] = response.text
+            text: str | None = response.text
         except ValueError as e:
             raise ValueError(f"Google response blocked or empty: {e}") from e
         if text is None:
@@ -234,7 +233,7 @@ class GoogleProvider(BaseLLMProvider):
             ),
         )
         try:
-            parsed: Optional[T] = response.parsed
+            parsed: T | None = response.parsed
         except ValueError as e:
             raise ValueError(f"Google structured response blocked or empty: {e}") from e
         if parsed is None:
@@ -245,7 +244,7 @@ class GoogleProvider(BaseLLMProvider):
 
 
 class AnthropicProvider(BaseLLMProvider):
-    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, api_key: str | None = None, base_url: str | None = None, model: str | None = None):
         try:
             import anthropic
         except ImportError as exc:
@@ -331,9 +330,9 @@ Respond ONLY with the JSON object, no additional text.
         except json.JSONDecodeError:
             # Fallback: use raw_decode to find the largest JSON object
             decoder = json.JSONDecoder()
-            best: tuple[dict | None, int, int] = (None, -1, 0)  # (data, offset, length)
+            best: tuple[dict | list | None, int, int] = (None, -1, 0)  # (data, offset, length)
             for i, ch in enumerate(response_text):
-                if ch == "{":
+                if ch in ("{", "["):
                     try:
                         obj, end = decoder.raw_decode(response_text, i)
                         span = end - i
@@ -351,11 +350,13 @@ Respond ONLY with the JSON object, no additional text.
 
 
 class MockProvider(BaseLLMProvider):
-    def _extract_hint(self, prompt_lower: str, label: str) -> str:
+    def _extract_hint(self, prompt: str, label: str) -> str:
         marker = f"{label.lower()}: '"
+        prompt_lower = prompt.lower()
         if marker not in prompt_lower:
             return ""
-        raw = prompt_lower.split(marker, 1)[1].split("'", 1)[0].strip()
+        idx = prompt_lower.index(marker) + len(marker)
+        raw = prompt[idx:].split("'", 1)[0].strip()
         return raw[:200]
 
     def generate_text(self, prompt: str, system_prompt: str = "") -> str:
@@ -369,17 +370,18 @@ class MockProvider(BaseLLMProvider):
         from .data_types import PresentationSection, SlideType
 
         topic = "Current Topic"
-        if "topic:" in prompt.lower():
-            topic = prompt.lower().split("topic:")[1].split("\n")[0].strip()
-        elif "about" in prompt.lower():
-            topic = prompt.lower().split("about")[1].split("\n")[0].strip()
-
         prompt_lower = prompt.lower()
-        preferred_type = self._extract_hint(prompt_lower, "preferred slide type")
-        left_title_hint = self._extract_hint(prompt_lower, "left title hint")
-        right_title_hint = self._extract_hint(prompt_lower, "right title hint")
-        quote_author_hint = self._extract_hint(prompt_lower, "quote author hint")
-        quote_context_hint = self._extract_hint(prompt_lower, "quote context hint")
+        if "topic:" in prompt_lower:
+            idx = prompt_lower.index("topic:") + len("topic:")
+            topic = prompt[idx:].split("\n")[0].strip()
+        elif "about" in prompt_lower:
+            idx = prompt_lower.index("about") + len("about")
+            topic = prompt[idx:].split("\n")[0].strip()
+        preferred_type = self._extract_hint(prompt, "preferred slide type")
+        left_title_hint = self._extract_hint(prompt, "left title hint")
+        right_title_hint = self._extract_hint(prompt, "right title hint")
+        quote_author_hint = self._extract_hint(prompt, "quote author hint")
+        quote_context_hint = self._extract_hint(prompt, "quote context hint")
 
         def _is_str_type(annotation: Any) -> bool:
             """Check if annotation is str or Optional[str]."""
@@ -416,23 +418,23 @@ class MockProvider(BaseLLMProvider):
                 return True
             return False
 
-        dummy_data: Dict[str, Any] = {}
+        dummy_data: dict[str, Any] = {}
         for field_name, field in schema.model_fields.items():
             if _is_str_type(field.annotation):
                 if field_name == "left_title":
-                    dummy_data[field_name] = left_title_hint.title() if left_title_hint else "Current State"
+                    dummy_data[field_name] = left_title_hint if left_title_hint else "Current State"
                 elif field_name == "right_title":
-                    dummy_data[field_name] = right_title_hint.title() if right_title_hint else "Future State"
+                    dummy_data[field_name] = right_title_hint if right_title_hint else "Future State"
                 elif "title" in field_name.lower():
                     dummy_data[field_name] = f"Overview of {topic}"
                 elif "image_query" in field_name.lower():
                     dummy_data[field_name] = f"professional artistic image of {topic}"
                 elif "quote_text" in field_name.lower():
-                    dummy_data[field_name] = f"{topic.title()} rewards disciplined execution over vague ambition."
+                    dummy_data[field_name] = f"{topic} rewards disciplined execution over vague ambition."
                 elif "quote_author" in field_name.lower():
-                    dummy_data[field_name] = quote_author_hint.title() if quote_author_hint else "AutoPPT Research Desk"
+                    dummy_data[field_name] = quote_author_hint if quote_author_hint else "AutoPPT Research Desk"
                 elif "quote_context" in field_name.lower():
-                    dummy_data[field_name] = quote_context_hint.title() if quote_context_hint else "Mock analysis"
+                    dummy_data[field_name] = quote_context_hint if quote_context_hint else "Mock analysis"
                 else:
                     dummy_data[field_name] = f"Comprehensive analysis and professional insight into {topic}."
             elif _is_list_str_type(field.annotation):
@@ -499,7 +501,7 @@ class MockProvider(BaseLLMProvider):
         return schema.model_validate(dummy_data)
 
 
-def get_provider(provider_name: str, api_key: Optional[str] = None, model: Optional[str] = None) -> BaseLLMProvider:
+def get_provider(provider_name: str, api_key: str | None = None, model: str | None = None) -> BaseLLMProvider:
     provider_name = provider_name.lower()
 
     if provider_name == "openai":

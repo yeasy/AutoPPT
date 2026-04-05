@@ -399,7 +399,7 @@ class TestOpenAIProviderConstructor:
 
             from autoppt.llm_provider import OpenAIProvider
             provider = OpenAIProvider(base_url="http://localhost:8080")
-            assert provider.model == "gpt-4.1"
+            assert provider.model == "gpt-5.4-mini"
             # Should have appended /v1 since it's a local URL without v1
             mock_openai_cls.assert_called_once()
             call_kwargs = mock_openai_cls.call_args[1]
@@ -921,10 +921,10 @@ class TestMockProviderHints:
         assert "overview" in result.title.lower() or "widget" in result.title.lower()
 
     def test_quote_author_hint(self):
-        """quote author hint should populate quote_author field."""
+        """quote author hint should populate quote_author field with original casing."""
         provider = MockProvider()
         result = provider.generate_structure(
-            "Create a quote slide. Quote author hint: 'einstein'. Quote context hint: 'physics lecture'. "
+            "Create a quote slide. Quote author hint: 'Einstein'. Quote context hint: 'Physics Lecture'. "
             "Preferred slide type: 'quote'",
             SlideConfig,
         )
@@ -995,11 +995,11 @@ class TestGetProviderWithModel:
              patch("openai.OpenAI") as mock_openai_cls:
             mock_config.initialize = MagicMock()
             mock_config.OPENAI_API_KEY = "test-key"
-            mock_config.DEFAULT_OPENAI_MODEL = "gpt-4.1"
+            mock_config.DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
             mock_openai_cls.return_value = MagicMock()
 
             provider = get_provider("openai", api_key="test-key")
-            assert provider.model == "gpt-4.1"
+            assert provider.model == "gpt-5.4-mini"
 
 
 class TestProviderHelpers:
@@ -1023,6 +1023,90 @@ class TestProviderHelpers:
         assert "gemini-3.1-pro-preview" in get_provider_models("google")
         assert "claude-sonnet-4-6" in get_provider_models("anthropic")
         assert get_provider_models("nonexistent") == []
+
+    def test_openai_models_include_o_series(self):
+        from autoppt.llm_provider import get_provider_models
+        openai_models = get_provider_models("openai")
+        assert "o3" in openai_models
+        assert "o3-pro" in openai_models
+        assert "o3-mini" in openai_models
+        assert "o4-mini" in openai_models
+
+    def test_openai_models_include_pro_variants(self):
+        from autoppt.llm_provider import get_provider_models
+        openai_models = get_provider_models("openai")
+        assert "gpt-5.4-pro" in openai_models
+
+    def test_anthropic_haiku_uses_alias(self):
+        from autoppt.llm_provider import get_provider_models
+        anthropic_models = get_provider_models("anthropic")
+        assert "claude-haiku-4-5" in anthropic_models
+        assert "claude-haiku-4-5-20251001" not in anthropic_models
+
+    def test_openai_default_model_is_gpt54_mini(self):
+        from autoppt.config import Config
+        assert Config.DEFAULT_OPENAI_MODEL == "gpt-5.4-mini"
+
+
+class TestOSeriesWarning:
+    """Tests for o-series reasoning model warnings."""
+
+    def test_o_series_model_logs_warning_on_generate_structure(self, caplog):
+        """OpenAI o-series models should log a warning when generate_structure is called."""
+        import logging
+        from unittest.mock import patch, MagicMock
+
+        with patch("autoppt.llm_provider.Config") as mock_config, \
+             patch("openai.OpenAI") as mock_openai_cls:
+            mock_config.initialize = MagicMock()
+            mock_config.OPENAI_API_KEY = "test-key"
+            mock_openai_cls.return_value = MagicMock()
+
+            provider = OpenAIProvider(api_key="test-key", model="o3-mini")
+
+            mock_parsed = MagicMock()
+            mock_choice = MagicMock()
+            mock_choice.message.parsed = mock_parsed
+            mock_completion = MagicMock()
+            mock_completion.choices = [mock_choice]
+            provider.client.beta.chat.completions.parse.return_value = mock_completion
+
+            with patch("autoppt.llm_provider.Config") as retry_config:
+                retry_config.API_RETRY_ATTEMPTS = 1
+                retry_config.API_RETRY_DELAY_SECONDS = 0
+                with caplog.at_level(logging.WARNING, logger="autoppt.llm_provider"):
+                    provider.generate_structure("test prompt", MagicMock)
+
+            assert "Reasoning model 'o3-mini' may have limited structured output support" in caplog.text
+
+
+    def test_non_o_series_model_does_not_log_warning(self, caplog):
+        """Non o-series models should not trigger the structured output warning."""
+        import logging
+        from unittest.mock import patch, MagicMock
+
+        with patch("autoppt.llm_provider.Config") as mock_config, \
+             patch("openai.OpenAI") as mock_openai_cls:
+            mock_config.initialize = MagicMock()
+            mock_config.OPENAI_API_KEY = "test-key"
+            mock_openai_cls.return_value = MagicMock()
+
+            provider = OpenAIProvider(api_key="test-key", model="gpt-5.4-mini")
+
+            mock_parsed = MagicMock()
+            mock_choice = MagicMock()
+            mock_choice.message.parsed = mock_parsed
+            mock_completion = MagicMock()
+            mock_completion.choices = [mock_choice]
+            provider.client.beta.chat.completions.parse.return_value = mock_completion
+
+            with patch("autoppt.llm_provider.Config") as retry_config:
+                retry_config.API_RETRY_ATTEMPTS = 1
+                retry_config.API_RETRY_DELAY_SECONDS = 0
+                with caplog.at_level(logging.WARNING, logger="autoppt.llm_provider"):
+                    provider.generate_structure("test prompt", MagicMock)
+
+            assert "Reasoning model" not in caplog.text
 
 
 class TestRetryAttemptsGuard:
@@ -1322,17 +1406,6 @@ class TestGoogleBlockedResponses:
             result = provider.generate_structure("test", SlideConfig)
             assert result.title == "Test Slide"
 
-
-class TestIsLocalBaseUrlException:
-    """Test _is_local_base_url returns False when urlparse raises."""
-
-    def test_exception_returns_false(self):
-        """_is_local_base_url should return False when urlparse raises."""
-        from unittest.mock import patch
-        from autoppt.llm_provider import _is_local_base_url
-
-        with patch("urllib.parse.urlparse", side_effect=Exception("bad url")):
-            assert _is_local_base_url("http://localhost:8080") is False
 
 
 class TestRunWithRetriesRateLimitExhausted:
@@ -1782,7 +1855,7 @@ class TestMockProviderLeftRightTitleFallbacks:
         """left_title should use the hint when provided in the prompt."""
         provider = MockProvider()
         result = provider.generate_structure(
-            "Create slide about ML. Left title hint: 'before change'",
+            "Create slide about ML. Left title hint: 'Before Change'",
             SlideConfig,
         )
         assert result.left_title == "Before Change"
@@ -1791,7 +1864,7 @@ class TestMockProviderLeftRightTitleFallbacks:
         """right_title should use the hint when provided in the prompt."""
         provider = MockProvider()
         result = provider.generate_structure(
-            "Create slide about ML. Right title hint: 'after change'",
+            "Create slide about ML. Right title hint: 'After Change'",
             SlideConfig,
         )
         assert result.right_title == "After Change"

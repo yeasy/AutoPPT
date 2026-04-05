@@ -2,7 +2,7 @@ import logging
 import os
 import tempfile
 import zipfile
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 25_000_000  # Prevent decompression bombs before full decode
@@ -36,7 +36,7 @@ def _check_zip_bomb(path: str) -> None:
 
 
 class PPTRenderer:
-    def __init__(self, template_path: Optional[str] = None, preserve_template_slides: bool = False):
+    def __init__(self, template_path: str | None = None, preserve_template_slides: bool = False):
         self._has_template = bool(template_path)
         if template_path:
             if not os.path.isfile(template_path):
@@ -249,7 +249,7 @@ class PPTRenderer:
         shape.fill.fore_color.rgb = self._theme("accent_color")
         shape.line.fill.background()
 
-    def _add_panel(self, slide, left: float, top: float, width: float, height: float, transparency: Optional[float] = None):
+    def _add_panel(self, slide, left: float, top: float, width: float, height: float, transparency: float | None = None):
         panel = slide.shapes.add_shape(
             MSO_AUTO_SHAPE_TYPE.ROUNDED_RECTANGLE,
             Inches(left),
@@ -267,14 +267,14 @@ class PPTRenderer:
     def _write_paragraphs(
         self,
         text_frame,
-        paragraphs: List[str],
+        paragraphs: list[str],
         *,
         font_size: float,
         color: RGBColor,
         font_name: str,
         bold: bool = False,
         italic: bool = False,
-        alignment: Optional[PP_ALIGN] = None,
+        alignment: PP_ALIGN | None = None,
         paragraph_spacing: float = 0.12,
         uppercase: bool = False,
         bullet: bool = False,
@@ -378,7 +378,7 @@ class PPTRenderer:
         accent.fill.fore_color.rgb = self._theme("accent_color")
         accent.line.fill.background()
 
-    def add_content_slide(self, title: str, bullets: List[str], notes: str = "", image_path: Optional[str] = None) -> None:
+    def add_content_slide(self, title: str, bullets: list[str], notes: str = "", image_path: str | None = None) -> None:
         slide = self._add_blank_slide()
         self._add_title_text(slide, title)
 
@@ -434,8 +434,8 @@ class PPTRenderer:
     def add_two_column_slide(
         self,
         title: str,
-        left_bullets: List[str],
-        right_bullets: List[str],
+        left_bullets: list[str],
+        right_bullets: list[str],
         left_title: str = "",
         right_title: str = "",
         notes: str = "",
@@ -500,7 +500,7 @@ class PPTRenderer:
         )
         self._set_notes(slide, notes)
 
-    def add_comparison_slide(self, title: str, item_a: Dict[str, Any], item_b: Dict[str, Any], notes: str = "") -> None:
+    def add_comparison_slide(self, title: str, item_a: dict[str, Any], item_b: dict[str, Any], notes: str = "") -> None:
         self.add_two_column_slide(
             title=title,
             left_bullets=item_a.get("points", []),
@@ -605,7 +605,7 @@ class PPTRenderer:
             chart.chart_title.text_frame.text = chart_data.title
         self._set_notes(slide, notes)
 
-    def add_citations_slide(self, citations: List[str]) -> None:
+    def add_citations_slide(self, citations: list[str]) -> None:
         if not citations:
             return
         slide = self._add_blank_slide()
@@ -666,7 +666,7 @@ class PPTRenderer:
                 font_name=self._theme("font_name"),
             )
 
-    def add_statistics_slide(self, title: str, stats: List[Dict[str, str]], notes: str = "") -> None:
+    def add_statistics_slide(self, title: str, stats: list[dict[str, str]], notes: str = "") -> None:
         if len(stats) > 4:
             logger.warning("Truncating statistics from %d to 4 items", len(stats))
             stats = stats[:4]
