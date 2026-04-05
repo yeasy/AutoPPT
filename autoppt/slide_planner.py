@@ -1,6 +1,9 @@
+import logging
 import re
 
 from .data_types import SlideConfig, SlidePlan, SlideSpec, SlideType
+
+logger = logging.getLogger(__name__)
 
 
 class SlidePlanner:
@@ -163,19 +166,47 @@ class SlidePlanner:
 
         elif effective_type == SlideType.COMPARISON:
             left_bullets, right_bullets = self._split_bullets(slide_config)
-            data["slide_type"] = SlideType.COMPARISON
-            data["left_title"] = slide_config.left_title or plan.left_title or "Option A"
-            data["right_title"] = slide_config.right_title or plan.right_title or "Option B"
-            data["left_bullets"] = slide_config.left_bullets or left_bullets
-            data["right_bullets"] = slide_config.right_bullets or right_bullets
+            if not left_bullets or not right_bullets:
+                if plan.layout_locked:
+                    logger.warning("Layout-locked COMPARISON demoted to CONTENT: insufficient bullets for two columns")
+                else:
+                    logger.info("Inferred COMPARISON demoted to CONTENT: insufficient bullets for two columns")
+                data["slide_type"] = SlideType.CONTENT
+            else:
+                data["slide_type"] = SlideType.COMPARISON
+                data["left_title"] = slide_config.left_title or plan.left_title or "Option A"
+                data["right_title"] = slide_config.right_title or plan.right_title or "Option B"
+                data["left_bullets"] = left_bullets
+                data["right_bullets"] = right_bullets
 
         elif effective_type == SlideType.TWO_COLUMN:
             left_bullets, right_bullets = self._split_bullets(slide_config)
-            data["slide_type"] = SlideType.TWO_COLUMN
-            data["left_title"] = slide_config.left_title or plan.left_title or "Column A"
-            data["right_title"] = slide_config.right_title or plan.right_title or "Column B"
-            data["left_bullets"] = slide_config.left_bullets or left_bullets
-            data["right_bullets"] = slide_config.right_bullets or right_bullets
+            if not left_bullets or not right_bullets:
+                if plan.layout_locked:
+                    logger.warning("Layout-locked TWO_COLUMN demoted to CONTENT: insufficient bullets for two columns")
+                else:
+                    logger.info("Inferred TWO_COLUMN demoted to CONTENT: insufficient bullets for two columns")
+                data["slide_type"] = SlideType.CONTENT
+            else:
+                data["slide_type"] = SlideType.TWO_COLUMN
+                data["left_title"] = slide_config.left_title or plan.left_title or "Column A"
+                data["right_title"] = slide_config.right_title or plan.right_title or "Column B"
+                data["left_bullets"] = left_bullets
+                data["right_bullets"] = right_bullets
+
+        elif effective_type == SlideType.CHART:
+            if slide_config.chart_data:
+                data["slide_type"] = SlideType.CHART
+            else:
+                logger.info("CHART demoted to CONTENT: no chart_data provided")
+                data["slide_type"] = SlideType.CONTENT
+
+        elif effective_type == SlideType.STATISTICS:
+            if slide_config.statistics:
+                data["slide_type"] = SlideType.STATISTICS
+            else:
+                logger.info("STATISTICS demoted to CONTENT: no statistics provided")
+                data["slide_type"] = SlideType.CONTENT
 
         else:
             data["slide_type"] = effective_type

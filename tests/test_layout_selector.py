@@ -180,21 +180,6 @@ def test_remix_slide_to_quote():
     assert result.quote_author == "Research Desk"
 
 
-def test_remix_slide_unsupported_layout_returns_copy():
-    selector = LayoutSelector()
-    original = SlideSpec(
-        layout=SlideLayout.CONTENT,
-        title="Test",
-        bullets=["A"],
-        editable=True,
-    )
-
-    result = selector.remix_slide(original, SlideLayout.STATISTICS)
-
-    assert result.layout == SlideLayout.CONTENT
-    assert result.title == "Test"
-
-
 def test_split_single_bullet_puts_all_in_left():
     """Single bullet should go to left column only; right column stays empty."""
     selector = LayoutSelector()
@@ -203,8 +188,8 @@ def test_split_single_bullet_puts_all_in_left():
     assert right == []
 
 
-def test_comparison_slide_single_bullet_has_empty_right_bullets():
-    """A COMPARISON slide with a single bullet should have an empty right column."""
+def test_comparison_slide_single_bullet_demotes_to_content():
+    """A COMPARISON slide with a single bullet should demote to CONTENT (empty column)."""
     selector = LayoutSelector()
     slide_config = SlideConfig(
         title="Comparison Single",
@@ -214,9 +199,7 @@ def test_comparison_slide_single_bullet_has_empty_right_bullets():
 
     slide_spec = selector.slide_from_config(slide_config)
 
-    assert slide_spec.layout == SlideLayout.COMPARISON
-    assert slide_spec.left_bullets == ["Only point"]
-    assert slide_spec.right_bullets == []
+    assert slide_spec.layout == SlideLayout.CONTENT
 
 
 def test_split_empty_bullets():
@@ -434,21 +417,6 @@ def test_safe_layout_from_plan_returns_none_for_unknown_type():
     assert result is None
 
 
-def test_remix_slide_unhandled_layout_returns_deep_copy():
-    """remix_slide with an unhandled layout should return a deep copy of the original."""
-    selector = LayoutSelector()
-    slide_spec = SlideSpec(
-        layout=SlideLayout.IMAGE,
-        title="Test Image Slide",
-        bullets=["Point A"],
-        image_path="/tmp/test.png",
-    )
-    result = selector.remix_slide(slide_spec, SlideLayout.IMAGE)
-    assert result.title == slide_spec.title
-    assert result.layout == slide_spec.layout
-    assert result is not slide_spec  # deep copy, not same object
-
-
 def test_flatten_slide_bullets_with_partial_none_columns():
     """When one of left/right bullets is None and the other is a list,
     _flatten_slide_bullets should not raise TypeError.
@@ -517,3 +485,140 @@ def test_comparison_slide_string_points_handled():
     )
     assert spec.left_bullets == ["This is a single point"]
     assert spec.right_bullets == ["Point 1", "Point 2"]
+
+
+def test_comparison_uses_explicit_left_right_bullets_over_split():
+    """When a SlideConfig has both left_bullets and right_bullets set,
+    slide_from_config should use them directly instead of splitting bullets."""
+    selector = LayoutSelector()
+    slide_config = SlideConfig(
+        title="Explicit Comparison",
+        bullets=["Should", "Not", "Be", "Used"],
+        slide_type=SlideType.COMPARISON,
+        left_title="Pros",
+        right_title="Cons",
+        left_bullets=["Fast", "Cheap"],
+        right_bullets=["Fragile", "Limited"],
+    )
+
+    slide_spec = selector.slide_from_config(slide_config)
+
+    assert slide_spec.layout == SlideLayout.COMPARISON
+    assert slide_spec.left_bullets == ["Fast", "Cheap"]
+    assert slide_spec.right_bullets == ["Fragile", "Limited"]
+    assert slide_spec.left_title == "Pros"
+    assert slide_spec.right_title == "Cons"
+
+
+def test_comparison_one_side_explicit_demotes_to_content():
+    """When a SlideConfig has left_bullets set but right_bullets empty,
+    slide_from_config should demote to CONTENT (empty column is lopsided)."""
+    selector = LayoutSelector()
+    slide_config = SlideConfig(
+        title="One-Sided Comparison",
+        bullets=["Fallback A", "Fallback B", "Fallback C", "Fallback D"],
+        slide_type=SlideType.COMPARISON,
+        left_bullets=["A", "B"],
+        right_bullets=[],
+    )
+
+    slide_spec = selector.slide_from_config(slide_config)
+
+    assert slide_spec.layout == SlideLayout.CONTENT
+
+
+def test_two_column_uses_explicit_left_right_bullets_over_split():
+    """When a SlideConfig has both left_bullets and right_bullets set,
+    slide_from_config should use them directly instead of splitting bullets."""
+    selector = LayoutSelector()
+    slide_config = SlideConfig(
+        title="Explicit Two Column",
+        bullets=["Should", "Not", "Be", "Used"],
+        slide_type=SlideType.TWO_COLUMN,
+        left_title="Phase 1",
+        right_title="Phase 2",
+        left_bullets=["Plan", "Design"],
+        right_bullets=["Build", "Ship"],
+    )
+
+    slide_spec = selector.slide_from_config(slide_config)
+
+    assert slide_spec.layout == SlideLayout.TWO_COLUMN
+    assert slide_spec.left_bullets == ["Plan", "Design"]
+    assert slide_spec.right_bullets == ["Build", "Ship"]
+    assert slide_spec.left_title == "Phase 1"
+    assert slide_spec.right_title == "Phase 2"
+
+
+def test_two_column_one_side_explicit_demotes_to_content():
+    """When a SlideConfig has left_bullets set but right_bullets empty,
+    slide_from_config should demote to CONTENT (empty column is lopsided)."""
+    selector = LayoutSelector()
+    slide_config = SlideConfig(
+        title="One-Sided Two Column",
+        bullets=["Fallback A", "Fallback B", "Fallback C", "Fallback D"],
+        slide_type=SlideType.TWO_COLUMN,
+        left_bullets=["A", "B"],
+        right_bullets=[],
+    )
+
+    slide_spec = selector.slide_from_config(slide_config)
+
+    assert slide_spec.layout == SlideLayout.CONTENT
+
+
+def test_comparison_both_explicit_empty_falls_back_to_split():
+    """When both left_bullets and right_bullets are empty lists,
+    slide_from_config should fall back to splitting from bullets."""
+    selector = LayoutSelector()
+    slide_config = SlideConfig(
+        title="Both Empty Explicit",
+        bullets=["A", "B", "C", "D"],
+        slide_type=SlideType.COMPARISON,
+        left_bullets=[],
+        right_bullets=[],
+    )
+
+    slide_spec = selector.slide_from_config(slide_config)
+
+    assert slide_spec.layout == SlideLayout.COMPARISON
+    assert slide_spec.left_bullets == ["A", "B"]
+    assert slide_spec.right_bullets == ["C", "D"]
+
+
+def test_two_column_both_explicit_empty_falls_back_to_split():
+    """When both left_bullets and right_bullets are empty lists for TWO_COLUMN,
+    slide_from_config should fall back to splitting from bullets."""
+    selector = LayoutSelector()
+    slide_config = SlideConfig(
+        title="Both Empty Two Column",
+        bullets=["X", "Y", "Z", "W"],
+        slide_type=SlideType.TWO_COLUMN,
+        left_bullets=[],
+        right_bullets=[],
+    )
+
+    slide_spec = selector.slide_from_config(slide_config)
+
+    assert slide_spec.layout == SlideLayout.TWO_COLUMN
+    assert slide_spec.left_bullets == ["X", "Y"]
+    assert slide_spec.right_bullets == ["Z", "W"]
+
+
+def test_remix_unsupported_layout_returns_copy():
+    """When remix_slide is called with an unsupported target layout like STATISTICS,
+    it should return a deep copy of the original slide (not crash)."""
+    selector = LayoutSelector()
+    original = SlideSpec(
+        layout=SlideLayout.CONTENT,
+        title="Deep Copy Check",
+        bullets=["Point 1", "Point 2"],
+        editable=True,
+    )
+
+    result = selector.remix_slide(original, SlideLayout.STATISTICS)
+
+    assert result.layout == SlideLayout.CONTENT
+    assert result.title == "Deep Copy Check"
+    assert result.bullets == ["Point 1", "Point 2"]
+    assert result is not original

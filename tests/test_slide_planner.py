@@ -582,8 +582,8 @@ def test_slide_planner_detects_quote_from_unicode_curly_quotes_in_context():
     assert plan.slide_type == SlideType.QUOTE
 
 
-def test_quote_demotion_clears_quote_metadata():
-    """When a QUOTE slide is demoted to CONTENT, quote fields should not be set."""
+def test_quote_demotion_falls_back_to_content_when_no_quote_text():
+    """When a QUOTE slide has no quote_text, it falls back to CONTENT."""
     planner = SlidePlanner()
     plan = SlidePlan(
         title="Test",
@@ -669,3 +669,258 @@ def test_vs_dot_plan_produces_comparison():
     assert plan.right_title is not None
     assert not plan.left_title.startswith(".")
     assert not plan.right_title.startswith(".")
+
+
+# --- Single-bullet fallback for COMPARISON / TWO_COLUMN ---
+
+
+def test_apply_plan_comparison_single_bullet_falls_back_to_content():
+    """COMPARISON with only 1 bullet cannot split into two columns; falls back to CONTENT."""
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Before vs After",
+        slide_type=SlideType.COMPARISON,
+        left_title="Before",
+        right_title="After",
+        layout_locked=False,
+    )
+    config = SlideConfig(
+        title="Before vs After",
+        slide_type=SlideType.CONTENT,
+        bullets=["Only one point here"],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+
+
+def test_apply_plan_two_column_single_bullet_falls_back_to_content():
+    """TWO_COLUMN with only 1 bullet cannot split into two columns; falls back to CONTENT."""
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Implementation Framework",
+        slide_type=SlideType.TWO_COLUMN,
+        left_title="Core Elements",
+        right_title="Execution Moves",
+        layout_locked=False,
+    )
+    config = SlideConfig(
+        title="Implementation Framework",
+        slide_type=SlideType.CONTENT,
+        bullets=["Single bullet"],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+
+
+def test_apply_plan_comparison_empty_bullets_falls_back_to_content():
+    """COMPARISON with zero bullets cannot split into two columns; falls back to CONTENT."""
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Pros vs Cons",
+        slide_type=SlideType.COMPARISON,
+        left_title="Pros",
+        right_title="Cons",
+        layout_locked=False,
+    )
+    config = SlideConfig(
+        title="Pros vs Cons",
+        slide_type=SlideType.CONTENT,
+        bullets=[],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+
+
+def test_apply_plan_comparison_with_explicit_columns_keeps_comparison():
+    """COMPARISON with explicit left/right bullets already set should stay COMPARISON."""
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Cloud vs On-Premise",
+        slide_type=SlideType.COMPARISON,
+        left_title="Cloud",
+        right_title="On-Premise",
+        layout_locked=False,
+    )
+    config = SlideConfig(
+        title="Cloud vs On-Premise",
+        slide_type=SlideType.CONTENT,
+        bullets=[],
+        left_bullets=["Scalable", "Flexible"],
+        right_bullets=["Secure", "Owned"],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.COMPARISON
+    assert result.left_bullets == ["Scalable", "Flexible"]
+    assert result.right_bullets == ["Secure", "Owned"]
+
+
+def test_apply_plan_layout_locked_comparison_demotion_logs_warning(caplog):
+    """When layout_locked is True but bullets are insufficient for COMPARISON,
+    demotion to CONTENT should log a warning."""
+    import logging
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Locked Comparison",
+        slide_type=SlideType.COMPARISON,
+        left_title="A",
+        right_title="B",
+        layout_locked=True,
+    )
+    config = SlideConfig(
+        title="Locked but single bullet",
+        slide_type=SlideType.CONTENT,
+        bullets=["Only one"],
+    )
+    with caplog.at_level(logging.WARNING, logger="autoppt.slide_planner"):
+        result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+    assert "Layout-locked COMPARISON demoted to CONTENT" in caplog.text
+
+
+def test_apply_plan_layout_locked_two_column_demotion_logs_warning(caplog):
+    """When layout_locked is True but bullets are insufficient for TWO_COLUMN,
+    demotion to CONTENT should log a warning."""
+    import logging
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Locked Two Column",
+        slide_type=SlideType.TWO_COLUMN,
+        left_title="A",
+        right_title="B",
+        layout_locked=True,
+    )
+    config = SlideConfig(
+        title="Locked two column single bullet",
+        slide_type=SlideType.CONTENT,
+        bullets=["Only one"],
+    )
+    with caplog.at_level(logging.WARNING, logger="autoppt.slide_planner"):
+        result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+    assert "Layout-locked TWO_COLUMN demoted to CONTENT" in caplog.text
+
+
+def test_apply_plan_comparison_two_bullets_stays_comparison():
+    """COMPARISON with exactly 2 bullets should split 1+1 and stay COMPARISON."""
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Before vs After",
+        slide_type=SlideType.COMPARISON,
+        left_title="Before",
+        right_title="After",
+    )
+    config = SlideConfig(
+        title="Before vs After",
+        slide_type=SlideType.CONTENT,
+        bullets=["Point one", "Point two"],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.COMPARISON
+    assert result.left_bullets == ["Point one"]
+    assert result.right_bullets == ["Point two"]
+
+
+def test_apply_plan_two_column_two_bullets_stays_two_column():
+    """TWO_COLUMN with exactly 2 bullets should split 1+1 and stay TWO_COLUMN."""
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Implementation Framework",
+        slide_type=SlideType.TWO_COLUMN,
+        left_title="Core",
+        right_title="Execution",
+    )
+    config = SlideConfig(
+        title="Implementation Framework",
+        slide_type=SlideType.CONTENT,
+        bullets=["Element one", "Element two"],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.TWO_COLUMN
+    assert result.left_bullets == ["Element one"]
+    assert result.right_bullets == ["Element two"]
+
+
+def test_apply_plan_chart_without_data_demotes_to_content(caplog):
+    """CHART plan without chart_data should demote to CONTENT."""
+    import logging
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Revenue Trend",
+        slide_type=SlideType.CHART,
+        layout_locked=False,
+    )
+    config = SlideConfig(
+        title="Revenue Trend",
+        slide_type=SlideType.CONTENT,
+        bullets=["Revenue grew 20%"],
+    )
+    with caplog.at_level(logging.INFO, logger="autoppt.slide_planner"):
+        result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+    assert "CHART demoted to CONTENT" in caplog.text
+
+
+def test_apply_plan_chart_with_data_stays_chart():
+    """CHART plan with chart_data should stay CHART."""
+    from autoppt.data_types import ChartData, ChartType
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Revenue Trend",
+        slide_type=SlideType.CHART,
+        layout_locked=False,
+    )
+    config = SlideConfig(
+        title="Revenue Trend",
+        slide_type=SlideType.CONTENT,
+        bullets=[],
+        chart_data=ChartData(
+            chart_type=ChartType.BAR,
+            title="Revenue",
+            categories=["Q1", "Q2"],
+            values=[10.0, 20.0],
+        ),
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CHART
+
+
+def test_apply_plan_statistics_without_data_demotes_to_content(caplog):
+    """STATISTICS plan without statistics data should demote to CONTENT."""
+    import logging
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Key Metrics",
+        slide_type=SlideType.STATISTICS,
+        layout_locked=False,
+    )
+    config = SlideConfig(
+        title="Key Metrics",
+        slide_type=SlideType.CONTENT,
+        bullets=["Users grew 30%"],
+    )
+    with caplog.at_level(logging.INFO, logger="autoppt.slide_planner"):
+        result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+    assert "STATISTICS demoted to CONTENT" in caplog.text
+
+
+def test_apply_plan_statistics_with_data_stays_statistics():
+    """STATISTICS plan with statistics data should stay STATISTICS."""
+    from autoppt.data_types import StatisticData
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Key Metrics",
+        slide_type=SlideType.STATISTICS,
+        layout_locked=False,
+    )
+    config = SlideConfig(
+        title="Key Metrics",
+        slide_type=SlideType.CONTENT,
+        bullets=[],
+        statistics=[
+            StatisticData(value="85%", label="Adoption"),
+            StatisticData(value="$4B", label="Revenue"),
+        ],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.STATISTICS

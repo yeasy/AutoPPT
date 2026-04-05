@@ -26,7 +26,7 @@ class LayoutSelector:
 
     @staticmethod
     def _safe_layout_from_plan(plan: SlidePlan | None) -> SlideLayout | None:
-        if not plan:
+        if plan is None:
             return None
         try:
             return SlideLayout(plan.slide_type.value)
@@ -80,34 +80,48 @@ class LayoutSelector:
             logger.warning("QUOTE slide '%s' missing quote_text or author, demoting to CONTENT", slide_config.title)
 
         if slide_config.slide_type == SlideType.COMPARISON:
-            left_bullets, right_bullets = self._split_bullets_into_columns(slide_config.bullets)
-            return self.comparison_slide(
-                title=slide_config.title,
-                item_a={
-                    "name": slide_config.left_title or "Option A",
-                    "points": slide_config.left_bullets or left_bullets,
-                },
-                item_b={
-                    "name": slide_config.right_title or "Option B",
-                    "points": slide_config.right_bullets or right_bullets,
-                },
-                speaker_notes=slide_config.speaker_notes,
-                citations=slide_config.citations,
-                **metadata,
-            )
+            if slide_config.left_bullets or slide_config.right_bullets:
+                left_b = slide_config.left_bullets or []
+                right_b = slide_config.right_bullets or []
+            else:
+                left_b, right_b = self._split_bullets_into_columns(slide_config.bullets)
+            if not left_b or not right_b:
+                logger.warning("COMPARISON slide '%s' has empty column(s), demoting to CONTENT", slide_config.title)
+            else:
+                return self.comparison_slide(
+                    title=slide_config.title,
+                    item_a={
+                        "name": slide_config.left_title or "Option A",
+                        "points": left_b,
+                    },
+                    item_b={
+                        "name": slide_config.right_title or "Option B",
+                        "points": right_b,
+                    },
+                    speaker_notes=slide_config.speaker_notes,
+                    citations=slide_config.citations,
+                    **metadata,
+                )
 
         if slide_config.slide_type == SlideType.TWO_COLUMN:
-            left_bullets, right_bullets = self._split_bullets_into_columns(slide_config.bullets)
-            return self.two_column_slide(
-                title=slide_config.title,
-                left_bullets=slide_config.left_bullets or left_bullets,
-                right_bullets=slide_config.right_bullets or right_bullets,
-                left_title=slide_config.left_title or "Column A",
-                right_title=slide_config.right_title or "Column B",
-                speaker_notes=slide_config.speaker_notes,
-                citations=slide_config.citations,
-                **metadata,
-            )
+            if slide_config.left_bullets or slide_config.right_bullets:
+                left_b = slide_config.left_bullets or []
+                right_b = slide_config.right_bullets or []
+            else:
+                left_b, right_b = self._split_bullets_into_columns(slide_config.bullets)
+            if not left_b or not right_b:
+                logger.warning("TWO_COLUMN slide '%s' has empty column(s), demoting to CONTENT", slide_config.title)
+            else:
+                return self.two_column_slide(
+                    title=slide_config.title,
+                    left_bullets=left_b,
+                    right_bullets=right_b,
+                    left_title=slide_config.left_title or "Column A",
+                    right_title=slide_config.right_title or "Column B",
+                    speaker_notes=slide_config.speaker_notes,
+                    citations=slide_config.citations,
+                    **metadata,
+                )
 
         if slide_config.slide_type == SlideType.IMAGE:
             return SlideSpec(
@@ -278,6 +292,7 @@ class LayoutSelector:
                 **metadata,
             )
 
+        logger.warning("remix_slide: unsupported target layout %s, returning copy", target_layout.value)
         return slide_spec.model_copy(deep=True)
 
     @staticmethod
