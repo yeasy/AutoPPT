@@ -102,6 +102,15 @@ STYLE_KEYWORDS = {
 }
 
 
+if __debug__:
+    _theme_names = set(get_theme_names())
+    _desc_names = set(STYLE_DESCRIPTIONS.keys())
+    _kw_names = set(STYLE_KEYWORDS.keys()) | {DEFAULT_STYLE}
+    assert _desc_names == _theme_names, f"STYLE_DESCRIPTIONS out of sync with THEME_DEFINITIONS: {_desc_names ^ _theme_names}"
+    assert _kw_names == _theme_names, f"STYLE_KEYWORDS out of sync with THEME_DEFINITIONS: {_kw_names ^ _theme_names}"
+    del _theme_names, _desc_names, _kw_names
+
+
 def auto_select_style(topic: str, language: str = "English") -> str:
     if not topic:
         return DEFAULT_STYLE

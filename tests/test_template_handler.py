@@ -29,6 +29,16 @@ class TestTemplateHandler:
         with pytest.raises(FileNotFoundError):
             TemplateHandler("nonexistent.pptx")
 
+    def test_init_rejects_path_traversal(self):
+        """Path traversal in template path must be rejected."""
+        with pytest.raises(ValueError, match="Path traversal"):
+            TemplateHandler("../../etc/passwd.pptx")
+
+    def test_init_rejects_system_path(self):
+        """System paths must be rejected even without traversal."""
+        with pytest.raises(ValueError, match="system path"):
+            TemplateHandler("/etc/pptx/template.pptx")
+
     def test_analyze_layouts(self, sample_template):
         """Test layout analysis."""
         handler = TemplateHandler(str(sample_template))
@@ -110,11 +120,11 @@ class TestTemplateHandler:
         idx = handler.get_best_layout_for_type("content")
         assert idx == 1
 
-    def test_get_best_layout_for_type_unknown_returns_zero(self, sample_template):
-        """Test unknown type returns layout 0."""
+    def test_get_best_layout_for_type_unknown_returns_content_fallback(self, sample_template):
+        """Test unknown type returns layout 1 (content) instead of 0 (title)."""
         handler = TemplateHandler(str(sample_template))
         idx = handler.get_best_layout_for_type("nonexistent_type")
-        assert idx == 0
+        assert idx == 1
 
     def test_get_layout_by_name_returns_none_for_no_match(self, sample_template):
         """Test get_layout_by_name returns None for no match."""

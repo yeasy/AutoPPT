@@ -20,6 +20,7 @@ from .thumbnail import generate_thumbnails
 logger = logging.getLogger(__name__)
 
 _MAX_PROMPT_FIELD_LEN = 500
+_MAX_RESEARCH_CONTEXT_LEN = 100_000
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
@@ -36,14 +37,15 @@ _MULTI_WHITESPACE_RE = re.compile(r"[ \t]{2,}")
 def _sanitize_research_context(text: str) -> str:
     """Strip structural markers from web-fetched research context to prevent prompt injection."""
     if not isinstance(text, str):
-        text = str(text)
+        text = str(text) if text is not None else ""
     cleaned = _CONTROL_CHAR_RE.sub("", text)
     cleaned = _XML_TAG_RE.sub("", cleaned)
     cleaned = _SECTION_MARKER_RE.sub("", cleaned)
     cleaned = _INJECTION_PREFIX_RE.sub("", cleaned)
     cleaned = _MULTI_WHITESPACE_RE.sub(" ", cleaned)
     cleaned = _MULTI_NEWLINE_RE.sub("\n\n", cleaned)
-    return cleaned.strip()
+    cleaned = cleaned.strip()
+    return cleaned[:_MAX_RESEARCH_CONTEXT_LEN]
 
 
 def _sanitize_prompt_field(value: str) -> str:
@@ -143,6 +145,8 @@ class Generator:
         return self.llm.generate_structure(prompt, PresentationOutline)
 
     def generate_outline(self, topic: str, slides_count: int = 10, language: str = "English") -> PresentationOutline:
+        if self._assets_tmpdir is None:
+            raise RuntimeError("Generator has been closed; create a new instance.")
         if slides_count < 1 or slides_count > self._MAX_SLIDES_COUNT:
             raise ValueError(f"slides_count must be between 1 and {self._MAX_SLIDES_COUNT}, got {slides_count}")
         logger.info("Generating outline for topic: %s", topic)

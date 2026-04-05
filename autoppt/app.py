@@ -15,6 +15,7 @@ import streamlit as st
 from . import __version__
 from .config import Config
 from .data_types import SlideLayout
+from .exceptions import APIKeyError, AutoPPTError, RateLimitError
 from .llm_provider import get_provider_models, get_supported_providers
 from .style_selector import auto_select_style, get_all_styles, get_style_description
 
@@ -259,9 +260,16 @@ if generate_button:
                     mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     use_container_width=True,
                 )
-            except Exception as exc:
+            except APIKeyError as exc:
+                st.error(f"API key error for {exc.provider}: {exc.message}")
+            except RateLimitError as exc:
+                st.error(f"Rate limit exceeded for {exc.provider}: {exc.message}")
+            except AutoPPTError as exc:
                 logger.exception("Error generating presentation")
-                st.error("❌ Error generating presentation. Please check logs or try again.")
+                st.error("Generation error. Please check logs or try again.")
+            except Exception:
+                logger.exception("Unexpected error generating presentation")
+                st.error("Unexpected error. Please check logs or try again.")
 
 if st.session_state.generated_file_bytes:
     st.divider()
@@ -288,7 +296,10 @@ if editable_options:
         options=[label for _, label in editable_options],
         key="remix_slide_selector",
     )
-    selected_index = next((index for index, label in editable_options if label == selected_label), 0)
+    selected_index = next(
+        (index for index, label in editable_options if label == selected_label),
+        editable_options[0][0] if editable_options else 0,
+    )
     selected_slide = st.session_state.generated_deck_spec.slides[selected_index]
     target_layout_label = st.selectbox(
         "Preferred layout",
@@ -348,9 +359,16 @@ if editable_options:
                     action_label = "regenerated" if regenerate_button else "remixed"
                     st.success(f"✅ Selected slide {action_label} successfully.")
                     st.rerun()
-            except Exception as exc:
+            except APIKeyError as exc:
+                st.error(f"API key error for {exc.provider}: {exc.message}")
+            except RateLimitError as exc:
+                st.error(f"Rate limit exceeded for {exc.provider}: {exc.message}")
+            except AutoPPTError as exc:
                 logger.exception("Error updating slide")
-                st.error("❌ Error updating slide. Please check logs or try again.")
+                st.error("Slide update error. Please check logs or try again.")
+            except Exception:
+                logger.exception("Unexpected error updating slide")
+                st.error("Unexpected error. Please check logs or try again.")
 
 st.divider()
 st.markdown(
