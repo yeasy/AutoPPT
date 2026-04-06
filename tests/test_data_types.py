@@ -266,6 +266,30 @@ class TestChartDataValidation:
             )
 
 
+class TestChartDataMaxLengthConstraints:
+    """Tests for ChartData max_length constraints."""
+
+    def test_title_at_max_length(self):
+        """ChartData title at exactly 500 chars should be accepted."""
+        chart = ChartData(chart_type="bar", title="x" * 500, categories=["A"], values=[1.0])
+        assert len(chart.title) == 500
+
+    def test_title_exceeds_max_length(self):
+        """ChartData title exceeding 500 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            ChartData(chart_type="bar", title="x" * 501, categories=["A"], values=[1.0])
+
+    def test_series_name_at_max_length(self):
+        """ChartData series_name at exactly 200 chars should be accepted."""
+        chart = ChartData(chart_type="bar", title="T", categories=["A"], values=[1.0], series_name="s" * 200)
+        assert len(chart.series_name) == 200
+
+    def test_series_name_exceeds_max_length(self):
+        """ChartData series_name exceeding 200 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            ChartData(chart_type="bar", title="T", categories=["A"], values=[1.0], series_name="s" * 201)
+
+
 class TestSlideConfigCrossFieldConsistency:
     """Tests for SlideConfig cross-field consistency edge cases."""
 
@@ -429,5 +453,64 @@ class TestSlidePlanDefaults:
         assert plan.slide_type == SlideType.COMPARISON
         assert plan.layout_locked is True
         assert plan.left_title == "A"
+
+
+class TestSlideConfigMaxLengthConstraints:
+    """Tests for SlideConfig max_length constraints."""
+
+    def test_title_at_max_length(self):
+        """SlideConfig title at exactly 500 chars should be accepted."""
+        slide = SlideConfig(title="x" * 500)
+        assert len(slide.title) == 500
+
+    def test_title_exceeds_max_length(self):
+        """SlideConfig title exceeding 500 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SlideConfig(title="x" * 501)
+
+    def test_speaker_notes_at_max_length(self):
+        """SlideConfig speaker_notes at exactly 5000 chars should be accepted."""
+        slide = SlideConfig(title="OK", speaker_notes="n" * 5000)
+        assert len(slide.speaker_notes) == 5000
+
+    def test_speaker_notes_exceeds_max_length(self):
+        """SlideConfig speaker_notes exceeding 5000 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SlideConfig(title="OK", speaker_notes="n" * 5001)
+
+    def test_quote_text_at_max_length(self):
+        """SlideConfig quote_text at exactly 2000 chars should be accepted."""
+        slide = SlideConfig(title="OK", quote_text="q" * 2000)
+        assert len(slide.quote_text) == 2000
+
+    def test_quote_text_exceeds_max_length(self):
+        """SlideConfig quote_text exceeding 2000 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SlideConfig(title="OK", quote_text="q" * 2001)
+
+    def test_quote_author_exceeds_max_length(self):
+        """SlideConfig quote_author exceeding 200 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SlideConfig(title="OK", quote_author="a" * 201)
+
+    def test_image_query_exceeds_max_length(self):
+        """SlideConfig image_query exceeding 500 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SlideConfig(title="OK", image_query="q" * 501)
+
+    def test_left_title_exceeds_max_length(self):
+        """SlideConfig left_title exceeding 500 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SlideConfig(title="OK", left_title="t" * 501)
+
+    def test_right_title_exceeds_max_length(self):
+        """SlideConfig right_title exceeding 500 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SlideConfig(title="OK", right_title="t" * 501)
+
+    def test_quote_context_exceeds_max_length(self):
+        """SlideConfig quote_context exceeding 500 chars should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SlideConfig(title="OK", quote_context="c" * 501)
 
 

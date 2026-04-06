@@ -15,10 +15,10 @@ class ChartType(str, Enum):
 class ChartData(BaseModel):
     """Data structure for chart generation."""
     chart_type: ChartType = Field(description="Type of chart: bar, pie, line, or column")
-    title: str = Field(description="Chart title")
+    title: str = Field(max_length=500, description="Chart title")
     categories: list[str] = Field(description="Category labels for the X-axis or pie slices")
     values: list[float] = Field(description="Numeric values corresponding to each category")
-    series_name: str = Field(default="Series 1", description="Name of the data series")
+    series_name: str = Field(default="Series 1", max_length=200, description="Name of the data series")
 
     @model_validator(mode="after")
     def _check_lengths(self) -> "ChartData":
@@ -66,18 +66,18 @@ class StatisticData(BaseModel):
 
 class SlideConfig(BaseModel):
     """Configuration for a single slide's content."""
-    title: str = Field(description="The main title of the slide")
+    title: str = Field(max_length=500, description="The main title of the slide")
     slide_type: SlideType = Field(default=SlideType.CONTENT, description="Type of slide layout to use")
     bullets: list[str] = Field(default_factory=list, description="List of 5-8 detailed bullet points (for content slides)")
     left_bullets: list[str] = Field(default_factory=list, description="Bullets for the left column when using two-column or comparison layouts")
     right_bullets: list[str] = Field(default_factory=list, description="Bullets for the right column when using two-column or comparison layouts")
-    left_title: str | None = Field(None, description="Title for the left column or first comparison item")
-    right_title: str | None = Field(None, description="Title for the right column or second comparison item")
-    image_query: str | None = Field(None, description="A search query to find an image for this slide")
-    quote_text: str | None = Field(None, description="Primary quote text when using a quote layout")
-    quote_author: str | None = Field(None, description="Author attribution for a quote layout")
-    quote_context: str | None = Field(None, description="Context for a quote layout such as title, source, or year")
-    speaker_notes: str | None = Field(None, description="Speaker notes for this slide")
+    left_title: str | None = Field(None, max_length=500, description="Title for the left column or first comparison item")
+    right_title: str | None = Field(None, max_length=500, description="Title for the right column or second comparison item")
+    image_query: str | None = Field(None, max_length=500, description="A search query to find an image for this slide")
+    quote_text: str | None = Field(None, max_length=2000, description="Primary quote text when using a quote layout")
+    quote_author: str | None = Field(None, max_length=200, description="Author attribution for a quote layout")
+    quote_context: str | None = Field(None, max_length=500, description="Context for a quote layout such as title, source, or year")
+    speaker_notes: str | None = Field(None, max_length=5000, description="Speaker notes for this slide")
     citations: list[str] = Field(default_factory=list, description="List of source URLs used for this slide")
     chart_data: ChartData | None = Field(None, description="Data for chart slides")
     statistics: list[StatisticData] | None = Field(None, description="List of 3-4 key stats for statistics slides")
