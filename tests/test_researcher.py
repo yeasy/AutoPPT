@@ -2017,6 +2017,210 @@ class TestSSRFMulticastUnspecified:
     def test_rejects_unspecified_ipv4(self, mock_dns):
         assert Researcher._is_safe_url("http://evil.com/img.jpg") is False
 
+
+class TestGatherContextAllEmptyResults:
+    """Test gather_context when all queries return zero results."""
+
+    def test_all_queries_empty_returns_empty_string(self):
+        """gather_context should return empty string when all queries return no results."""
+        researcher = Researcher()
+        with patch.object(researcher, "search", return_value=[]), \
+             patch.object(researcher, "search_wikipedia", return_value=None):
+            result = researcher.gather_context(
+                ["no results", "also nothing"],
+                include_wikipedia=True,
+                fetch_full_text=True,
+                offline=False,
+            )
+        assert result == ""
+
+    def test_empty_query_list(self):
+        """gather_context with empty query list should return empty string."""
+        researcher = Researcher()
+        with patch.object(researcher, "search_wikipedia", return_value=None):
+            result = researcher.gather_context(
+                [],
+                include_wikipedia=True,
+                fetch_full_text=False,
+                offline=False,
+            )
+        assert result == ""
+
+
+class TestGatherContextExecutorTimeout:
+    """Test that executor.map in gather_context has a timeout."""
+
+    @patch.object(Researcher, 'search')
+    @patch.object(Researcher, 'search_wikipedia')
+    @patch.object(Researcher, 'fetch_article_content')
+    def test_executor_timeout_propagates(self, mock_fetch, mock_wiki, mock_search):
+        """When a fetch exceeds the executor timeout, TimeoutError should propagate."""
+        import concurrent.futures
+
+        mock_search.return_value = [
+            {"title": "Slow", "href": "https://slow.example.com", "body": "body"},
+        ]
+        mock_wiki.return_value = None
+        mock_fetch.side_effect = lambda *a, **kw: (_ for _ in ()).throw(
+            concurrent.futures.TimeoutError("executor timeout")
+        )
+
+        researcher = Researcher()
+        with pytest.raises(concurrent.futures.TimeoutError):
+            researcher.gather_context(
+                ["slow query"],
+                include_wikipedia=False,
+                fetch_full_text=True,
+                offline=False,
+            )
+
+
+class TestArticleFetchTimeoutConfig:
+    """Test that article fetch uses Config.ARTICLE_FETCH_TIMEOUT."""
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_fetch_article_uses_config_timeout(self, mock_get, mock_safe):
+        """fetch_article_content should use Config.ARTICLE_FETCH_TIMEOUT for HTTP requests."""
+        from autoppt.config import Config
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.headers = {"Content-Type": "text/html"}
+        mock_get.return_value = mock_response
+
+        researcher = Researcher()
+        researcher.fetch_article_content("https://example.com/article")
+
+        assert mock_get.call_args[1]["timeout"] == Config.ARTICLE_FETCH_TIMEOUT
+
+
+class TestDownloadImageRedirectHandling:
+    """Tests for download_image redirect chain handling."""
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_redirect_follows_location(self, mock_get, mock_safe, temp_dir):
+        """download_image should follow redirects and download from final URL."""
+        redirect_response = MagicMock()
+        redirect_response.status_code = 302
+        redirect_response.headers = {"Location": "https://cdn.example.com/img.jpg"}
+
+        jpeg_header = b'\xff\xd8\xff\xe0' + b'\x00' * 100
+        final_response = MagicMock()
+        final_response.status_code = 200
+        final_response.headers = {"Content-Type": "image/jpeg"}
+        final_response.iter_content.return_value = [jpeg_header]
+
+        mock_get.side_effect = [redirect_response, final_response]
+
+        researcher = Researcher()
+        import os
+        save_path = os.path.join(temp_dir, "redirect.jpg")
+        result = researcher.download_image("https://example.com/img.jpg", save_path, retries=1)
+        assert result is True
+        assert mock_get.call_count == 2
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_redirect_no_location_header(self, mock_get, mock_safe, temp_dir):
+        """download_image should return False when redirect has no Location header."""
+        redirect_response = MagicMock()
+        redirect_response.status_code = 301
+        redirect_response.headers = {}
+        mock_get.return_value = redirect_response
+
+        researcher = Researcher()
+        import os
+        save_path = os.path.join(temp_dir, "noloc.jpg")
+        result = researcher.download_image("https://example.com/img.jpg", save_path, retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url')
+    @patch('autoppt.researcher.requests.get')
+    def test_redirect_to_unsafe_url(self, mock_get, mock_safe, temp_dir):
+        """download_image should block redirects to non-public URLs."""
+        mock_safe.side_effect = lambda url: "evil" not in url
+
+        redirect_response = MagicMock()
+        redirect_response.status_code = 302
+        redirect_response.headers = {"Location": "http://evil.internal/secret"}
+        mock_get.return_value = redirect_response
+
+        researcher = Researcher()
+        import os
+        save_path = os.path.join(temp_dir, "unsafe.jpg")
+        result = researcher.download_image("https://example.com/img.jpg", save_path, retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_too_many_redirects(self, mock_get, mock_safe, temp_dir):
+        """download_image should return False after exceeding max redirects."""
+        redirect_response = MagicMock()
+        redirect_response.status_code = 302
+        redirect_response.headers = {"Location": "https://example.com/loop"}
+        mock_get.return_value = redirect_response
+
+        researcher = Researcher()
+        import os
+        save_path = os.path.join(temp_dir, "loop.jpg")
+        result = researcher.download_image("https://example.com/img.jpg", save_path, retries=1)
+        assert result is False
+
+
+class TestDownloadImagePathValidation:
+    """Tests for download_image path traversal and blocked path detection."""
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_path_traversal_blocked(self, mock_safe):
+        """download_image should reject paths containing '..' traversal."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/tmp/../../etc/passwd", retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_sensitive_path_blocked(self, mock_safe):
+        """download_image should reject paths to sensitive directories."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/home/user/.ssh/img.jpg", retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_gnupg_path_blocked(self, mock_safe):
+        """download_image should reject paths to .gnupg directory."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/home/user/.gnupg/img.jpg", retries=1)
+        assert result is False
+
+
+class TestGatherContextTruncation:
+    """Tests for gather_context aggregated context truncation."""
+
+    @patch.object(Researcher, 'search')
+    @patch.object(Researcher, 'search_wikipedia')
+    def test_context_truncated_at_100k(self, mock_wiki, mock_search):
+        """gather_context should truncate aggregated context at 100,000 chars."""
+        # Create a result with very long body text
+        long_body = "x" * 60_000
+        mock_search.return_value = [
+            {"title": "Long1", "href": "https://a.example.com", "body": long_body},
+            {"title": "Long2", "href": "https://b.example.com", "body": long_body},
+        ]
+        mock_wiki.return_value = None
+
+        researcher = Researcher()
+        result = researcher.gather_context(
+            ["long query"],
+            include_wikipedia=False,
+            fetch_full_text=False,
+            offline=False,
+        )
+        assert len(result) <= 100_000
+
+
+class TestSSRFMulticastIPv6:
+    """Tests for IPv6 multicast address blocking."""
+
     @patch("socket.getaddrinfo", return_value=[(10, 1, 6, '', ('ff02::1', 0, 0, 0))])
     def test_rejects_multicast_ipv6(self, mock_dns):
         assert Researcher._is_safe_url("http://evil.com/img.jpg") is False
