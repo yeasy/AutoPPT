@@ -5,6 +5,18 @@ All notable changes to AutoPPT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5] - 2026-04-06
+
+### Changed
+- `ChartData.title` now enforces `max_length=500` and `ChartData.series_name` enforces `max_length=200`.
+- `SlideConfig` string fields (`title`, `left_title`, `right_title`, `image_query`, `quote_text`, `quote_author`, `quote_context`, `speaker_notes`) now enforce `max_length` constraints.
+- Article fetch timeout is now configurable via `Config.ARTICLE_FETCH_TIMEOUT` instead of a hardcoded value.
+- `ThreadPoolExecutor` in `gather_context` now has an executor-level timeout to prevent indefinite hangs.
+
+### Fixed
+- Standardized exception variable naming (`as exc:`) across all modules for consistency.
+- Wikipedia `DisambiguationError` handler referenced undefined variable `e` instead of `exc`.
+
 ## [0.5.4] - 2026-04-04
 
 ### Changed
