@@ -211,8 +211,8 @@ class GoogleProvider(BaseLLMProvider):
         )
         try:
             text: str | None = response.text
-        except ValueError as e:
-            raise ValueError(f"Google response blocked or empty: {e}") from e
+        except ValueError as exc:
+            raise ValueError(f"Google response blocked or empty: {exc}") from exc
         if text is None:
             raise ValueError("Google returned a response with no text content")
         return text
@@ -234,8 +234,8 @@ class GoogleProvider(BaseLLMProvider):
         )
         try:
             parsed: T | None = response.parsed
-        except ValueError as e:
-            raise ValueError(f"Google structured response blocked or empty: {e}") from e
+        except ValueError as exc:
+            raise ValueError(f"Google structured response blocked or empty: {exc}") from exc
         if parsed is None:
             raise ValueError("Google structured output parsing returned None")
         if isinstance(parsed, dict):

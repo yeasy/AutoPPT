@@ -87,8 +87,8 @@ class TemplateHandler:
             md = MarkItDown()
             result = md.convert(str(self.template_path))
             return str(result.text_content)
-        except Exception as e:
-            logger.error("Failed to extract text from template: %s", e)
+        except Exception as exc:
+            logger.error("Failed to extract text from template: %s", exc)
             return ""
 
     def get_layout_by_name(self, name_pattern: str) -> int | None:
