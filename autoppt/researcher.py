@@ -158,10 +158,10 @@ class Researcher:
             page_title = search_results[0]
             try:
                 page = wikipedia.page(page_title, auto_suggest=False)
-            except wikipedia.exceptions.DisambiguationError as e:
-                if e.options:
+            except wikipedia.exceptions.DisambiguationError as exc:
+                if exc.options:
                     try:
-                        page = wikipedia.page(e.options[0], auto_suggest=False)
+                        page = wikipedia.page(exc.options[0], auto_suggest=False)
                     except (wikipedia.exceptions.DisambiguationError, wikipedia.exceptions.PageError):
                         return self._remember(self._wiki_cache, cache_key, None)
                 else:
@@ -347,6 +347,7 @@ class Researcher:
                         executor.map(
                             lambda result: self.fetch_article_content(result["href"], max_chars=3000) if result.get("href") else None,
                             results,
+                            timeout=Config.ARTICLE_FETCH_TIMEOUT + 10,
                         )
                     )
                 full_content_by_url = {
@@ -405,7 +406,7 @@ class Researcher:
             for _hop in range(_MAX_REDIRECTS + 1):
                 response = requests.get(
                     current_url,
-                    timeout=30,
+                    timeout=Config.ARTICLE_FETCH_TIMEOUT,
                     headers={"User-Agent": "AutoPPT"},
                     stream=True,
                     allow_redirects=False,

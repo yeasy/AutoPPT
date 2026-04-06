@@ -162,3 +162,8 @@ class TestConfig:
         """MAX_TEMPLATE_BYTES and MAX_DECOMPRESSED_BYTES are defined with expected values."""
         assert Config.MAX_TEMPLATE_BYTES == 50 * 1024 * 1024
         assert Config.MAX_DECOMPRESSED_BYTES == 200 * 1024 * 1024
+
+    def test_article_fetch_timeout_defined(self):
+        """ARTICLE_FETCH_TIMEOUT must be a positive number."""
+        assert hasattr(Config, "ARTICLE_FETCH_TIMEOUT")
+        assert Config.ARTICLE_FETCH_TIMEOUT > 0
