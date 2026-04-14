@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 _MAX_REDIRECTS = 5
+_MAX_CONTEXT_CHARS = 100_000
+_MAX_ARTICLE_BYTES = 2 * 1024 * 1024  # 2 MB
+_IMAGE_RETRY_DELAY_SECONDS = 2
 
 
 class Researcher:
@@ -254,6 +257,9 @@ class Researcher:
                 else:
                     logger.warning("Too many redirects for %s", url)
                     return False
+                if response is None:
+                    logger.warning("No response received for %s", url)
+                    return False
                 try:
                     if response.status_code != 200:
                         logger.warning("Image download returned status %s", response.status_code)
@@ -308,7 +314,7 @@ class Researcher:
             except Exception as exc:
                 logger.warning("Image download attempt %s/%s failed: %s", attempt + 1, retries, exc)
                 if attempt < retries - 1:
-                    time.sleep(2)
+                    time.sleep(_IMAGE_RETRY_DELAY_SECONDS)
         try:
             if os.path.exists(resolved_save):
                 os.remove(resolved_save)
@@ -362,12 +368,13 @@ class Researcher:
                     continue
 
                 seen_urls.add(href)
+                title = result.get("title", "Untitled")
                 full_content = full_content_by_url.get(href)
                 if full_content and len(full_content) > len(result.get("body", "")):
-                    aggregated_chunks.append(f"Source: {result['title']} ({href})\nFull Content:\n{full_content}\n")
+                    aggregated_chunks.append(f"Source: {title} ({href})\nFull Content:\n{full_content}\n")
                     continue
 
-                aggregated_chunks.append(f"Source: {result['title']} ({href})\nContent: {result['body']}\n")
+                aggregated_chunks.append(f"Source: {title} ({href})\nContent: {result.get('body', '')}\n")
 
             if include_wikipedia:
                 wiki_result = self.search_wikipedia(query, sentences=10, language=language)
@@ -378,14 +385,14 @@ class Researcher:
                     seen_urls.add(wiki_result["url"])
 
         aggregated_context = "\n".join(aggregated_chunks)
-        _MAX_CONTEXT_CHARS = 100_000
         if len(aggregated_context) > _MAX_CONTEXT_CHARS:
             logger.warning("Truncating aggregated context from %s to %s chars", len(aggregated_context), _MAX_CONTEXT_CHARS)
-            aggregated_context = aggregated_context[:_MAX_CONTEXT_CHARS]
+            aggregated_context = aggregated_context[:_MAX_CONTEXT_CHARS] + "\n[...truncated]"
         logger.info("Gathered context from %s unique sources (%s chars)", len(seen_urls), len(aggregated_context))
         return self._remember(self._context_cache, cache_key, aggregated_context)
 
     def fetch_article_content(self, url: str, max_chars: int = 5000, offline: bool | None = None) -> str | None:
+        max_chars = max(max_chars, 1)
         cache_key = (url, max_chars)
         with self._cache_lock:
             if cache_key in self._article_cache:
@@ -400,7 +407,6 @@ class Researcher:
         try:
             import trafilatura
 
-            _MAX_ARTICLE_BYTES = 2 * 1024 * 1024  # 2 MB
             current_url = url
             response = None
             for _hop in range(_MAX_REDIRECTS + 1):
