@@ -70,8 +70,8 @@ class SlidePlanner:
 
         if any(token in remix_lower for token in ("quote", "principle", "vision", "mantra")):
             plan.slide_type = SlideType.QUOTE
-            plan.quote_author = current_slide.quote_author if current_slide else "Industry Perspective"
-            plan.quote_context = current_slide.quote_context if current_slide else (section_title or topic)
+            plan.quote_author = (current_slide.quote_author if current_slide else None) or "Industry Perspective"
+            plan.quote_context = (current_slide.quote_context if current_slide else None) or section_title or topic
             plan.visual_intent = "Use one memorable quote with clean whitespace."
             plan.rationale = "Remix instruction explicitly requests a quote-centric slide."
             return plan

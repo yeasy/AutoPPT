@@ -21,6 +21,7 @@ GRID_PADDING = 20  # Padding between thumbnails
 BORDER_WIDTH = 2  # Border width around thumbnails
 FONT_SIZE_RATIO = 0.12  # Font size as fraction of thumbnail width
 LABEL_PADDING_RATIO = 0.4  # Label padding as fraction of font size
+SUBPROCESS_TIMEOUT = 120  # Seconds to wait for LibreOffice/pdftoppm
 
 
 def check_dependencies() -> tuple[bool, list[str]]:
@@ -54,13 +55,14 @@ def convert_to_pdf(pptx_path: Path, output_dir: Path) -> Path | None:
     ]
 
     try:
-        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=SUBPROCESS_TIMEOUT)
         pdf_path = output_dir / f"{pptx_path.stem}.pdf"
         if pdf_path.exists():
             return pdf_path
         return None
     except subprocess.CalledProcessError as e:
-        logger.error("Failed to convert PPTX to PDF: %s", e)
+        stderr_text = e.stderr.decode("utf-8", errors="replace") if e.stderr else ""
+        logger.error("Failed to convert PPTX to PDF: %s\n%s", e, stderr_text)
         return None
     except subprocess.TimeoutExpired:
         logger.error("LibreOffice conversion timed out for %s", pptx_path)
@@ -88,13 +90,14 @@ def convert_pdf_to_images(pdf_path: Path, output_dir: Path) -> list[Path]:
             return 0
 
     try:
-        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=SUBPROCESS_TIMEOUT)
         # pdftoppm generates files like slide-1.jpg, slide-01.jpg, etc.
         # sort them by number
         images = sorted(list(output_dir.glob("slide-*.jpg")), key=_slide_sort_key)
         return images
     except subprocess.CalledProcessError as e:
-        logger.error("Failed to convert PDF to images: %s", e)
+        stderr_text = e.stderr.decode("utf-8", errors="replace") if e.stderr else ""
+        logger.error("Failed to convert PDF to images: %s\n%s", e, stderr_text)
         return []
     except subprocess.TimeoutExpired:
         logger.error("PDF to image conversion timed out for %s", pdf_path)

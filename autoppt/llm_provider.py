@@ -34,7 +34,7 @@ def _is_local_base_url(base_url: str | None) -> bool:
         return False
     from urllib.parse import urlparse
     hostname = urlparse(base_url).hostname
-    return hostname in ("localhost", "127.0.0.1", "::1")
+    return hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0")
 
 
 def _is_rate_limit_error(exc: Exception) -> bool:
