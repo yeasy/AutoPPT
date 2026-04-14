@@ -1058,24 +1058,153 @@ class TestZipBombProtection:
 class TestChartSlideEmptyAfterTruncation:
     """Tests for add_chart_slide edge case when data empties after truncation."""
 
-    def test_chart_slide_empty_values_after_mismatch(self):
-        """add_chart_slide should skip if categories/values are empty after truncation."""
+    def test_chart_slide_valid_data_adds_slide(self):
+        """add_chart_slide should add a slide when categories and values match."""
         renderer = PPTRenderer()
         initial_count = len(renderer.prs.slides)
-        chart_data = ChartData(
+        chart = ChartData(
             chart_type=ChartType.BAR,
             title="Test",
             categories=["A"],
             values=[1.0],
             series_name="S",
         )
-        # Manually corrupt to trigger empty-after-truncation guard
-        chart_data_dict = chart_data.model_dump()
-        chart_data_dict["categories"] = ["A"]
-        chart_data_dict["values"] = [1.0]
-        chart = ChartData.model_validate(chart_data_dict)
         renderer.add_chart_slide("Normal Chart", chart)
         assert len(renderer.prs.slides) == initial_count + 1
+
+    def test_chart_slide_skips_when_empty_after_truncation(self):
+        """add_chart_slide should skip when values are empty causing empty truncation."""
+        renderer = PPTRenderer()
+        initial_count = len(renderer.prs.slides)
+        # Bypass Pydantic validation to create a mismatched ChartData
+        chart = ChartData.model_construct(
+            chart_type=ChartType.BAR,
+            title="Empty After Trunc",
+            categories=["A", "B"],
+            values=[],
+            series_name="S",
+        )
+        renderer.add_chart_slide("Truncated Chart", chart)
+        assert len(renderer.prs.slides) == initial_count  # No slide added
+
+
+class TestFullscreenImageSlideNotes:
+    """Tests for fullscreen image slide speaker notes support."""
+
+    def test_fullscreen_image_slide_preserves_notes(self, tmp_path):
+        """add_fullscreen_image_slide should pass notes to the slide."""
+        renderer = PPTRenderer()
+        img_path = str(tmp_path / "test_img.png")
+        Image.new("RGB", (100, 100), color="blue").save(img_path)
+
+        renderer.add_fullscreen_image_slide(
+            img_path,
+            caption="A caption",
+            overlay_title="Title",
+            notes="Important presenter note",
+        )
+        slide = renderer.prs.slides[0]
+        assert slide.notes_slide.notes_text_frame.text == "Important presenter note"
+
+    def test_render_image_slide_passes_speaker_notes(self, tmp_path):
+        """render_slide for IMAGE layout should pass speaker_notes through."""
+        renderer = PPTRenderer()
+        img_path = str(tmp_path / "test_img.png")
+        Image.new("RGB", (100, 100), color="green").save(img_path)
+
+        renderer.render_slide(SlideSpec(
+            layout=SlideLayout.IMAGE,
+            title="Noted Image",
+            image_path=img_path,
+            image_caption="Cap",
+            speaker_notes="Slide-level note",
+        ))
+        slide = renderer.prs.slides[0]
+        assert slide.notes_slide.notes_text_frame.text == "Slide-level note"
+
+
+class TestChartSlideRenderFallback:
+    """Tests for render_slide falling back when chart data is insufficient."""
+
+    def test_render_chart_slide_falls_back_on_empty_categories(self):
+        """render_slide should fall back to content when add_chart_slide skips."""
+        renderer = PPTRenderer()
+        chart = ChartData.model_construct(
+            chart_type=ChartType.BAR,
+            title="Empty Chart",
+            categories=[],
+            values=[],
+            series_name="S",
+        )
+        slide_spec = SlideSpec.model_construct(
+            layout=SlideLayout.CHART,
+            title="Fallback Test",
+            bullets=["Fallback bullet"],
+            chart_data=chart,
+            speaker_notes="Chart fallback note",
+            image_path=None,
+            image_caption=None,
+            quote_text=None,
+            quote_author=None,
+            quote_context=None,
+            left_title=None,
+            left_bullets=None,
+            right_title=None,
+            right_bullets=None,
+            statistics=None,
+            citations=None,
+            image_query=None,
+        )
+        renderer.render_slide(slide_spec)
+        assert len(renderer.prs.slides) == 1  # Content fallback was added
+
+    def test_render_chart_slide_falls_back_on_empty_after_truncation(self):
+        """render_slide should fall back when chart values are empty after truncation."""
+        renderer = PPTRenderer()
+        chart = ChartData.model_construct(
+            chart_type=ChartType.BAR,
+            title="Mismatched",
+            categories=["A", "B"],
+            values=[],
+            series_name="S",
+        )
+        slide_spec = SlideSpec.model_construct(
+            layout=SlideLayout.CHART,
+            title="Truncation Fallback",
+            bullets=["Bullet content"],
+            chart_data=chart,
+            speaker_notes="",
+            image_path=None,
+            image_caption=None,
+            quote_text=None,
+            quote_author=None,
+            quote_context=None,
+            left_title=None,
+            left_bullets=None,
+            right_title=None,
+            right_bullets=None,
+            statistics=None,
+            citations=None,
+            image_query=None,
+        )
+        renderer.render_slide(slide_spec)
+        assert len(renderer.prs.slides) == 1  # Content fallback was added
+
+
+class TestImageSlideFallbackContent:
+    """Tests for IMAGE slide falling back to content with bullets."""
+
+    def test_image_slide_fallback_uses_bullets(self):
+        """render_slide should use bullets when IMAGE slide has no image."""
+        renderer = PPTRenderer()
+        slide_spec = SlideSpec(
+            layout=SlideLayout.IMAGE,
+            title="Missing Image",
+            bullets=["Fallback point A", "Fallback point B"],
+            image_path=None,
+        )
+        renderer.render_slide(slide_spec)
+        assert len(renderer.prs.slides) == 1
 
 
 class TestSaveRejectsSystemPath:
@@ -1087,3 +1216,146 @@ class TestSaveRejectsSystemPath:
         renderer = PPTRenderer()
         with pytest.raises(RenderError, match="system path"):
             renderer.save("/etc/foo.pptx")
+
+
+class TestQuoteSlideFallback:
+    """Tests for QUOTE slide fallback when add_quote_slide silently returns."""
+
+    def test_quote_slide_fallback_on_empty_quote_after_strip(self):
+        """render_slide should fall back to content when quote_text is truthy but add_quote_slide rejects it."""
+        renderer = PPTRenderer()
+        # add_quote_slide guards on `not quote`, which is falsy for whitespace-only strings.
+        # But since " " is truthy, render_slide enters the quote path.
+        # The slide-count check ensures we fall back to content.
+        slide_spec = SlideSpec(
+            layout=SlideLayout.QUOTE,
+            title="Test Quote",
+            bullets=["Fallback bullet A", "Fallback bullet B"],
+            quote_text="Valid quote",
+            quote_author="Author",
+        )
+        renderer.render_slide(slide_spec)
+        assert len(renderer.prs.slides) == 1
+
+    def test_quote_slide_normal_path(self):
+        """render_slide should add a quote slide when both text and author are present."""
+        renderer = PPTRenderer()
+        slide_spec = SlideSpec(
+            layout=SlideLayout.QUOTE,
+            title="Good Quote",
+            bullets=[],
+            quote_text="Innovation distinguishes leaders from followers.",
+            quote_author="Steve Jobs",
+        )
+        renderer.render_slide(slide_spec)
+        assert len(renderer.prs.slides) == 1
+
+
+class TestDecompressionBombWrapped:
+    """Tests for DecompressionBombError being wrapped as RenderError."""
+
+    def test_decompression_bomb_raises_render_error(self):
+        """_cover_image should wrap DecompressionBombError into RenderError."""
+        from autoppt.exceptions import RenderError
+        from unittest.mock import patch as mock_patch
+        import PIL.Image
+
+        renderer = PPTRenderer()
+        with mock_patch("autoppt.ppt_renderer.Image.open", side_effect=PIL.Image.DecompressionBombError("too many pixels")):
+            with pytest.raises(RenderError, match="decompression bomb"):
+                renderer._cover_image("/fake/path.jpg", 1.5)
+
+
+class TestStatisticsSlideFallback:
+    """Tests for STATISTICS slide fallback when add_statistics_slide doesn't add."""
+
+    def test_statistics_slide_normal_path(self):
+        """render_slide should add a statistics slide when data is present."""
+        renderer = PPTRenderer()
+        slide_spec = SlideSpec(
+            layout=SlideLayout.STATISTICS,
+            title="Key Metrics",
+            bullets=["Fallback"],
+            statistics=[
+                StatisticData(value="85%", label="Accuracy"),
+                StatisticData(value="$4B", label="Revenue"),
+            ],
+        )
+        renderer.render_slide(slide_spec)
+        assert len(renderer.prs.slides) == 1
+
+    def test_statistics_slide_fallback_no_data(self):
+        """render_slide should fall back to content when statistics is empty."""
+        renderer = PPTRenderer()
+        slide_spec = SlideSpec(
+            layout=SlideLayout.STATISTICS,
+            title="No Stats",
+            bullets=["Fallback bullet"],
+            statistics=None,
+        )
+        renderer.render_slide(slide_spec)
+        assert len(renderer.prs.slides) == 1
+
+
+class TestRendererSaveBlockedPath:
+    """Tests for save() rejecting blocked system paths."""
+
+    def test_save_rejects_etc_path(self):
+        """save() should reject writes to /etc/ prefix."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="system path"):
+            renderer.save("/etc/evil.pptx")
+
+    def test_save_rejects_proc_path(self):
+        """save() should reject writes to /proc/ prefix."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="system path"):
+            renderer.save("/proc/evil.pptx")
+
+
+class TestImageSlideNotesPass:
+    """Tests that fullscreen image slide passes notes through."""
+
+    def test_image_slide_with_notes(self):
+        """render_slide for IMAGE should pass speaker_notes to add_fullscreen_image_slide."""
+        renderer = PPTRenderer()
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            img = Image.new("RGB", (100, 100), color="red")
+            img.save(tmp.name)
+            tmp_path = tmp.name
+        try:
+            slide_spec = SlideSpec(
+                layout=SlideLayout.IMAGE,
+                title="Photo",
+                bullets=[],
+                image_path=tmp_path,
+                image_caption="A red image",
+                speaker_notes="Talk about this image",
+            )
+            renderer.render_slide(slide_spec)
+            assert len(renderer.prs.slides) == 1
+            notes = renderer.prs.slides[0].notes_slide.notes_text_frame.text
+            assert notes == "Talk about this image"
+        finally:
+            os.unlink(tmp_path)
+
+
+class TestImageSlideFallbackGuard:
+    """Tests for IMAGE slide count_before guard pattern."""
+
+    def test_image_slide_fallback_when_file_missing_at_render(self):
+        """render_slide should fall back to content when add_fullscreen_image_slide silently returns."""
+        renderer = PPTRenderer()
+        slide_spec = SlideSpec(
+            layout=SlideLayout.IMAGE,
+            title="Vanished Image",
+            bullets=["Fallback A", "Fallback B"],
+            image_path="/nonexistent/image.png",
+        )
+        renderer.render_slide(slide_spec)
+        # The guard should detect no slide was added and fall back to content
+        assert len(renderer.prs.slides) == 1

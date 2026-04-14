@@ -514,3 +514,37 @@ class TestSlideConfigMaxLengthConstraints:
             SlideConfig(title="OK", quote_context="c" * 501)
 
 
+class TestChartDataNonFiniteValues:
+    """Tests for ChartData rejecting non-finite float values."""
+
+    def test_rejects_nan(self):
+        """ChartData should reject NaN values."""
+        with pytest.raises(ValidationError, match="finite"):
+            ChartData(
+                chart_type=ChartType.BAR,
+                title="Test",
+                categories=["A", "B"],
+                values=[1.0, float("nan")],
+            )
+
+    def test_rejects_positive_inf(self):
+        """ChartData should reject positive infinity values."""
+        with pytest.raises(ValidationError, match="finite"):
+            ChartData(
+                chart_type=ChartType.BAR,
+                title="Test",
+                categories=["A"],
+                values=[float("inf")],
+            )
+
+    def test_rejects_negative_inf(self):
+        """ChartData should reject negative infinity values."""
+        with pytest.raises(ValidationError, match="finite"):
+            ChartData(
+                chart_type=ChartType.BAR,
+                title="Test",
+                categories=["A"],
+                values=[float("-inf")],
+            )
+
+

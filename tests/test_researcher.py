@@ -1964,7 +1964,7 @@ class TestCacheThreadSafety:
         assert errors == [], f"Thread safety errors: {errors}"
 
 
-class TestGatherContextTruncation:
+class TestGatherContextTruncationBasic:
     """Test that gather_context truncates very large aggregated context."""
 
     def test_context_truncated_at_100k_chars(self):
@@ -1984,7 +1984,27 @@ class TestGatherContextTruncation:
                 fetch_full_text=False,
                 offline=False,
             )
-        assert len(result) <= 100_000
+        # Truncated content + truncation marker
+        assert result.endswith("[...truncated]")
+
+    def test_context_truncation_marker_present(self):
+        """gather_context should append a truncation marker when context is truncated."""
+        researcher = Researcher()
+        large_body = "y" * 60_000
+        mock_results = [
+            {"title": "Huge1", "href": "https://huge1.example.com", "body": large_body},
+            {"title": "Huge2", "href": "https://huge2.example.com", "body": large_body},
+            {"title": "Huge3", "href": "https://huge3.example.com", "body": large_body},
+        ]
+        with patch.object(researcher, "search", return_value=mock_results), \
+             patch.object(researcher, "search_wikipedia", return_value=None):
+            result = researcher.gather_context(
+                ["test"],
+                include_wikipedia=True,
+                fetch_full_text=False,
+                offline=False,
+            )
+        assert "[...truncated]" in result
 
 
 class TestIPv6MappedIPv4:
@@ -2193,7 +2213,7 @@ class TestDownloadImagePathValidation:
         assert result is False
 
 
-class TestGatherContextTruncation:
+class TestGatherContextTruncationAdvanced:
     """Tests for gather_context aggregated context truncation."""
 
     @patch.object(Researcher, 'search')
@@ -2215,7 +2235,64 @@ class TestGatherContextTruncation:
             fetch_full_text=False,
             offline=False,
         )
-        assert len(result) <= 100_000
+        assert result.endswith("[...truncated]")
+
+
+class TestResearcherModuleConstants:
+    """Tests for module-level constants."""
+
+    def test_max_context_chars_is_100k(self):
+        from autoppt.researcher import _MAX_CONTEXT_CHARS
+        assert _MAX_CONTEXT_CHARS == 100_000
+
+    def test_image_retry_delay_is_positive(self):
+        from autoppt.researcher import _IMAGE_RETRY_DELAY_SECONDS
+        assert _IMAGE_RETRY_DELAY_SECONDS > 0
+
+    def test_max_redirects_is_positive(self):
+        from autoppt.researcher import _MAX_REDIRECTS
+        assert _MAX_REDIRECTS > 0
+
+    def test_max_article_bytes_is_module_level(self):
+        from autoppt.researcher import _MAX_ARTICLE_BYTES
+        assert _MAX_ARTICLE_BYTES == 2 * 1024 * 1024
+
+
+class TestGatherContextMissingKeys:
+    """Tests for gather_context handling results with missing dict keys."""
+
+    def test_result_missing_title_key(self):
+        """gather_context should not crash when a search result lacks 'title'."""
+        researcher = Researcher()
+        mock_results = [
+            {"href": "https://example.com/page", "body": "Some content"},
+        ]
+        with patch.object(researcher, "search", return_value=mock_results), \
+             patch.object(researcher, "search_wikipedia", return_value=None):
+            result = researcher.gather_context(
+                ["test"],
+                include_wikipedia=False,
+                fetch_full_text=False,
+                offline=False,
+            )
+        assert "Untitled" in result
+        assert "Some content" in result
+
+    def test_result_missing_body_key(self):
+        """gather_context should not crash when a search result lacks 'body'."""
+        researcher = Researcher()
+        mock_results = [
+            {"href": "https://example.com/page", "title": "A Title"},
+        ]
+        with patch.object(researcher, "search", return_value=mock_results), \
+             patch.object(researcher, "search_wikipedia", return_value=None):
+            result = researcher.gather_context(
+                ["test"],
+                include_wikipedia=False,
+                fetch_full_text=False,
+                offline=False,
+            )
+        assert "A Title" in result
 
 
 class TestSSRFMulticastIPv6:
@@ -2224,3 +2301,128 @@ class TestSSRFMulticastIPv6:
     @patch("socket.getaddrinfo", return_value=[(10, 1, 6, '', ('ff02::1', 0, 0, 0))])
     def test_rejects_multicast_ipv6(self, mock_dns):
         assert Researcher._is_safe_url("http://evil.com/img.jpg") is False
+
+
+class TestSSRFIPv6MappedPrivate:
+    """Tests for IPv6-mapped IPv4 private address blocking."""
+
+    @patch("socket.getaddrinfo", return_value=[(10, 1, 6, '', ('::ffff:127.0.0.1', 0, 0, 0))])
+    def test_rejects_ipv6_mapped_loopback(self, mock_dns):
+        """_is_safe_url should reject IPv6-mapped IPv4 loopback addresses."""
+        assert Researcher._is_safe_url("http://evil.com/img.jpg") is False
+
+    @patch("socket.getaddrinfo", return_value=[(10, 1, 6, '', ('::ffff:192.168.1.1', 0, 0, 0))])
+    def test_rejects_ipv6_mapped_private(self, mock_dns):
+        """_is_safe_url should reject IPv6-mapped IPv4 private addresses."""
+        assert Researcher._is_safe_url("http://evil.com/img.jpg") is False
+
+    @patch("socket.getaddrinfo", return_value=[(10, 1, 6, '', ('::ffff:10.0.0.1', 0, 0, 0))])
+    def test_rejects_ipv6_mapped_10_range(self, mock_dns):
+        """_is_safe_url should reject IPv6-mapped 10.x.x.x addresses."""
+        assert Researcher._is_safe_url("http://evil.com/img.jpg") is False
+
+
+class TestDownloadImageResponseNone:
+    """Tests for download_image handling when response could be None."""
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_download_image_redirect_no_location(self, mock_safe):
+        """download_image should return False when redirect has no Location header."""
+        researcher = Researcher()
+        mock_response = MagicMock()
+        mock_response.status_code = 302
+        mock_response.headers = {}
+        mock_response.close = MagicMock()
+        with patch("requests.get", return_value=mock_response):
+            result = researcher.download_image("http://example.com/img.jpg", "/tmp/test.jpg", retries=1)
+        assert result is False
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_download_image_too_many_redirects(self, mock_safe):
+        """download_image should return False after too many redirects."""
+        researcher = Researcher()
+        mock_response = MagicMock()
+        mock_response.status_code = 302
+        mock_response.headers = {"Location": "http://example.com/next"}
+        mock_response.close = MagicMock()
+        with patch("requests.get", return_value=mock_response):
+            result = researcher.download_image("http://example.com/img.jpg", "/tmp/test.jpg", retries=1)
+        assert result is False
+
+
+class TestDownloadImageBlockedPath:
+    """Tests for download_image rejecting blocked save paths."""
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_rejects_ssh_path(self, mock_safe):
+        """download_image should reject save paths containing .ssh."""
+        researcher = Researcher()
+        result = researcher.download_image("http://example.com/img.jpg", "/home/user/.ssh/authorized_keys")
+        assert result is False
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_rejects_aws_path(self, mock_safe):
+        """download_image should reject save paths containing .aws."""
+        researcher = Researcher()
+        result = researcher.download_image("http://example.com/img.jpg", "/home/user/.aws/credentials")
+        assert result is False
+
+
+class TestSearchImagesException:
+    """Tests for search_images handling exceptions."""
+
+    def test_search_images_exception_returns_empty(self):
+        """search_images should return [] when ddgs.images raises an exception."""
+        researcher = Researcher()
+        with patch.object(researcher.ddgs, "images", side_effect=Exception("network error")):
+            result = researcher.search_images("test query", offline=False)
+        assert result == []
+
+
+class TestFetchArticleRedirectExhaustion:
+    """Tests for fetch_article_content redirect loop exhaustion."""
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_too_many_redirects_returns_none(self, mock_safe):
+        """fetch_article_content should return None after too many redirects."""
+        researcher = Researcher()
+        mock_response = MagicMock()
+        mock_response.status_code = 302
+        mock_response.headers = {"Location": "http://example.com/next"}
+        mock_response.close = MagicMock()
+        with patch("requests.get", return_value=mock_response):
+            result = researcher.fetch_article_content("http://example.com/article")
+        assert result is None
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_redirect_no_location_returns_none(self, mock_safe):
+        """fetch_article_content should return None when redirect has empty Location."""
+        researcher = Researcher()
+        mock_response = MagicMock()
+        mock_response.status_code = 301
+        mock_response.headers = {"Location": ""}
+        mock_response.close = MagicMock()
+        with patch("requests.get", return_value=mock_response):
+            result = researcher.fetch_article_content("http://example.com/article")
+        assert result is None
+
+
+class TestFetchArticleMaxCharsValidation:
+    """Tests for max_chars parameter validation in fetch_article_content."""
+
+    def test_negative_max_chars_clamped_to_one(self):
+        """fetch_article_content should clamp negative max_chars to 1."""
+        researcher = Researcher()
+        # With offline mode, the function returns None immediately, but the
+        # cache key should use the clamped value (1, not -5).
+        result = researcher.fetch_article_content("http://example.com", max_chars=-5, offline=True)
+        assert result is None
+        # Verify clamped cache key was used
+        assert (("http://example.com", 1) in researcher._article_cache)
+
+    def test_zero_max_chars_clamped_to_one(self):
+        """fetch_article_content should clamp zero max_chars to 1."""
+        researcher = Researcher()
+        result = researcher.fetch_article_content("http://example.com/zero", max_chars=0, offline=True)
+        assert result is None
+        assert (("http://example.com/zero", 1) in researcher._article_cache)

@@ -924,3 +924,25 @@ def test_apply_plan_statistics_with_data_stays_statistics():
     )
     result = planner.apply_plan(config, plan)
     assert result.slide_type == SlideType.STATISTICS
+
+
+def test_quote_remix_with_none_author_on_current_slide():
+    """When current_slide has quote_author=None, the plan should use the fallback."""
+    from autoppt.data_types import SlideSpec, SlideLayout
+    planner = SlidePlanner()
+    current = SlideSpec(
+        layout=SlideLayout.CONTENT,
+        title="Old Slide",
+        quote_author=None,
+        quote_context=None,
+    )
+    plan = planner.plan(
+        slide_title="Vision Statement",
+        section_title="Leadership",
+        topic="AI Strategy",
+        remix_instruction="make this a quote slide",
+        current_slide=current,
+    )
+    assert plan.slide_type == SlideType.QUOTE
+    assert plan.quote_author == "Industry Perspective"
+    assert plan.quote_context is not None and plan.quote_context != ""

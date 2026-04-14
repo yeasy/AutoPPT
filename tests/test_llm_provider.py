@@ -2083,3 +2083,32 @@ class TestRetryExhaustion:
         assert _is_transient_error(ConnectionError("connection reset")) is True
         assert _is_transient_error(Exception("timed out")) is True
         assert _is_transient_error(TypeError("wrong type")) is False
+
+
+class TestIsLocalBaseUrl:
+    """Tests for _is_local_base_url function."""
+
+    def test_localhost(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("http://localhost:8080/v1") is True
+
+    def test_127_0_0_1(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("http://127.0.0.1:1234/v1") is True
+
+    def test_ipv6_loopback(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("http://[::1]:8080/v1") is True
+
+    def test_0_0_0_0(self):
+        """_is_local_base_url should recognize 0.0.0.0 as local."""
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("http://0.0.0.0:11434/v1") is True
+
+    def test_remote_url(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url("https://api.example.com/v1") is False
+
+    def test_none(self):
+        from autoppt.llm_provider import _is_local_base_url
+        assert _is_local_base_url(None) is False

@@ -622,3 +622,55 @@ def test_remix_unsupported_layout_returns_copy():
     assert result.title == "Deep Copy Check"
     assert result.bullets == ["Point 1", "Point 2"]
     assert result is not original
+
+
+class TestSlideSpecPreservesBulletsForFallback:
+    """Specialized layout SlideSpecs should carry bullets for fallback rendering."""
+
+    def test_chart_slide_spec_includes_bullets(self):
+        """CHART SlideSpec should include bullets for content fallback."""
+        selector = LayoutSelector()
+        config = SlideConfig(
+            title="Revenue Growth",
+            slide_type=SlideType.CHART,
+            bullets=["Revenue grew 20%", "Costs fell 10%"],
+            chart_data=ChartData(
+                chart_type=ChartType.COLUMN,
+                title="Revenue",
+                categories=["Q1", "Q2"],
+                values=[10, 20],
+                series_name="Rev",
+            ),
+        )
+        spec = selector.slide_from_config(config)
+        assert spec.layout == SlideLayout.CHART
+        assert spec.bullets == ["Revenue grew 20%", "Costs fell 10%"]
+
+    def test_statistics_slide_spec_includes_bullets(self):
+        """STATISTICS SlideSpec should include bullets for content fallback."""
+        selector = LayoutSelector()
+        config = SlideConfig(
+            title="Key Metrics",
+            slide_type=SlideType.STATISTICS,
+            bullets=["Metric insight A", "Metric insight B"],
+            statistics=[
+                StatisticData(value="85%", label="Growth"),
+                StatisticData(value="$4B", label="Revenue"),
+            ],
+        )
+        spec = selector.slide_from_config(config)
+        assert spec.layout == SlideLayout.STATISTICS
+        assert spec.bullets == ["Metric insight A", "Metric insight B"]
+
+    def test_image_slide_spec_includes_bullets(self):
+        """IMAGE SlideSpec should include bullets for content fallback."""
+        selector = LayoutSelector()
+        config = SlideConfig(
+            title="Product Showcase",
+            slide_type=SlideType.IMAGE,
+            bullets=["Feature A", "Feature B", "Feature C"],
+            image_query="product photo",
+        )
+        spec = selector.slide_from_config(config)
+        assert spec.layout == SlideLayout.IMAGE
+        assert spec.bullets == ["Feature A", "Feature B", "Feature C"]

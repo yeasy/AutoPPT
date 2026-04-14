@@ -13,7 +13,7 @@ from autoppt.thumbnail import (
     generate_thumbnails, check_dependencies, convert_to_pdf,
     convert_pdf_to_images, create_grid_image,
     THUMBNAIL_WIDTH, CONVERSION_DPI, GRID_PADDING, BORDER_WIDTH,
-    FONT_SIZE_RATIO, LABEL_PADDING_RATIO, JPEG_QUALITY,
+    FONT_SIZE_RATIO, LABEL_PADDING_RATIO, JPEG_QUALITY, SUBPROCESS_TIMEOUT,
 )
 
 class TestThumbnailGeneration:
@@ -648,3 +648,60 @@ class TestThumbnailValueErrorPropagation:
         missing = tmp_path / "nonexistent.pptx"
         with pytest.raises(FileNotFoundError):
             generate_thumbnails(str(missing))
+
+
+class TestSubprocessTimeoutConstant:
+    """Tests for the SUBPROCESS_TIMEOUT constant."""
+
+    def test_subprocess_timeout_is_positive(self):
+        assert SUBPROCESS_TIMEOUT > 0
+
+    def test_convert_to_pdf_uses_timeout_constant(self, tmp_path):
+        """convert_to_pdf should use SUBPROCESS_TIMEOUT, not a hardcoded value."""
+        pptx_path = tmp_path / "test.pptx"
+        pptx_path.write_bytes(b"fake")
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            convert_to_pdf(pptx_path, tmp_path)
+            args, kwargs = mock_run.call_args
+            assert kwargs.get("timeout") == SUBPROCESS_TIMEOUT
+
+    def test_convert_pdf_to_images_uses_timeout_constant(self, tmp_path):
+        """convert_pdf_to_images should use SUBPROCESS_TIMEOUT, not a hardcoded value."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"fake")
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            convert_pdf_to_images(pdf_path, tmp_path)
+            args, kwargs = mock_run.call_args
+            assert kwargs.get("timeout") == SUBPROCESS_TIMEOUT
+
+
+class TestSubprocessStderrLogging:
+    """Tests for subprocess stderr being included in error logs."""
+
+    def test_convert_to_pdf_logs_stderr(self, tmp_path):
+        """convert_to_pdf should log subprocess stderr on failure."""
+        pptx_path = tmp_path / "test.pptx"
+        pptx_path.write_bytes(b"fake")
+        err = subprocess.CalledProcessError(1, "soffice")
+        err.stderr = b"LibreOffice error details"
+        with patch("subprocess.run", side_effect=err), \
+             patch("autoppt.thumbnail.logger") as mock_logger:
+            result = convert_to_pdf(pptx_path, tmp_path)
+        assert result is None
+        log_call_args = mock_logger.error.call_args[0]
+        assert "LibreOffice error details" in log_call_args[2]
+
+    def test_convert_pdf_to_images_logs_stderr(self, tmp_path):
+        """convert_pdf_to_images should log subprocess stderr on failure."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"fake")
+        err = subprocess.CalledProcessError(1, "pdftoppm")
+        err.stderr = b"pdftoppm error details"
+        with patch("subprocess.run", side_effect=err), \
+             patch("autoppt.thumbnail.logger") as mock_logger:
+            result = convert_pdf_to_images(pdf_path, tmp_path)
+        assert result == []
+        log_call_args = mock_logger.error.call_args[0]
+        assert "pdftoppm error details" in log_call_args[2]
