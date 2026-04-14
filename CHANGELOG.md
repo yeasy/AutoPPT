@@ -5,6 +5,32 @@ All notable changes to AutoPPT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- `_generate_from_outline_internal` now uses the resolved output path from `_validate_file_path` for directory creation and saving.
+- STATISTICS slide rendering now checks slide count after `add_statistics_slide`, consistent with QUOTE and CHART fallback patterns.
+- `add_fullscreen_image_slide` now accepts and applies `notes` parameter for speaker notes on image slides.
+- IMAGE slide fallback no longer passes invalid `image_path` to `add_content_slide`.
+- IMAGE slide rendering now checks slide count after `add_fullscreen_image_slide`, consistent with QUOTE, STATISTICS, and CHART fallback patterns.
+- Magic constants extracted to module-level: `_MAX_LIST_ITEMS`, `_MAX_CONTEXT_PREVIEW_LEN` (generator), `_MAX_CONTEXT_CHARS`, `_MAX_ARTICLE_BYTES`, `_IMAGE_RETRY_DELAY_SECONDS` (researcher), `SUBPROCESS_TIMEOUT` (thumbnail).
+- Truncated research context now appends `[...truncated]` marker for clarity.
+- `gather_context` now uses defensive `.get()` for result title and body fields.
+- Subprocess stderr is now logged on LibreOffice/pdftoppm conversion failures.
+- STATISTICS, IMAGE, and CHART `SlideSpec` creation now preserves `bullets` from `SlideConfig` for fallback rendering.
+- Quote remix in `SlidePlanner` now handles `None` `quote_author`/`quote_context` with `or` fallback instead of conditional expression.
+- `fetch_article_content` now clamps `max_chars` to a minimum of 1 to prevent negative-index truncation.
+
+### Fixed
+- `build_deck_spec` now raises `RuntimeError` when called on a closed `Generator` instance.
+- Unexpected exceptions during slide generation now produce error slides instead of crashing, while `MemoryError` and `RecursionError` are re-raised.
+- QUOTE slide rendering now falls back to content when `add_quote_slide` silently rejects the input.
+- CHART slide rendering now falls back to content when `add_chart_slide` produces no slide.
+- `_cover_image` now catches `DecompressionBombError` and wraps it as `RenderError`.
+- `_collect_citations` now strips whitespace from citation strings and filters whitespace-only entries.
+- `download_image` now checks for `None` response after redirect loop.
+- `_is_local_base_url` now recognizes `0.0.0.0` as a local address.
+
 ## [0.5.5] - 2026-04-06
 
 ### Changed
@@ -229,7 +255,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Four visual themes.
 - Six sample presentations.
 
-[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/yeasy/autoppt/compare/v0.5.4...v0.5.5
+[0.5.4]: https://github.com/yeasy/autoppt/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/yeasy/autoppt/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/yeasy/autoppt/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/yeasy/autoppt/compare/v0.5.0...v0.5.1
