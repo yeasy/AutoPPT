@@ -91,14 +91,18 @@ class PPTRenderer:
             return
         if slide_spec.layout == SlideLayout.QUOTE:
             if slide_spec.quote_text and slide_spec.quote_author:
+                count_before = len(self.prs.slides)
                 self.add_quote_slide(
                     slide_spec.quote_text,
                     slide_spec.quote_author,
                     context=slide_spec.quote_context or "",
                     notes=slide_spec.speaker_notes or "",
                 )
-                return
-            logger.warning("Quote slide '%s' missing text or author, falling back to content", slide_spec.title)
+                if len(self.prs.slides) > count_before:
+                    return
+                logger.warning("Quote slide '%s' was not added, falling back to content", slide_spec.title)
+            else:
+                logger.warning("Quote slide '%s' missing text or author, falling back to content", slide_spec.title)
             self.add_content_slide(
                 slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or "", image_path=slide_spec.image_path
             )
@@ -106,31 +110,44 @@ class PPTRenderer:
         if slide_spec.layout == SlideLayout.STATISTICS:
             if slide_spec.statistics:
                 stats_dicts = [{"value": stat.value, "label": stat.label} for stat in slide_spec.statistics]
+                count_before = len(self.prs.slides)
                 self.add_statistics_slide(slide_spec.title, stats_dicts, slide_spec.speaker_notes or "")
-                return
-            logger.warning("Statistics slide '%s' has no data, falling back to content", slide_spec.title)
+                if len(self.prs.slides) > count_before:
+                    return
+                logger.warning("Statistics slide '%s' data was insufficient, falling back to content", slide_spec.title)
+            else:
+                logger.warning("Statistics slide '%s' has no data, falling back to content", slide_spec.title)
             self.add_content_slide(
                 slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or "", image_path=slide_spec.image_path
             )
             return
         if slide_spec.layout == SlideLayout.IMAGE:
             if slide_spec.image_path:
+                count_before = len(self.prs.slides)
                 self.add_fullscreen_image_slide(
                     slide_spec.image_path,
                     caption=slide_spec.image_caption or "",
                     overlay_title=slide_spec.title,
+                    notes=slide_spec.speaker_notes or "",
                 )
-                return
-            logger.warning("Image slide '%s' has no image, falling back to content", slide_spec.title)
+                if len(self.prs.slides) > count_before:
+                    return
+                logger.warning("Image slide '%s' was not added, falling back to content", slide_spec.title)
+            else:
+                logger.warning("Image slide '%s' has no image, falling back to content", slide_spec.title)
             self.add_content_slide(
-                slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or "", image_path=slide_spec.image_path
+                slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or ""
             )
             return
         if slide_spec.layout == SlideLayout.CHART:
             if slide_spec.chart_data:
+                count_before = len(self.prs.slides)
                 self.add_chart_slide(slide_spec.title, slide_spec.chart_data, slide_spec.speaker_notes or "")
-                return
-            logger.warning("Chart slide '%s' has no data, falling back to content", slide_spec.title)
+                if len(self.prs.slides) > count_before:
+                    return
+                logger.warning("Chart slide '%s' data was insufficient, falling back to content", slide_spec.title)
+            else:
+                logger.warning("Chart slide '%s' has no data, falling back to content", slide_spec.title)
             self.add_content_slide(
                 slide_spec.title, slide_spec.bullets, slide_spec.speaker_notes or "", image_path=slide_spec.image_path
             )
@@ -301,7 +318,11 @@ class PPTRenderer:
 
     def _cover_image(self, image_path: str, target_ratio: float) -> str:
         target_ratio = max(target_ratio, 0.001)
-        with Image.open(image_path) as raw_image:
+        try:
+            raw_image = Image.open(image_path)
+        except Image.DecompressionBombError as exc:
+            raise RenderError("_cover_image", f"Image decompression bomb detected: {exc}") from exc
+        with raw_image:
             w, h = raw_image.size
             if w * h > 25_000_000:
                 raise RenderError("_cover_image", f"Image too large: {w}x{h} pixels")
@@ -626,7 +647,7 @@ class PPTRenderer:
             bullet=True,
         )
 
-    def add_fullscreen_image_slide(self, image_path: str, caption: str = "", overlay_title: str = "") -> None:
+    def add_fullscreen_image_slide(self, image_path: str, caption: str = "", overlay_title: str = "", notes: str = "") -> None:
         if not image_path or not os.path.exists(image_path):
             logger.warning("Image not found: %s", image_path)
             return
@@ -665,6 +686,7 @@ class PPTRenderer:
                 color=self._theme("image_caption_color"),
                 font_name=self._theme("font_name"),
             )
+        self._set_notes(slide, notes)
 
     def add_statistics_slide(self, title: str, stats: list[dict[str, str]], notes: str = "") -> None:
         if len(stats) > 4:

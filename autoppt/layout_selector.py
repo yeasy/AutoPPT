@@ -60,6 +60,7 @@ class LayoutSelector:
             return SlideSpec(
                 layout=SlideLayout.STATISTICS,
                 title=slide_config.title,
+                bullets=slide_config.bullets,
                 speaker_notes=slide_config.speaker_notes,
                 citations=slide_config.citations,
                 statistics=slide_config.statistics,
@@ -127,6 +128,7 @@ class LayoutSelector:
             return SlideSpec(
                 layout=SlideLayout.IMAGE,
                 title=slide_config.title,
+                bullets=slide_config.bullets,
                 speaker_notes=slide_config.speaker_notes,
                 citations=slide_config.citations,
                 image_path=image_path,
@@ -139,6 +141,7 @@ class LayoutSelector:
                 return SlideSpec(
                     layout=SlideLayout.CHART,
                     title=slide_config.title,
+                    bullets=slide_config.bullets,
                     speaker_notes=slide_config.speaker_notes,
                     citations=slide_config.citations,
                     chart_data=slide_config.chart_data,
