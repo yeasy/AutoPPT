@@ -5,7 +5,7 @@ All notable changes to AutoPPT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.6] - 2026-04-13
 
 ### Changed
 - `_generate_from_outline_internal` now uses the resolved output path from `_validate_file_path` for directory creation and saving.

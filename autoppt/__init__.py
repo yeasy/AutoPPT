@@ -9,4 +9,4 @@ from .researcher import Researcher
 from .ppt_renderer import PPTRenderer
 from .exceptions import AutoPPTError
 
-__version__ = "0.5.5"
+__version__ = "0.5.6"
