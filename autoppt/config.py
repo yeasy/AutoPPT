@@ -43,6 +43,11 @@ class Config:
         "/dev/", "/private/var/run/", "/var/run/",
     )
 
+    BLOCKED_PATH_SEGMENTS = (
+        "/.ssh/", "/.gnupg/", "/.aws/",
+        "/.config/", "/.kube/", "/.docker/", "/.env",
+    )
+
     _env_loaded = False
     _lock = threading.Lock()
 
