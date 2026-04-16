@@ -181,10 +181,10 @@ if auto_style and topic:
 
 with col2:
     st.header("📋 Preview")
-    _preview_topic = html_mod.escape(topic) if topic else "Not specified"
-    _preview_language = html_mod.escape(language) if language else "English"
-    _preview_style = html_mod.escape(style_display) if style_display else "default"
-    _preview_provider = html_mod.escape(provider) if provider else "openai"
+    _preview_topic = topic or "Not specified"
+    _preview_language = language or "English"
+    _preview_style = style_display or "default"
+    _preview_provider = provider or "openai"
     st.info(
         f"""
 **Topic:** {_preview_topic}

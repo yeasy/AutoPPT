@@ -56,7 +56,11 @@ def _sanitize_prompt_field(value: str) -> str:
         value = str(value) if value is not None else ""
     cleaned = _CONTROL_CHAR_RE.sub("", value)
     cleaned = _MULTI_NEWLINE_RE.sub("\n\n", cleaned)
-    return cleaned.strip()[:_MAX_PROMPT_FIELD_LEN]
+    stripped = cleaned.strip()
+    if len(stripped) > _MAX_PROMPT_FIELD_LEN:
+        logger.warning("Prompt field truncated from %d to %d characters", len(stripped), _MAX_PROMPT_FIELD_LEN)
+        stripped = stripped[:_MAX_PROMPT_FIELD_LEN]
+    return stripped
 
 
 class Generator:
@@ -236,7 +240,7 @@ class Generator:
             create_thumbnails=create_thumbnails,
             template_path=template_path,
         )
-        return output_file
+        return resolved_output
 
     def build_deck_spec(
         self,
@@ -310,11 +314,11 @@ class Generator:
         create_thumbnails: bool = False,
         template_path: Optional[str] = None,
     ) -> str:
-        self._validate_file_path(output_file)
+        resolved_output = self._validate_file_path(output_file)
         self._prepare_renderer(deck_spec.style, template_path or deck_spec.template_path)
-        self._finalize_presentation(deck_spec=deck_spec, output_file=output_file, create_thumbnails=create_thumbnails)
+        self._finalize_presentation(deck_spec=deck_spec, output_file=resolved_output, create_thumbnails=create_thumbnails)
         self.last_deck_spec = deck_spec.model_copy(deep=True)
-        return output_file
+        return resolved_output
 
     @staticmethod
     def _validate_file_path(
@@ -345,6 +349,11 @@ class Generator:
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
             if resolved.startswith(prefix):
                 raise ValueError(f"Access to system path is not allowed: {path}")
+
+        # Blocklist: reject sensitive path segments (e.g. ~/.ssh/, ~/.aws/).
+        for segment in Config.BLOCKED_PATH_SEGMENTS:
+            if segment in resolved:
+                raise ValueError(f"Access to sensitive path is not allowed: {path}")
 
         # Allowlist: when an allowed base is provided the resolved path must
         # reside within that directory tree.
@@ -379,7 +388,10 @@ class Generator:
         if size > self._MAX_DECK_SPEC_BYTES:
             raise ValueError(f"Deck spec file too large ({size} bytes, max {self._MAX_DECK_SPEC_BYTES})")
         with open(safe_path, "r", encoding="utf-8") as file_handle:
-            deck_spec = DeckSpec.model_validate_json(file_handle.read())
+            try:
+                deck_spec = DeckSpec.model_validate_json(file_handle.read())
+            except Exception as exc:
+                raise ValueError(f"Invalid deck spec file: {exc}") from exc
 
         if len(deck_spec.slides) > self._MAX_SLIDES_COUNT:
             raise ValueError(

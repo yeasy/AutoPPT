@@ -85,6 +85,8 @@ Examples:
         parser.error(f"Template file not found: {args.template}")
     if not 3 <= args.slides <= 50:
         parser.error("--slides must be between 3 and 50")
+    if len(args.language) > 50:
+        parser.error("--language must not exceed 50 characters")
 
     if args.output:
         resolved_output = os.path.realpath(args.output)

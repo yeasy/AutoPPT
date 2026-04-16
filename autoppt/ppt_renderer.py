@@ -700,6 +700,7 @@ class PPTRenderer:
         left = self._theme("content_left_in")
         gap = self._theme("stat_card_gap_in")
         width = (self._slide_width_inches() - left - self._theme("image_inset_in") - gap * (len(stats) - 1)) / len(stats)
+        width = max(width, 0.5)
         top = 2.2
 
         for index, stat in enumerate(stats):
