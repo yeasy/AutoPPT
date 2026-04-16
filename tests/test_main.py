@@ -580,3 +580,23 @@ def test_output_path_rejects_system_path(mock_config, mock_parse):
     mock_parse.return_value = _default_args(topic="Test", output="/etc/evil.pptx")
     with pytest.raises(SystemExit):
         main()
+
+
+@patch("autoppt.main.Config.initialize")
+def test_main_language_too_long(mock_init, mock_args):
+    """Language strings exceeding 50 characters should be rejected."""
+    mock_args.return_value = _default_args(language="A" * 51)
+    with pytest.raises(SystemExit):
+        main()
+
+
+@patch("autoppt.main.Config.initialize")
+@patch("autoppt.main.Config.validate")
+@patch("autoppt.generator.Generator")
+def test_main_language_at_max_length(mock_generator, mock_validate, mock_init, mock_args):
+    """A language string of exactly 50 characters should be accepted."""
+    mock_args.return_value = _default_args(language="A" * 50)
+    gen = _mock_generator_context(mock_generator)
+    gen.generate.return_value = "output/Test_Topic.pptx"
+    main()
+    gen.generate.assert_called_once()

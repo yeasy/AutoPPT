@@ -207,6 +207,20 @@ class TestChartSlide:
         renderer.add_statistics_slide("Key Metrics", stats)
         assert len(renderer.prs.slides) == initial_count + 1
 
+    def test_statistics_slide_width_clamped_to_minimum(self):
+        """Statistics slide should not produce negative card widths even with extreme theme values."""
+        renderer = PPTRenderer()
+        renderer.apply_style("technology")
+        stats = [
+            {"value": "1", "label": "A"},
+            {"value": "2", "label": "B"},
+            {"value": "3", "label": "C"},
+            {"value": "4", "label": "D"},
+        ]
+        initial_count = len(renderer.prs.slides)
+        renderer.add_statistics_slide("Metrics", stats)
+        assert len(renderer.prs.slides) == initial_count + 1
+
     def test_render_quote_slide_spec(self):
         """Test rendering a quote slide from SlideSpec."""
         renderer = PPTRenderer()

@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch
 
 import pytest
@@ -281,6 +282,23 @@ def test_remix_slide_updates_selected_slide():
 
 @patch("autoppt.generator.PPTRenderer")
 @patch("autoppt.generator.Researcher")
+def test_save_deck_returns_resolved_path(mock_researcher_cls, mock_renderer_cls, tmp_path):
+    """save_deck should return the resolved (absolute) path, not the raw input."""
+    output_file = str(tmp_path / "out.pptx")
+    mock_renderer_cls.return_value.save.side_effect = lambda path: tmp_path.joinpath("out.pptx").write_bytes(b"ppt")
+
+    gen = Generator(provider_name="mock")
+    deck = DeckSpec(
+        title="T", topic="t",
+        slides=[SlideSpec(layout=SlideLayout.CONTENT, title="S", bullets=["a"])],
+    )
+    result = gen.save_deck(deck, output_file)
+    assert os.path.isabs(result)
+    assert result == os.path.realpath(output_file)
+
+
+@patch("autoppt.generator.PPTRenderer")
+@patch("autoppt.generator.Researcher")
 def test_save_deck_materializes_citations_for_render(mock_researcher_cls, mock_renderer_cls, tmp_path):
     output_file = str(tmp_path / "rendered.pptx")
     mock_renderer_cls.return_value.save.side_effect = lambda path: tmp_path.joinpath("rendered.pptx").write_bytes(b"ppt")
@@ -462,6 +480,29 @@ def test_sanitize_prompt_field_truncates_long_input():
     long_input = "A" * 1000
     result = _sanitize_prompt_field(long_input)
     assert len(result) == _MAX_PROMPT_FIELD_LEN
+
+
+def test_sanitize_prompt_field_logs_warning_on_truncation(caplog):
+    """Truncation should produce a warning so users know input was shortened."""
+    import logging
+    from autoppt.generator import _sanitize_prompt_field, _MAX_PROMPT_FIELD_LEN
+
+    long_input = "B" * (_MAX_PROMPT_FIELD_LEN + 100)
+    with caplog.at_level(logging.WARNING, logger="autoppt.generator"):
+        result = _sanitize_prompt_field(long_input)
+    assert len(result) == _MAX_PROMPT_FIELD_LEN
+    assert "truncated" in caplog.text.lower()
+
+
+def test_sanitize_prompt_field_no_warning_within_limit(caplog):
+    """Inputs within the limit should not produce a truncation warning."""
+    import logging
+    from autoppt.generator import _sanitize_prompt_field, _MAX_PROMPT_FIELD_LEN
+
+    short_input = "C" * (_MAX_PROMPT_FIELD_LEN - 1)
+    with caplog.at_level(logging.WARNING, logger="autoppt.generator"):
+        _sanitize_prompt_field(short_input)
+    assert "truncated" not in caplog.text.lower()
 
 
 def test_sanitize_prompt_field_strips_null_bytes():
@@ -1740,6 +1781,21 @@ class TestValidateFilePath:
             os.rmdir(tmpdir)
             gen.close()
 
+    @pytest.mark.parametrize("sensitive_path", [
+        "/home/user/.ssh/id_rsa",
+        "/home/user/.gnupg/pubring.kbx",
+        "/home/user/.aws/credentials",
+        "/home/user/.config/gcloud/credentials.db",
+        "/home/user/.kube/config",
+        "/home/user/.docker/config.json",
+        "/home/user/project/.env",
+    ])
+    def test_rejects_sensitive_path_segments(self, sensitive_path):
+        gen = Generator(provider_name="mock")
+        with pytest.raises(ValueError, match="sensitive path"):
+            gen._validate_file_path(sensitive_path)
+        gen.close()
+
 
 # --- Generator lifecycle and validation tests ---
 
@@ -1978,5 +2034,70 @@ def test_load_deck_spec_rejects_invalid_image_extension(tmp_path):
     with pytest.raises(ValueError, match="Invalid image extension"):
         gen.load_deck_spec(str(spec_file))
     gen.close()
+
+
+# ---------------------------------------------------------------------------
+# load_deck_spec: malformed / invalid JSON handling
+# ---------------------------------------------------------------------------
+
+
+def test_load_deck_spec_malformed_json(tmp_path):
+    """Loading a file with truncated/invalid JSON must raise ValueError, not a raw parse error."""
+    gen = Generator(provider_name="mock")
+    spec_file = tmp_path / "malformed.json"
+    spec_file.write_text('{"title": "test"')  # truncated JSON
+
+    with pytest.raises(ValueError, match="Invalid deck spec file"):
+        gen.load_deck_spec(str(spec_file))
+    gen.close()
+
+
+def test_load_deck_spec_wrong_types(tmp_path):
+    """Loading a file where field types mismatch the schema must raise ValueError."""
+    import json
+
+    gen = Generator(provider_name="mock")
+    spec_file = tmp_path / "wrong_types.json"
+    spec_file.write_text(json.dumps({"title": 123, "topic": 456, "slides": "not_a_list"}))
+
+    with pytest.raises(ValueError, match="Invalid deck spec file"):
+        gen.load_deck_spec(str(spec_file))
+    gen.close()
+
+
+# ---------------------------------------------------------------------------
+# _update_slide: exception propagation
+# ---------------------------------------------------------------------------
+
+
+def test_update_slide_propagates_llm_exception():
+    """_update_slide must let exceptions from _plan_slide / _build_slide propagate cleanly."""
+    gen = Generator(provider_name="mock")
+    outline = PresentationOutline(
+        title="Deck",
+        sections=[PresentationSection(title="Strategy", slides=["Target Slide"])],
+    )
+
+    with patch.object(gen, "_plan_slide") as mock_plan, patch.object(gen, "_build_slide") as mock_build:
+        mock_plan.return_value = SlidePlan(
+            title="Target Slide",
+            section_title="Strategy",
+            topic="Topic",
+            language="English",
+            slide_type=SlideType.CONTENT,
+        )
+        mock_build.return_value = SlideConfig(
+            title="Target Slide",
+            bullets=["Point"],
+            slide_type=SlideType.CONTENT,
+            citations=[],
+        )
+        deck_spec = gen.build_deck_spec(outline, topic="Topic", style="minimalist", language="English")
+
+    target_index = next(i for i, s in enumerate(deck_spec.slides) if s.title == "Target Slide")
+
+    with patch.object(gen, "_plan_slide", side_effect=RuntimeError("LLM service unavailable")):
+        with pytest.raises(RuntimeError, match="LLM service unavailable"):
+            gen.regenerate_slide(deck_spec, target_index)
 
 
