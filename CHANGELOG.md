@@ -5,6 +5,21 @@ All notable changes to AutoPPT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- `save_deck` now returns the resolved output path from `_validate_file_path` instead of the raw input path.
+- `_sanitize_prompt_field` now logs a warning when input is truncated to the maximum length.
+- `add_statistics_slide` now clamps card width to a minimum of 0.5 inches to prevent negative dimensions.
+- CLI `--language` argument now validates length (max 50 characters), consistent with the web UI.
+
+### Fixed
+- Web UI preview panel no longer double-escapes special characters (e.g. `&` no longer shows as `&amp;`).
+- `load_deck_spec` now wraps deserialization errors in `ValueError` instead of leaking raw Pydantic tracebacks.
+
+### Security
+- `_validate_file_path` now blocks sensitive home-directory paths (`.ssh`, `.gnupg`, `.aws`, `.config`, `.kube`, `.docker`, `.env`).
+
 ## [0.5.6] - 2026-04-13
 
 ### Changed
