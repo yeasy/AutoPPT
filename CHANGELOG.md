@@ -5,6 +5,26 @@ All notable changes to AutoPPT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.8] - 2026-04-18
+
+### Changed
+- `_sanitize_research_context` now logs a warning when research context is truncated, consistent with `_sanitize_prompt_field`.
+- `_add_cover_picture` now catches `RenderError` and `OSError` from image processing and returns `False` instead of crashing.
+- `download_image` now validates `retries` parameter and returns `False` when retries < 1.
+- `download_image` now uses `Config.BLOCKED_PATH_SEGMENTS` and `Config.BLOCKED_SYSTEM_PREFIXES` instead of a module-local blocklist.
+- Subprocess calls in thumbnail generation now explicitly pass `shell=False` for defense-in-depth.
+- Thumbnail `prefix_name` is now sanitized to strip path separator characters.
+- Web UI now enforces a 30-second cooldown between generation requests to prevent API quota exhaustion.
+
+### Security
+- `BLOCKED_PATH_SEGMENTS` now covers `~/.local/`, `~/.bash*`, `~/.profile`, and `~/.zsh*` dotfiles.
+- `_validate_file_path` and `PPTRenderer.save()` now reject symlink output paths to prevent TOCTOU attacks.
+- `PPTRenderer.save()` now checks for `..` path traversal and `BLOCKED_PATH_SEGMENTS`, consistent with other file-writing modules.
+- CLI `--output` validation now checks for `..` path traversal and `BLOCKED_PATH_SEGMENTS`.
+- `TemplateHandler` now checks `BLOCKED_PATH_SEGMENTS` in addition to `BLOCKED_SYSTEM_PREFIXES`.
+- `generate_thumbnails` now checks for `..` path traversal and `BLOCKED_PATH_SEGMENTS` on both input and output paths.
+- `Image.MAX_IMAGE_PIXELS` is now set in all modules that use PIL (`sample_library`, `thumbnail`), not only `ppt_renderer`.
+
 ## [0.5.7] - 2026-04-15
 
 ### Changed
