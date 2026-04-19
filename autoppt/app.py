@@ -205,11 +205,16 @@ with col2:
 st.divider()
 generate_button = st.button("🚀 Generate Presentation", type="primary", use_container_width=True)
 
+_GENERATE_COOLDOWN_SECONDS = 30
+
 if generate_button:
     if not topic:
         st.error("❌ Please enter a presentation topic.")
     elif provider != "mock" and not Config.has_api_key(provider):
         st.error(f"❌ API key for {provider} is not set. Please configure it in .env file.")
+    elif "last_generate_time" in st.session_state and time.time() - st.session_state.last_generate_time < _GENERATE_COOLDOWN_SECONDS:
+        remaining = int(_GENERATE_COOLDOWN_SECONDS - (time.time() - st.session_state.last_generate_time))
+        st.warning(f"⏳ Please wait {remaining} seconds before generating again.")
     else:
         with st.spinner("🔄 Generating your presentation... This may take a few minutes."):
             try:
@@ -238,6 +243,7 @@ if generate_button:
                 time.sleep(0.5)
                 progress_bar.empty()
 
+                st.session_state.last_generate_time = time.time()
                 st.session_state.generated_deck_spec = deck_spec
                 st.session_state.generated_file_bytes = file_bytes
                 st.session_state.generated_filename = f"{safe_topic.replace(' ', '_')}.pptx"
