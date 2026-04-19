@@ -89,9 +89,14 @@ Examples:
         parser.error("--language must not exceed 50 characters")
 
     if args.output:
+        if ".." in args.output.replace("\\", "/").split("/"):
+            parser.error(f"Path traversal detected: {args.output}")
         resolved_output = os.path.realpath(args.output)
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
             if resolved_output.startswith(prefix):
+                parser.error(f"Output path is not allowed: {args.output}")
+        for segment in Config.BLOCKED_PATH_SEGMENTS:
+            if segment in resolved_output:
                 parser.error(f"Output path is not allowed: {args.output}")
         output_filename = args.output
     else:

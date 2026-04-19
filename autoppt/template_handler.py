@@ -31,6 +31,9 @@ class TemplateHandler:
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
             if resolved_str.startswith(prefix):
                 raise ValueError(f"Access to system path is not allowed: {template_path}")
+        for segment in Config.BLOCKED_PATH_SEGMENTS:
+            if segment in resolved_str:
+                raise ValueError(f"Access to sensitive path is not allowed: {template_path}")
         if not self.template_path.exists():
             raise FileNotFoundError(f"Template not found: {template_path}")
         if self.template_path.suffix.lower() != ".pptx":

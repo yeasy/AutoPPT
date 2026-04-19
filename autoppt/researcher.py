@@ -210,9 +210,10 @@ class Researcher:
             logger.error("Error searching images for '%s': %s", query, exc)
             return []
 
-    _BLOCKED_PATH_SEGMENTS = {"/.ssh/", "/.gnupg/", "/.aws/", "/.config/", "/.kube/"}
-
     def download_image(self, url: str, save_path: str, retries: int = 3, offline: bool | None = None) -> bool:
+        if retries < 1:
+            logger.warning("Invalid retries=%d, must be >= 1", retries)
+            return False
         if self._is_offline(offline):
             logger.info("Offline mode enabled, skipping image download from: %s", url)
             return False
@@ -225,7 +226,11 @@ class Researcher:
         if ".." in save_path.replace("\\", "/").split("/"):
             logger.warning("Path traversal detected in save_path: %s", save_path)
             return False
-        if any(seg in resolved_save for seg in self._BLOCKED_PATH_SEGMENTS):
+        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+            if resolved_save.startswith(prefix):
+                logger.warning("Blocked save to system path: %s", save_path)
+                return False
+        if any(seg in resolved_save for seg in Config.BLOCKED_PATH_SEGMENTS):
             logger.warning("Blocked save to sensitive path: %s", save_path)
             return False
 

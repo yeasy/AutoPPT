@@ -349,7 +349,11 @@ class PPTRenderer:
     def _add_cover_picture(self, slide, image_path: str, left: float, top: float, width: float, height: float) -> bool:
         if not image_path or not os.path.exists(image_path):
             return False
-        cropped_path = self._cover_image(image_path, width / max(height, 0.01))
+        try:
+            cropped_path = self._cover_image(image_path, width / max(height, 0.01))
+        except (RenderError, OSError) as exc:
+            logger.warning("Failed to process cover image %s: %s", image_path, exc)
+            return False
         try:
             slide.shapes.add_picture(cropped_path, Inches(left), Inches(top), Inches(width), Inches(height))
             return True
@@ -731,10 +735,17 @@ class PPTRenderer:
 
     def save(self, output_path: str) -> None:
         """Save the presentation, rejecting writes to sensitive system paths."""
+        if ".." in output_path.replace("\\", "/").split("/"):
+            raise RenderError("save", f"Path traversal detected: {output_path}")
         resolved = os.path.realpath(output_path)
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
             if resolved.startswith(prefix):
                 raise RenderError("save", f"Access to system path is not allowed: {output_path}")
+        for segment in Config.BLOCKED_PATH_SEGMENTS:
+            if segment in resolved:
+                raise RenderError("save", f"Access to sensitive path is not allowed: {output_path}")
+        if os.path.islink(output_path) or (os.path.exists(resolved) and os.path.islink(resolved)):
+            raise RenderError("save", f"Refusing to write through symlink: {output_path}")
         try:
             self.prs.save(resolved)
         except Exception as exc:

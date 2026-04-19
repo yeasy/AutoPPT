@@ -45,7 +45,9 @@ class Config:
 
     BLOCKED_PATH_SEGMENTS = (
         "/.ssh/", "/.gnupg/", "/.aws/",
-        "/.config/", "/.kube/", "/.docker/", "/.env",
+        "/.config/", "/.kube/", "/.docker/",
+        "/.local/", "/.bash", "/.profile", "/.zsh",
+        "/.env/", "/.env",
     )
 
     _env_loaded = False

@@ -47,7 +47,10 @@ def _sanitize_research_context(text: str) -> str:
     cleaned = _MULTI_WHITESPACE_RE.sub(" ", cleaned)
     cleaned = _MULTI_NEWLINE_RE.sub("\n\n", cleaned)
     cleaned = cleaned.strip()
-    return cleaned[:_MAX_RESEARCH_CONTEXT_LEN]
+    if len(cleaned) > _MAX_RESEARCH_CONTEXT_LEN:
+        logger.warning("Research context truncated from %d to %d characters", len(cleaned), _MAX_RESEARCH_CONTEXT_LEN)
+        cleaned = cleaned[:_MAX_RESEARCH_CONTEXT_LEN]
+    return cleaned
 
 
 def _sanitize_prompt_field(value: str) -> str:
@@ -365,6 +368,9 @@ class Generator:
                 raise ValueError(
                     f"Path '{path}' is outside the allowed directory '{allowed_base}'"
                 )
+
+        if os.path.islink(path) or (os.path.exists(resolved) and os.path.islink(resolved)):
+            raise ValueError(f"Refusing to write through symlink: {path}")
 
         if must_exist and not os.path.isfile(resolved):
             raise FileNotFoundError(f"File not found: {path}")

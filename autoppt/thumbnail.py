@@ -2,12 +2,14 @@
 Thumbnail generation utility for PowerPoint presentations.
 """
 import logging
+import re
 import shutil
 import tempfile
 import subprocess
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+Image.MAX_IMAGE_PIXELS = 25_000_000
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +57,7 @@ def convert_to_pdf(pptx_path: Path, output_dir: Path) -> Path | None:
     ]
 
     try:
-        subprocess.run(cmd, check=True, capture_output=True, timeout=SUBPROCESS_TIMEOUT)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=SUBPROCESS_TIMEOUT, shell=False)
         pdf_path = output_dir / f"{pptx_path.stem}.pdf"
         if pdf_path.exists():
             return pdf_path
@@ -90,7 +92,7 @@ def convert_pdf_to_images(pdf_path: Path, output_dir: Path) -> list[Path]:
             return 0
 
     try:
-        subprocess.run(cmd, check=True, capture_output=True, timeout=SUBPROCESS_TIMEOUT)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=SUBPROCESS_TIMEOUT, shell=False)
         # pdftoppm generates files like slide-1.jpg, slide-01.jpg, etc.
         # sort them by number
         images = sorted(list(output_dir.glob("slide-*.jpg")), key=_slide_sort_key)
@@ -205,6 +207,8 @@ def generate_thumbnails(
         List of paths to generated thumbnail grid images
     """
     cols = min(max(cols, 1), MAX_COLS)
+    if ".." in str(pptx_path).replace("\\", "/").split("/"):
+        raise ValueError(f"Path traversal detected: {pptx_path}")
     pptx_file = Path(pptx_path).resolve()
 
     # Reject sensitive system paths (consistent with generator/renderer validation)
@@ -213,6 +217,9 @@ def generate_thumbnails(
     for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
         if resolved_str.startswith(prefix):
             raise ValueError(f"Access to system path is not allowed: {pptx_path}")
+    for segment in Config.BLOCKED_PATH_SEGMENTS:
+        if segment in resolved_str:
+            raise ValueError(f"Access to sensitive path is not allowed: {pptx_path}")
 
     if not pptx_file.exists():
         raise FileNotFoundError(f"File not found: {pptx_path}")
@@ -251,13 +258,18 @@ def generate_thumbnails(
             total_slides = len(slide_images)
             num_grids = (total_slides + max_slides_per_grid - 1) // max_slides_per_grid
 
+            if ".." in str(output_prefix).replace("\\", "/").split("/"):
+                raise ValueError(f"Path traversal detected in output_prefix: {output_prefix}")
             output_dir = Path(output_prefix).resolve().parent
             output_resolved = str(output_dir)
             for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
                 if output_resolved.startswith(prefix):
                     raise ValueError(f"Output path is not allowed: {output_prefix}")
+            for segment in Config.BLOCKED_PATH_SEGMENTS:
+                if segment in output_resolved:
+                    raise ValueError(f"Output path is not allowed: {output_prefix}")
             output_dir.mkdir(parents=True, exist_ok=True)
-            prefix_name = Path(output_prefix).name
+            prefix_name = re.sub(r"[/\\]", "_", Path(output_prefix).name)
 
             for i in range(num_grids):
                 start_idx = i * max_slides_per_grid
@@ -286,8 +298,8 @@ def generate_thumbnails(
 
     except (ValueError, FileNotFoundError):
         raise
-    except Exception as e:
-        logger.error("Error generating thumbnails: %s", e, exc_info=True)
+    except Exception as exc:
+        logger.error("Error generating thumbnails: %s", exc, exc_info=True)
         return []
 
     return generated_files
