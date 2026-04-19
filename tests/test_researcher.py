@@ -1898,7 +1898,7 @@ class TestDownloadImagePathValidation:
         """download_image returns False when save_path resolves inside a sensitive directory."""
         import os
         researcher = Researcher()
-        sensitive_dirs = ["/.ssh/", "/.gnupg/", "/.aws/", "/.config/", "/.kube/"]
+        sensitive_dirs = ["/.ssh/", "/.gnupg/", "/.aws/", "/.config/", "/.kube/", "/.docker/"]
         for segment in sensitive_dirs:
             # Build a path that, when resolved, contains the sensitive segment
             home = os.path.expanduser("~")
@@ -2210,6 +2210,56 @@ class TestDownloadImagePathValidation:
         """download_image should reject paths to .gnupg directory."""
         researcher = Researcher()
         result = researcher.download_image("https://example.com/img.jpg", "/home/user/.gnupg/img.jpg", retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_docker_path_blocked(self, mock_safe):
+        """download_image should reject paths to .docker directory."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/home/user/.docker/img.jpg", retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_env_path_blocked(self, mock_safe):
+        """download_image should reject paths inside .env directory."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/home/user/.env/img.jpg", retries=1)
+        assert result is False
+
+    def test_download_image_rejects_zero_retries(self):
+        """download_image should return False for retries=0."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/tmp/img.jpg", retries=0)
+        assert result is False
+
+    def test_download_image_rejects_negative_retries(self):
+        """download_image should return False for negative retries."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/tmp/img.jpg", retries=-1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_blocked_segments_match_config(self, mock_safe):
+        """Researcher should use Config.BLOCKED_PATH_SEGMENTS, not a private copy."""
+        from autoppt.config import Config
+        researcher = Researcher()
+        for segment in Config.BLOCKED_PATH_SEGMENTS:
+            path = f"/home/user{segment}img.jpg"
+            result = researcher.download_image("https://example.com/img.jpg", path, retries=1)
+            assert result is False, f"Expected rejection for path with segment {segment}"
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_download_image_rejects_system_prefix(self, mock_safe):
+        """download_image should reject save paths under system prefixes like /etc/."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/etc/img.jpg", retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_download_image_rejects_env_file(self, mock_safe):
+        """download_image should reject save paths ending with .env (file, not directory)."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/home/user/project/.env", retries=1)
         assert result is False
 
 

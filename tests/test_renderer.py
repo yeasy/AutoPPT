@@ -858,6 +858,36 @@ class TestCoverImageExtremeAspectRatio:
         os.unlink(cropped)
 
 
+class TestCoverPictureGracefulError:
+    """Tests that _add_cover_picture handles RenderError gracefully."""
+
+    def test_add_cover_picture_returns_false_on_render_error(self, tmp_path):
+        """_add_cover_picture should return False when _cover_image raises RenderError."""
+        from autoppt.exceptions import RenderError
+
+        renderer = PPTRenderer()
+        slide = renderer._add_blank_slide()
+        img_path = str(tmp_path / "bomb.png")
+        Image.new("RGB", (1, 1), color="red").save(img_path)
+
+        with patch.object(renderer, "_cover_image", side_effect=RenderError("_cover_image", "decompression bomb")):
+            result = renderer._add_cover_picture(slide, img_path, 0, 0, 10, 7.5)
+
+        assert result is False
+
+    def test_add_cover_picture_returns_false_on_os_error(self, tmp_path):
+        """_add_cover_picture should return False when _cover_image raises OSError."""
+        renderer = PPTRenderer()
+        slide = renderer._add_blank_slide()
+        img_path = str(tmp_path / "corrupt.png")
+        Image.new("RGB", (1, 1), color="red").save(img_path)
+
+        with patch.object(renderer, "_cover_image", side_effect=OSError("corrupt file")):
+            result = renderer._add_cover_picture(slide, img_path, 0, 0, 10, 7.5)
+
+        assert result is False
+
+
 class TestChartDataRejectsEmptyCategories:
     """Tests for ChartData validation rejecting empty categories."""
 
@@ -1329,6 +1359,82 @@ class TestRendererSaveBlockedPath:
         renderer.add_title_slide("Test", "Sub")
         with pytest.raises(RenderError, match="system path"):
             renderer.save("/proc/evil.pptx")
+
+    def test_save_rejects_sensitive_path_ssh(self):
+        """save() should reject writes to .ssh directory."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="sensitive path"):
+            renderer.save("/home/user/.ssh/evil.pptx")
+
+    def test_save_rejects_sensitive_path_docker(self):
+        """save() should reject writes to .docker directory."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="sensitive path"):
+            renderer.save("/home/user/.docker/evil.pptx")
+
+    def test_save_rejects_sensitive_path_env(self):
+        """save() should reject writes inside .env directory."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="sensitive path"):
+            renderer.save("/home/user/.env/evil.pptx")
+
+    def test_save_rejects_path_traversal(self):
+        """save() should reject paths containing '..' segments."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="traversal"):
+            renderer.save("output/../../../etc/evil.pptx")
+
+    @pytest.mark.parametrize("sensitive_path", [
+        "/home/user/.local/share/evil.pptx",
+        "/home/user/.bashrc",
+        "/home/user/.bash_history",
+        "/home/user/.profile",
+        "/home/user/.zshrc",
+        "/home/user/.zsh_history",
+    ])
+    def test_save_rejects_expanded_sensitive_segments(self, sensitive_path):
+        """save() should reject writes to .local, .bash*, .profile, .zsh* paths."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="sensitive path"):
+            renderer.save(sensitive_path)
+
+    def test_save_rejects_symlink(self, tmp_path):
+        """save() should refuse to write through a symlink."""
+        from autoppt.exceptions import RenderError
+        target = tmp_path / "real_output.pptx"
+        target.write_bytes(b"placeholder")
+        link = tmp_path / "link_output.pptx"
+        try:
+            os.symlink(str(target), str(link))
+        except OSError:
+            pytest.skip("Cannot create symlinks on this platform")
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="symlink"):
+            renderer.save(str(link))
+
+    def test_save_rejects_dangling_symlink(self, tmp_path):
+        """save() should refuse a dangling symlink output path."""
+        from autoppt.exceptions import RenderError
+        link = tmp_path / "dangling_link.pptx"
+        try:
+            os.symlink("/nonexistent/target.pptx", str(link))
+        except OSError:
+            pytest.skip("Cannot create symlinks on this platform")
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="symlink"):
+            renderer.save(str(link))
 
 
 class TestImageSlideNotesPass:

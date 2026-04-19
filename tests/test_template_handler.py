@@ -39,6 +39,16 @@ class TestTemplateHandler:
         with pytest.raises(ValueError, match="system path"):
             TemplateHandler("/etc/pptx/template.pptx")
 
+    def test_init_rejects_sensitive_path_ssh(self):
+        """Paths containing .ssh/ must be rejected."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            TemplateHandler("/home/user/.ssh/template.pptx")
+
+    def test_init_rejects_sensitive_path_docker(self):
+        """Paths containing .docker/ must be rejected."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            TemplateHandler("/home/user/.docker/template.pptx")
+
     def test_analyze_layouts(self, sample_template):
         """Test layout analysis."""
         handler = TemplateHandler(str(sample_template))

@@ -1672,6 +1672,14 @@ class TestSanitizeResearchContext:
         result = _sanitize_research_context(long_text)
         assert len(result) == _MAX_RESEARCH_CONTEXT_LEN
 
+    def test_truncation_logs_warning(self, caplog):
+        import logging
+        from autoppt.generator import _sanitize_research_context, _MAX_RESEARCH_CONTEXT_LEN
+        long_text = "x" * (_MAX_RESEARCH_CONTEXT_LEN + 500)
+        with caplog.at_level(logging.WARNING, logger="autoppt.generator"):
+            _sanitize_research_context(long_text)
+        assert any("truncated" in record.message.lower() for record in caplog.records)
+
     def test_handles_non_string_input(self):
         from autoppt.generator import _sanitize_research_context
         result = _sanitize_research_context(12345)
@@ -1788,6 +1796,7 @@ class TestValidateFilePath:
         "/home/user/.config/gcloud/credentials.db",
         "/home/user/.kube/config",
         "/home/user/.docker/config.json",
+        "/home/user/project/.env/secrets",
         "/home/user/project/.env",
     ])
     def test_rejects_sensitive_path_segments(self, sensitive_path):
@@ -1795,6 +1804,44 @@ class TestValidateFilePath:
         with pytest.raises(ValueError, match="sensitive path"):
             gen._validate_file_path(sensitive_path)
         gen.close()
+
+    @pytest.mark.parametrize("sensitive_path", [
+        "/home/user/.local/share/secret.json",
+        "/home/user/.bashrc",
+        "/home/user/.bash_history",
+        "/home/user/.bash_profile",
+        "/home/user/.profile",
+        "/home/user/.zshrc",
+        "/home/user/.zsh_history",
+    ])
+    def test_rejects_expanded_sensitive_path_segments(self, sensitive_path):
+        """Expanded BLOCKED_PATH_SEGMENTS: .local, .bash*, .profile, .zsh*."""
+        gen = Generator(provider_name="mock")
+        with pytest.raises(ValueError, match="sensitive path"):
+            gen._validate_file_path(sensitive_path)
+        gen.close()
+
+    def test_rejects_symlink_path(self, tmp_path):
+        """_validate_file_path should refuse to write through a symlink."""
+        target = tmp_path / "real_file.txt"
+        target.write_text("real")
+        link = tmp_path / "link_file.txt"
+        try:
+            os.symlink(str(target), str(link))
+        except OSError:
+            pytest.skip("Cannot create symlinks on this platform")
+        with pytest.raises(ValueError, match="symlink"):
+            Generator._validate_file_path(str(link))
+
+    def test_rejects_dangling_symlink(self, tmp_path):
+        """_validate_file_path should refuse a dangling symlink (target doesn't exist)."""
+        link = tmp_path / "dangling_link.pptx"
+        try:
+            os.symlink("/nonexistent/target.pptx", str(link))
+        except OSError:
+            pytest.skip("Cannot create symlinks on this platform")
+        with pytest.raises(ValueError, match="symlink"):
+            Generator._validate_file_path(str(link))
 
 
 # --- Generator lifecycle and validation tests ---

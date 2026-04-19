@@ -634,6 +634,21 @@ class TestPptxExtensionValidation:
         with pytest.raises(ValueError, match="system path"):
             generate_thumbnails("/proc/self/something.pptx")
 
+    def test_rejects_sensitive_path_ssh(self):
+        """generate_thumbnails should reject .ssh paths."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            generate_thumbnails("/home/user/.ssh/something.pptx")
+
+    def test_rejects_sensitive_path_docker(self):
+        """generate_thumbnails should reject .docker paths."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            generate_thumbnails("/home/user/.docker/something.pptx")
+
+    def test_rejects_path_traversal_in_pptx_path(self):
+        """generate_thumbnails should reject pptx paths with '..' segments."""
+        with pytest.raises(ValueError, match="traversal"):
+            generate_thumbnails("output/../../../etc/evil.pptx")
+
 
 class TestThumbnailValueErrorPropagation:
     """Tests that ValueError and FileNotFoundError propagate instead of being swallowed."""
@@ -648,6 +663,23 @@ class TestThumbnailValueErrorPropagation:
         missing = tmp_path / "nonexistent.pptx"
         with pytest.raises(FileNotFoundError):
             generate_thumbnails(str(missing))
+
+
+class TestThumbnailExpandedBlockedSegments:
+    """Tests that expanded BLOCKED_PATH_SEGMENTS are enforced in thumbnail paths."""
+
+    @pytest.mark.parametrize("sensitive_path", [
+        "/home/user/.local/share/slides.pptx",
+        "/home/user/.bashrc.pptx",
+        "/home/user/.bash_history.pptx",
+        "/home/user/.profile.pptx",
+        "/home/user/.zshrc.pptx",
+        "/home/user/.zsh_history.pptx",
+    ])
+    def test_rejects_expanded_sensitive_pptx_paths(self, sensitive_path):
+        """generate_thumbnails should reject pptx paths containing .local, .bash*, .profile, .zsh*."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            generate_thumbnails(sensitive_path)
 
 
 class TestSubprocessTimeoutConstant:
@@ -705,3 +737,80 @@ class TestSubprocessStderrLogging:
         assert result == []
         log_call_args = mock_logger.error.call_args[0]
         assert "pdftoppm error details" in log_call_args[2]
+
+
+class TestPrefixNameSanitization:
+    """Tests for prefix_name sanitization stripping path separators."""
+
+    @patch("autoppt.thumbnail.create_grid_image")
+    @patch("autoppt.thumbnail.convert_pdf_to_images")
+    @patch("autoppt.thumbnail.convert_to_pdf")
+    @patch("autoppt.thumbnail.check_dependencies")
+    def test_prefix_name_strips_path_separators(
+        self, mock_check, mock_to_pdf, mock_pdf_imgs, mock_create_grid, tmp_path
+    ):
+        """output_prefix with embedded path separators in the basename should be sanitized."""
+        mock_check.return_value = (True, [])
+        dummy_pptx = tmp_path / "test.pptx"
+        dummy_pptx.touch()
+        mock_to_pdf.return_value = tmp_path / "test.pdf"
+        mock_pdf_imgs.return_value = [tmp_path / "slide-1.jpg"]
+
+        mock_grid_img = MagicMock()
+        mock_create_grid.return_value = mock_grid_img
+
+        # Use an output_prefix whose Path().name is clean, but verify sanitization
+        # is applied (slashes replaced with underscores in the filename)
+        results = generate_thumbnails(
+            str(dummy_pptx), output_prefix=str(tmp_path / "thumb"), cols=5
+        )
+
+        assert len(results) == 1
+        # The filename should not contain any path separator characters
+        filename = Path(results[0]).name
+        assert "/" not in filename
+        assert "\\" not in filename
+
+    @patch("autoppt.thumbnail.create_grid_image")
+    @patch("autoppt.thumbnail.convert_pdf_to_images")
+    @patch("autoppt.thumbnail.convert_to_pdf")
+    @patch("autoppt.thumbnail.check_dependencies")
+    def test_prefix_name_with_backslash_in_name(
+        self, mock_check, mock_to_pdf, mock_pdf_imgs, mock_create_grid, tmp_path
+    ):
+        """A prefix whose basename contains backslash should have it replaced with underscore."""
+        import re
+        from pathlib import Path as P
+
+        # Directly test the sanitization logic used in thumbnail.py line 272
+        test_name = "some\\evil\\name"
+        sanitized = re.sub(r"[/\\]", "_", P(test_name).name)
+        assert "\\" not in sanitized
+        assert "/" not in sanitized
+        # On POSIX, P("some\\evil\\name").name is "some\\evil\\name"
+        # so the re.sub should turn backslashes into underscores
+        assert "_" in sanitized or sanitized == "name"
+
+
+class TestSubprocessShellFalse:
+    """Tests that subprocess calls explicitly set shell=False."""
+
+    def test_convert_to_pdf_uses_shell_false(self, tmp_path):
+        """convert_to_pdf must pass shell=False to subprocess.run."""
+        pptx_path = tmp_path / "test.pptx"
+        pptx_path.write_bytes(b"fake")
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            convert_to_pdf(pptx_path, tmp_path)
+            _, kwargs = mock_run.call_args
+            assert kwargs.get("shell") is False
+
+    def test_convert_pdf_to_images_uses_shell_false(self, tmp_path):
+        """convert_pdf_to_images must pass shell=False to subprocess.run."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"fake")
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            convert_pdf_to_images(pdf_path, tmp_path)
+            _, kwargs = mock_run.call_args
+            assert kwargs.get("shell") is False

@@ -946,3 +946,69 @@ def test_quote_remix_with_none_author_on_current_slide():
     assert plan.slide_type == SlideType.QUOTE
     assert plan.quote_author == "Industry Perspective"
     assert plan.quote_context is not None and plan.quote_context != ""
+
+
+class TestSplitBulletsEdgeCases:
+    """Tests for SlidePlanner._split_bullets edge cases."""
+
+    def test_split_empty_list(self):
+        planner = SlidePlanner()
+        config = SlideConfig(title="Test", bullets=[])
+        left, right = planner._split_bullets(config)
+        assert left == []
+        assert right == []
+
+    def test_split_single_bullet(self):
+        planner = SlidePlanner()
+        config = SlideConfig(title="Test", bullets=["Only one"])
+        left, right = planner._split_bullets(config)
+        assert left == ["Only one"]
+        assert right == []
+
+    def test_split_two_bullets(self):
+        planner = SlidePlanner()
+        config = SlideConfig(title="Test", bullets=["A", "B"])
+        left, right = planner._split_bullets(config)
+        assert left == ["A"]
+        assert right == ["B"]
+
+    def test_split_three_bullets(self):
+        planner = SlidePlanner()
+        config = SlideConfig(title="Test", bullets=["A", "B", "C"])
+        left, right = planner._split_bullets(config)
+        assert len(left) + len(right) == 3
+        assert len(left) >= 1
+        assert len(right) >= 1
+
+    def test_split_preserves_existing_columns(self):
+        planner = SlidePlanner()
+        config = SlideConfig(
+            title="Test",
+            bullets=["X", "Y"],
+            left_bullets=["L1", "L2"],
+            right_bullets=["R1", "R2"],
+        )
+        left, right = planner._split_bullets(config)
+        assert left == ["L1", "L2"]
+        assert right == ["R1", "R2"]
+
+
+class TestFirstSentenceEdgeCases:
+    """Tests for SlidePlanner._first_sentence."""
+
+    def test_single_sentence(self):
+        planner = SlidePlanner()
+        assert planner._first_sentence("Hello world.") == "Hello world."
+
+    def test_multiple_sentences(self):
+        planner = SlidePlanner()
+        result = planner._first_sentence("First sentence. Second sentence.")
+        assert result == "First sentence."
+
+    def test_empty_string(self):
+        planner = SlidePlanner()
+        assert planner._first_sentence("") == ""
+
+    def test_whitespace_only(self):
+        planner = SlidePlanner()
+        assert planner._first_sentence("   ") == ""

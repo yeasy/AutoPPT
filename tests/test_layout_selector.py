@@ -674,3 +674,55 @@ class TestSlideSpecPreservesBulletsForFallback:
         spec = selector.slide_from_config(config)
         assert spec.layout == SlideLayout.IMAGE
         assert spec.bullets == ["Feature A", "Feature B", "Feature C"]
+
+
+class TestSplitBulletsIntoColumns:
+    """Tests for LayoutSelector._split_bullets_into_columns edge cases."""
+
+    def test_empty_list(self):
+        selector = LayoutSelector()
+        left, right = selector._split_bullets_into_columns([])
+        assert left == []
+        assert right == []
+
+    def test_single_bullet(self):
+        selector = LayoutSelector()
+        left, right = selector._split_bullets_into_columns(["A"])
+        assert left == ["A"]
+        assert right == []
+
+    def test_two_bullets(self):
+        selector = LayoutSelector()
+        left, right = selector._split_bullets_into_columns(["A", "B"])
+        assert left == ["A"]
+        assert right == ["B"]
+
+    def test_three_bullets(self):
+        selector = LayoutSelector()
+        left, right = selector._split_bullets_into_columns(["A", "B", "C"])
+        assert len(left) + len(right) == 3
+        assert len(left) >= 1
+        assert len(right) >= 1
+
+    def test_six_bullets_even_split(self):
+        selector = LayoutSelector()
+        bullets = ["A", "B", "C", "D", "E", "F"]
+        left, right = selector._split_bullets_into_columns(bullets)
+        assert left == ["A", "B", "C"]
+        assert right == ["D", "E", "F"]
+
+
+class TestCoercePoints:
+    """Tests for LayoutSelector._coerce_points with various input types."""
+
+    def test_none_returns_empty(self):
+        assert LayoutSelector._coerce_points(None) == []
+
+    def test_string_returns_single_item_list(self):
+        assert LayoutSelector._coerce_points("single bullet") == ["single bullet"]
+
+    def test_list_of_strings_passes_through(self):
+        assert LayoutSelector._coerce_points(["a", "b"]) == ["a", "b"]
+
+    def test_list_of_ints_converted_to_strings(self):
+        assert LayoutSelector._coerce_points([1, 2, 3]) == ["1", "2", "3"]

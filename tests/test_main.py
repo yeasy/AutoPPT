@@ -582,6 +582,33 @@ def test_output_path_rejects_system_path(mock_config, mock_parse):
         main()
 
 
+@patch("autoppt.main.argparse.ArgumentParser.parse_args")
+@patch("autoppt.main.Config")
+def test_output_path_rejects_sensitive_segment_ssh(mock_config, mock_parse):
+    """Output path containing .ssh/ should be rejected."""
+    mock_parse.return_value = _default_args(topic="Test", output="/home/user/.ssh/evil.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+@patch("autoppt.main.argparse.ArgumentParser.parse_args")
+@patch("autoppt.main.Config")
+def test_output_path_rejects_sensitive_segment_docker(mock_config, mock_parse):
+    """Output path containing .docker/ should be rejected."""
+    mock_parse.return_value = _default_args(topic="Test", output="/home/user/.docker/evil.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+@patch("autoppt.main.argparse.ArgumentParser.parse_args")
+@patch("autoppt.main.Config")
+def test_output_path_rejects_traversal(mock_config, mock_parse):
+    """Output path containing '..' segments should be rejected."""
+    mock_parse.return_value = _default_args(topic="Test", output="output/../../../etc/evil.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
 @patch("autoppt.main.Config.initialize")
 def test_main_language_too_long(mock_init, mock_args):
     """Language strings exceeding 50 characters should be rejected."""
