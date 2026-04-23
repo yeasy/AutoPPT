@@ -22,6 +22,16 @@ from autoppt.sample_library import (
 )
 
 
+def test_sample_definitions_and_builders_in_sync():
+    """SAMPLE_DEFINITIONS and _SAMPLE_BUILDERS must have matching IDs."""
+    from autoppt.sample_library import SAMPLE_DEFINITIONS, _SAMPLE_BUILDERS
+    defined_ids = {d.sample_id for d in SAMPLE_DEFINITIONS}
+    builder_ids = set(_SAMPLE_BUILDERS.keys())
+    assert defined_ids == builder_ids, (
+        f"defined only: {defined_ids - builder_ids}, builders only: {builder_ids - defined_ids}"
+    )
+
+
 def test_sample_library_builds_all_defined_decks():
     definitions = get_sample_definitions()
 

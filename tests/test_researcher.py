@@ -18,6 +18,13 @@ class TestResearcherInit:
         assert researcher is not None
         assert researcher.ddgs is not None
 
+    def test_researcher_has_wiki_lang_lock(self):
+        """Researcher should have a separate lock for Wikipedia language safety."""
+        import threading
+        researcher = Researcher()
+        assert hasattr(researcher, "_wiki_lang_lock")
+        assert isinstance(researcher._wiki_lang_lock, type(threading.Lock()))
+
 
 class TestSearchMethods:
     """Tests for search methods with mocking of underlying HTTP clients."""

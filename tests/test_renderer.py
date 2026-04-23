@@ -1479,3 +1479,124 @@ class TestImageSlideFallbackGuard:
         renderer.render_slide(slide_spec)
         # The guard should detect no slide was added and fall back to content
         assert len(renderer.prs.slides) == 1
+
+
+class TestChartTitleConditional:
+    """Tests for chart title being set only when chart_data.title is not None.
+
+    The fix changed the order so that chart.has_title is only set to True
+    when chart_data.title is not None, preventing an empty title from being
+    added to the chart.
+    """
+
+    def test_chart_title_none_does_not_set_has_title(self):
+        """When chart_data.title is None, chart.has_title should NOT be set to True."""
+        renderer = PPTRenderer()
+        chart_data = ChartData(
+            chart_type=ChartType.COLUMN,
+            title="Placeholder",
+            categories=["A", "B", "C"],
+            values=[10.0, 20.0, 30.0],
+            series_name="Series 1",
+        )
+        # Bypass Pydantic validation to set title to None at runtime
+        chart_data.title = None
+
+        initial_count = len(renderer.prs.slides)
+        renderer.add_chart_slide("Chart Without Title", chart_data)
+        assert len(renderer.prs.slides) == initial_count + 1
+
+        # Find the chart shape on the slide
+        slide = renderer.prs.slides[initial_count]
+        chart_shape = None
+        for shape in slide.shapes:
+            if shape.has_chart:
+                chart_shape = shape
+                break
+        assert chart_shape is not None, "Expected a chart shape on the slide"
+        # has_title should be False (the default) since we never set it
+        assert chart_shape.chart.has_title is False
+
+    def test_chart_title_string_sets_has_title_and_text(self):
+        """When chart_data.title is a string, chart.has_title should be True and text should match."""
+        renderer = PPTRenderer()
+        chart_data = ChartData(
+            chart_type=ChartType.BAR,
+            title="Revenue by Quarter",
+            categories=["Q1", "Q2", "Q3", "Q4"],
+            values=[100.0, 150.0, 200.0, 250.0],
+            series_name="2025 Revenue",
+        )
+
+        initial_count = len(renderer.prs.slides)
+        renderer.add_chart_slide("Revenue Analysis", chart_data)
+        assert len(renderer.prs.slides) == initial_count + 1
+
+        # Find the chart shape on the slide
+        slide = renderer.prs.slides[initial_count]
+        chart_shape = None
+        for shape in slide.shapes:
+            if shape.has_chart:
+                chart_shape = shape
+                break
+        assert chart_shape is not None, "Expected a chart shape on the slide"
+        assert chart_shape.chart.has_title is True
+        assert chart_shape.chart.chart_title.text_frame.text == "Revenue by Quarter"
+
+    def test_chart_empty_string_title_does_not_set_has_title(self):
+        """An empty string title should not create a blank title box."""
+        renderer = PPTRenderer()
+        chart_data = ChartData(
+            chart_type=ChartType.COLUMN,
+            title="Placeholder",
+            categories=["X", "Y"],
+            values=[1.0, 2.0],
+            series_name="S",
+        )
+        chart_data.title = ""
+
+        initial_count = len(renderer.prs.slides)
+        renderer.add_chart_slide("Chart Empty Title", chart_data)
+        assert len(renderer.prs.slides) == initial_count + 1
+
+        slide = renderer.prs.slides[initial_count]
+        chart_shape = None
+        for shape in slide.shapes:
+            if shape.has_chart:
+                chart_shape = shape
+                break
+        assert chart_shape is not None
+        assert chart_shape.chart.has_title is False
+
+
+class TestSlideLayoutFallback:
+    """Tests for slide layout fallback when primary layout conditions are not met."""
+
+    def test_quote_slide_fallback_when_add_fails(self):
+        """When add_quote_slide returns without adding a slide, render_slide should fall back to content."""
+        renderer = PPTRenderer()
+        renderer.apply_style("minimalist")
+        spec = SlideSpec(
+            layout=SlideLayout.QUOTE,
+            title="Test Quote",
+            bullets=["Fallback bullet"],
+            quote_text="",
+            quote_author="",
+        )
+        initial = len(renderer.prs.slides)
+        renderer.render_slide(spec)
+        assert len(renderer.prs.slides) == initial + 1
+
+    def test_statistics_slide_fallback_when_empty_stats(self):
+        """When statistics list is empty, render_slide should fall back to content."""
+        renderer = PPTRenderer()
+        renderer.apply_style("minimalist")
+        spec = SlideSpec(
+            layout=SlideLayout.STATISTICS,
+            title="Test Stats",
+            bullets=["Fallback bullet"],
+            statistics=[],
+        )
+        initial = len(renderer.prs.slides)
+        renderer.render_slide(spec)
+        assert len(renderer.prs.slides) == initial + 1

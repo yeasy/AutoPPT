@@ -303,3 +303,79 @@ def test_deck_qa_duplicate_empty_titles_flagged_as_empty():
     assert len(empty_title_issues) == 2
     # Empty titles are not tracked as duplicates
     assert not any(i.code == "duplicate_title" for i in report.issues)
+
+
+def test_deck_qa_flags_dense_two_column():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.TWO_COLUMN,
+                title="Dense Columns",
+                left_bullets=[f"Left point {i}" for i in range(7)],
+                right_bullets=["Right point 1", "Right point 2"],
+                left_title="Left",
+                right_title="Right",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert any(issue.code == "dense_columns" for issue in report.issues)
+
+
+def test_deck_qa_passes_normal_two_column():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.TWO_COLUMN,
+                title="Normal Columns",
+                left_bullets=["L1", "L2", "L3"],
+                right_bullets=["R1", "R2", "R3"],
+                left_title="Left",
+                right_title="Right",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert not any(issue.code == "dense_columns" for issue in report.issues)
+
+
+def test_deck_qa_flags_dense_comparison():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.COMPARISON,
+                title="Dense Compare",
+                left_bullets=["L1", "L2"],
+                right_bullets=[f"Right point {i}" for i in range(8)],
+                left_title="Option A",
+                right_title="Option B",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert any(issue.code == "dense_comparison" for issue in report.issues)
+
+
+def test_deck_qa_passes_normal_comparison():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.COMPARISON,
+                title="Normal Compare",
+                left_bullets=["L1", "L2", "L3"],
+                right_bullets=["R1", "R2", "R3"],
+                left_title="Option A",
+                right_title="Option B",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert not any(issue.code == "dense_comparison" for issue in report.issues)

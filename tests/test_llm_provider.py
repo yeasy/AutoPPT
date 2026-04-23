@@ -610,6 +610,29 @@ class TestGoogleProviderGenerate:
                 provider.generate_structure("test", SlideConfig)
 
 
+    def test_generate_structure_unexpected_type_raises(self):
+        """generate_structure should raise ValueError when parsed is an unexpected type."""
+        from unittest.mock import patch, MagicMock
+
+        with patch("autoppt.llm_provider.Config") as mock_config, \
+             patch("google.genai") as mock_genai:
+            mock_config.initialize = MagicMock()
+            mock_config.GOOGLE_API_KEY = "test-key"
+            mock_config.API_RETRY_ATTEMPTS = 1
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+
+            mock_client = MagicMock()
+            mock_genai.Client.return_value = mock_client
+            mock_response = MagicMock()
+            mock_response.parsed = ["unexpected", "list"]
+            mock_client.models.generate_content.return_value = mock_response
+
+            from autoppt.llm_provider import GoogleProvider
+            provider = GoogleProvider()
+            with pytest.raises(ValueError, match="unexpected type"):
+                provider.generate_structure("test", SlideConfig)
+
+
 class TestAnthropicProviderConstructor:
     """Tests for AnthropicProvider constructor."""
 
@@ -1042,6 +1065,16 @@ class TestProviderHelpers:
         anthropic_models = get_provider_models("anthropic")
         assert "claude-haiku-4-5" in anthropic_models
         assert "claude-haiku-4-5-20251001" not in anthropic_models
+
+    def test_anthropic_models_include_opus_4_7(self):
+        from autoppt.llm_provider import get_provider_models
+        anthropic_models = get_provider_models("anthropic")
+        assert "claude-opus-4-7" in anthropic_models
+
+    def test_anthropic_models_include_legacy_opus_4_6(self):
+        from autoppt.llm_provider import get_provider_models
+        anthropic_models = get_provider_models("anthropic")
+        assert "claude-opus-4-6" in anthropic_models
 
     def test_openai_default_model_is_gpt54_mini(self):
         from autoppt.config import Config

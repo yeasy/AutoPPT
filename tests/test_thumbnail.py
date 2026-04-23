@@ -814,3 +814,147 @@ class TestSubprocessShellFalse:
             convert_pdf_to_images(pdf_path, tmp_path)
             _, kwargs = mock_run.call_args
             assert kwargs.get("shell") is False
+
+
+class TestOutputPrefixPathValidation:
+    """Tests for path traversal and blocked path checks on output_prefix.
+
+    These cover lines 263 (output_prefix path traversal), 269 (blocked system
+    prefix on output), and 272 (blocked path segment on output) in thumbnail.py.
+    The checks happen after the pptx_path validation and after successful PDF
+    conversion, so we mock the conversion pipeline to reach them.
+    """
+
+    @patch("autoppt.thumbnail.create_grid_image")
+    @patch("autoppt.thumbnail.convert_pdf_to_images")
+    @patch("autoppt.thumbnail.convert_to_pdf")
+    @patch("autoppt.thumbnail.check_dependencies")
+    def test_output_prefix_path_traversal_rejected(
+        self, mock_check, mock_to_pdf, mock_pdf_imgs, mock_create_grid, tmp_path
+    ):
+        """output_prefix with '..' segments should raise ValueError (line 263)."""
+        mock_check.return_value = (True, [])
+        dummy_pptx = tmp_path / "test.pptx"
+        dummy_pptx.touch()
+        mock_to_pdf.return_value = tmp_path / "test.pdf"
+        mock_pdf_imgs.return_value = [tmp_path / "slide-1.jpg"]
+
+        with pytest.raises(ValueError, match="traversal"):
+            generate_thumbnails(
+                str(dummy_pptx),
+                output_prefix=str(tmp_path / ".." / ".." / "etc" / "evil"),
+            )
+
+    @patch("autoppt.thumbnail.create_grid_image")
+    @patch("autoppt.thumbnail.convert_pdf_to_images")
+    @patch("autoppt.thumbnail.convert_to_pdf")
+    @patch("autoppt.thumbnail.check_dependencies")
+    def test_output_prefix_blocked_system_prefix_rejected(
+        self, mock_check, mock_to_pdf, mock_pdf_imgs, mock_create_grid, tmp_path
+    ):
+        """output_prefix resolving to a blocked system prefix should raise ValueError (line 269)."""
+        mock_check.return_value = (True, [])
+        dummy_pptx = tmp_path / "test.pptx"
+        dummy_pptx.touch()
+        mock_to_pdf.return_value = tmp_path / "test.pdf"
+        mock_pdf_imgs.return_value = [tmp_path / "slide-1.jpg"]
+
+        with pytest.raises(ValueError, match="Output path is not allowed"):
+            generate_thumbnails(
+                str(dummy_pptx),
+                output_prefix="/etc/subdir/thumbnails",
+            )
+
+    @patch("autoppt.thumbnail.create_grid_image")
+    @patch("autoppt.thumbnail.convert_pdf_to_images")
+    @patch("autoppt.thumbnail.convert_to_pdf")
+    @patch("autoppt.thumbnail.check_dependencies")
+    def test_output_prefix_blocked_system_prefix_proc(
+        self, mock_check, mock_to_pdf, mock_pdf_imgs, mock_create_grid, tmp_path
+    ):
+        """output_prefix under /proc/ should raise ValueError (line 269)."""
+        mock_check.return_value = (True, [])
+        dummy_pptx = tmp_path / "test.pptx"
+        dummy_pptx.touch()
+        mock_to_pdf.return_value = tmp_path / "test.pdf"
+        mock_pdf_imgs.return_value = [tmp_path / "slide-1.jpg"]
+
+        with pytest.raises(ValueError, match="Output path is not allowed"):
+            generate_thumbnails(
+                str(dummy_pptx),
+                output_prefix="/proc/self/cwd/thumbnails",
+            )
+
+    @patch("autoppt.thumbnail.create_grid_image")
+    @patch("autoppt.thumbnail.convert_pdf_to_images")
+    @patch("autoppt.thumbnail.convert_to_pdf")
+    @patch("autoppt.thumbnail.check_dependencies")
+    def test_output_prefix_blocked_path_segment_ssh(
+        self, mock_check, mock_to_pdf, mock_pdf_imgs, mock_create_grid, tmp_path
+    ):
+        """output_prefix containing /.ssh/ should raise ValueError (line 272).
+
+        We create a real directory with .ssh in its name under tmp_path so
+        that Path.resolve() returns a path containing the blocked segment.
+        """
+        mock_check.return_value = (True, [])
+        dummy_pptx = tmp_path / "test.pptx"
+        dummy_pptx.touch()
+        mock_to_pdf.return_value = tmp_path / "test.pdf"
+        mock_pdf_imgs.return_value = [tmp_path / "slide-1.jpg"]
+
+        # Create a real .ssh directory under tmp_path so resolve works naturally
+        ssh_dir = tmp_path / ".ssh" / "keys"
+        ssh_dir.mkdir(parents=True, exist_ok=True)
+
+        with pytest.raises(ValueError, match="Output path is not allowed"):
+            generate_thumbnails(
+                str(dummy_pptx),
+                output_prefix=str(ssh_dir / "thumbnails"),
+            )
+
+    @patch("autoppt.thumbnail.create_grid_image")
+    @patch("autoppt.thumbnail.convert_pdf_to_images")
+    @patch("autoppt.thumbnail.convert_to_pdf")
+    @patch("autoppt.thumbnail.check_dependencies")
+    def test_output_prefix_blocked_path_segment_docker(
+        self, mock_check, mock_to_pdf, mock_pdf_imgs, mock_create_grid, tmp_path
+    ):
+        """output_prefix containing /.docker/ should raise ValueError (line 272)."""
+        mock_check.return_value = (True, [])
+        dummy_pptx = tmp_path / "test.pptx"
+        dummy_pptx.touch()
+        mock_to_pdf.return_value = tmp_path / "test.pdf"
+        mock_pdf_imgs.return_value = [tmp_path / "slide-1.jpg"]
+
+        docker_dir = tmp_path / ".docker" / "config"
+        docker_dir.mkdir(parents=True, exist_ok=True)
+
+        with pytest.raises(ValueError, match="Output path is not allowed"):
+            generate_thumbnails(
+                str(dummy_pptx),
+                output_prefix=str(docker_dir / "thumbnails"),
+            )
+
+    @patch("autoppt.thumbnail.create_grid_image")
+    @patch("autoppt.thumbnail.convert_pdf_to_images")
+    @patch("autoppt.thumbnail.convert_to_pdf")
+    @patch("autoppt.thumbnail.check_dependencies")
+    def test_output_prefix_blocked_path_segment_env(
+        self, mock_check, mock_to_pdf, mock_pdf_imgs, mock_create_grid, tmp_path
+    ):
+        """output_prefix containing /.env should raise ValueError (line 272)."""
+        mock_check.return_value = (True, [])
+        dummy_pptx = tmp_path / "test.pptx"
+        dummy_pptx.touch()
+        mock_to_pdf.return_value = tmp_path / "test.pdf"
+        mock_pdf_imgs.return_value = [tmp_path / "slide-1.jpg"]
+
+        env_dir = tmp_path / ".env" / "secrets"
+        env_dir.mkdir(parents=True, exist_ok=True)
+
+        with pytest.raises(ValueError, match="Output path is not allowed"):
+            generate_thumbnails(
+                str(dummy_pptx),
+                output_prefix=str(env_dir / "thumbnails"),
+            )

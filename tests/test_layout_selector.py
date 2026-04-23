@@ -726,3 +726,24 @@ class TestCoercePoints:
 
     def test_list_of_ints_converted_to_strings(self):
         assert LayoutSelector._coerce_points([1, 2, 3]) == ["1", "2", "3"]
+
+
+class TestErrorSlidePathSanitization:
+    """Error slide messages should not leak internal file paths."""
+
+    def test_path_in_error_message_is_redacted(self):
+        selector = LayoutSelector()
+        slide = selector.error_slide("Failed Slide", "File not found: /home/user/.ssh/key.pem")
+        assert "/home/user" not in slide.bullets[0]
+        assert "[path]" in slide.bullets[0]
+
+    def test_error_message_without_path_unchanged(self):
+        selector = LayoutSelector()
+        slide = selector.error_slide("Failed Slide", "Invalid JSON response from API")
+        assert "Invalid JSON response from API" in slide.bullets[0]
+
+    def test_multiple_paths_redacted(self):
+        selector = LayoutSelector()
+        slide = selector.error_slide("Err", "Cannot copy /tmp/a.txt to /var/run/secrets/token")
+        assert "/tmp/" not in slide.bullets[0]
+        assert "/var/run/" not in slide.bullets[0]

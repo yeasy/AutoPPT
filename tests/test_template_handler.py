@@ -224,6 +224,7 @@ class TestTemplateHandlerZipBomb:
             zf.writestr("content.xml", "small")
 
         fake_info = MagicMock()
+        fake_info.filename = "ppt/slides/slide1.xml"
         fake_info.file_size = Config.MAX_DECOMPRESSED_BYTES + 1
 
         with patch("autoppt.template_handler.zipfile.ZipFile") as mock_zf:
@@ -232,6 +233,35 @@ class TestTemplateHandlerZipBomb:
             mock_zf.return_value.infolist.return_value = [fake_info]
             with pytest.raises(ValueError, match="decompressed size"):
                 TemplateHandler(str(bomb_path))
+
+
+class TestZipSlipProtection:
+    """Tests for zip slip protection in TemplateHandler."""
+
+    def test_rejects_absolute_path_in_zip_entry(self, tmp_path):
+        import zipfile
+        bad_pptx = tmp_path / "evil.pptx"
+        with zipfile.ZipFile(str(bad_pptx), "w") as zf:
+            zf.writestr("/etc/passwd", "hacked")
+        with pytest.raises(ValueError, match="Unsafe entry"):
+            TemplateHandler(str(bad_pptx))
+
+    def test_rejects_dotdot_in_zip_entry(self, tmp_path):
+        import zipfile
+        bad_pptx = tmp_path / "evil.pptx"
+        with zipfile.ZipFile(str(bad_pptx), "w") as zf:
+            zf.writestr("../../etc/passwd", "hacked")
+        with pytest.raises(ValueError, match="Unsafe entry"):
+            TemplateHandler(str(bad_pptx))
+
+    def test_accepts_normal_zip_entry(self, tmp_path):
+        """Normal zip entries like ppt/slides/slide1.xml should pass."""
+        from pptx import Presentation
+        normal_pptx = tmp_path / "normal.pptx"
+        prs = Presentation()
+        prs.save(str(normal_pptx))
+        handler = TemplateHandler(str(normal_pptx))
+        assert handler.prs is not None
 
 
 class TestTemplateHandlerBlockedPaths:

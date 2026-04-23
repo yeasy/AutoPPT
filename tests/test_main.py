@@ -627,3 +627,142 @@ def test_main_language_at_max_length(mock_generator, mock_validate, mock_init, m
     gen.generate.return_value = "output/Test_Topic.pptx"
     main()
     gen.generate.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Blocked system prefix in --output (main.py line 99)
+# ---------------------------------------------------------------------------
+
+@patch("autoppt.main.Config.initialize")
+def test_cli_blocked_system_prefix_etc(mock_init, mock_args):
+    """--output pointing under /etc/ must be rejected (BLOCKED_SYSTEM_PREFIXES)."""
+    mock_args.return_value = _default_args(output="/etc/foo.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+@patch("autoppt.main.Config.initialize")
+def test_cli_blocked_system_prefix_proc(mock_init, mock_args):
+    """--output pointing under /proc/ must be rejected."""
+    mock_args.return_value = _default_args(output="/proc/something.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+@patch("autoppt.main.Config.initialize")
+def test_cli_blocked_system_prefix_dev(mock_init, mock_args):
+    """--output pointing under /dev/ must be rejected."""
+    mock_args.return_value = _default_args(output="/dev/null.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+# ---------------------------------------------------------------------------
+# Blocked path segment in --output (main.py line 102)
+# ---------------------------------------------------------------------------
+
+@patch("autoppt.main.Config.initialize")
+def test_cli_blocked_path_segment_ssh(mock_init, mock_args):
+    """--output containing /.ssh/ must be rejected (BLOCKED_PATH_SEGMENTS)."""
+    mock_args.return_value = _default_args(output="/tmp/.ssh/foo.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+@patch("autoppt.main.Config.initialize")
+def test_cli_blocked_path_segment_gnupg(mock_init, mock_args):
+    """--output containing /.gnupg/ must be rejected."""
+    mock_args.return_value = _default_args(output="/home/user/.gnupg/evil.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+@patch("autoppt.main.Config.initialize")
+def test_cli_blocked_path_segment_aws(mock_init, mock_args):
+    """--output containing /.aws/ must be rejected."""
+    mock_args.return_value = _default_args(output="/home/user/.aws/creds.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+@patch("autoppt.main.Config.initialize")
+def test_cli_blocked_path_segment_kube(mock_init, mock_args):
+    """--output containing /.kube/ must be rejected."""
+    mock_args.return_value = _default_args(output="/home/user/.kube/config.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
+# ---------------------------------------------------------------------------
+# Windows reserved filename prefix (main.py lines 106-107)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("reserved_name", ["CON", "PRN", "AUX", "NUL"])
+@patch("autoppt.main.Config.initialize")
+@patch("autoppt.main.Config.validate")
+@patch("autoppt.generator.Generator")
+def test_windows_reserved_name_gets_deck_prefix(mock_generator, mock_validate, mock_init, mock_args, reserved_name):
+    """Topics matching Windows reserved names (CON, PRN, AUX, NUL) must get a 'deck_' prefix."""
+    mock_args.return_value = _default_args(topic=reserved_name, output=None)
+
+    gen = _mock_generator_context(mock_generator)
+    gen.generate.return_value = f"output/deck_{reserved_name}.pptx"
+
+    main()
+
+    kwargs = gen.generate.call_args.kwargs
+    output_file = kwargs["output_file"]
+    assert output_file == os.path.join("output", f"deck_{reserved_name}.pptx")
+
+
+@pytest.mark.parametrize("reserved_name", ["COM1", "COM2", "COM9", "LPT1", "LPT2", "LPT9"])
+@patch("autoppt.main.Config.initialize")
+@patch("autoppt.main.Config.validate")
+@patch("autoppt.generator.Generator")
+def test_windows_reserved_com_lpt_gets_deck_prefix(mock_generator, mock_validate, mock_init, mock_args, reserved_name):
+    """Topics matching COM[0-9] or LPT[0-9] must get a 'deck_' prefix."""
+    mock_args.return_value = _default_args(topic=reserved_name, output=None)
+
+    gen = _mock_generator_context(mock_generator)
+    gen.generate.return_value = f"output/deck_{reserved_name}.pptx"
+
+    main()
+
+    kwargs = gen.generate.call_args.kwargs
+    output_file = kwargs["output_file"]
+    assert output_file == os.path.join("output", f"deck_{reserved_name}.pptx")
+
+
+@patch("autoppt.main.Config.initialize")
+@patch("autoppt.main.Config.validate")
+@patch("autoppt.generator.Generator")
+def test_windows_reserved_name_case_insensitive(mock_generator, mock_validate, mock_init, mock_args):
+    """The reserved-name check should be case-insensitive (e.g., 'con' or 'Con')."""
+    mock_args.return_value = _default_args(topic="con", output=None)
+
+    gen = _mock_generator_context(mock_generator)
+    gen.generate.return_value = "output/deck_con.pptx"
+
+    main()
+
+    kwargs = gen.generate.call_args.kwargs
+    output_file = kwargs["output_file"]
+    assert output_file == os.path.join("output", "deck_con.pptx")
+
+
+@patch("autoppt.main.Config.initialize")
+@patch("autoppt.main.Config.validate")
+@patch("autoppt.generator.Generator")
+def test_normal_topic_no_deck_prefix(mock_generator, mock_validate, mock_init, mock_args):
+    """A normal topic (not a Windows reserved name) should NOT get a 'deck_' prefix."""
+    mock_args.return_value = _default_args(topic="AI", output=None)
+
+    gen = _mock_generator_context(mock_generator)
+    gen.generate.return_value = "output/AI.pptx"
+
+    main()
+
+    kwargs = gen.generate.call_args.kwargs
+    output_file = kwargs["output_file"]
+    assert output_file == os.path.join("output", "AI.pptx")
+    assert "deck_" not in output_file
