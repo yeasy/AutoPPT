@@ -5,6 +5,39 @@ All notable changes to AutoPPT will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- All source modules now use `from __future__ import annotations` for consistent type annotation handling.
+- Progress bar description now only appends `...` when the slide title is actually truncated beyond 30 characters.
+- `PROVIDER_MODELS` for Anthropic now includes `claude-opus-4-7`.
+- `build_sample_deck` docstring now accurately reflects that `asset_dir` is required.
+- Deck QA now flags two-column and comparison slides with more than 6 bullet points per side as `dense_columns` / `dense_comparison`.
+- Error logging for `AutoPPTError`/`ValueError` in slide generation now includes full traceback (`exc_info=True`), consistent with the unexpected-error handler.
+- `openai` dependency now constrained to `<2.0` to prevent breaking installs from the 2.x API.
+- `pydantic` dependency now constrained to `<3` to prevent breaking installs from the 3.x API.
+- `streamlit` minimum version raised to `>=1.54.0` to include upstream SSRF fix.
+- CI workflow now sets top-level `permissions: {}` for least-privilege.
+- Error slide messages now redact file system paths to prevent information disclosure in generated PPTX files.
+- Removed dead `.split(".")` from Windows reserved-name checks; dots are already stripped by prior sanitization.
+- Removed redundant `/var/run/secrets/` from `BLOCKED_SYSTEM_PREFIXES` (already covered by `/var/run/`).
+- `_cover_image` now writes directly to the open temp file handle instead of closing and reopening.
+- Cooldown display now uses `max(1, remaining)` to avoid showing zero or negative seconds.
+- `install_hooks.py` now backs up any existing pre-commit hook before overwriting.
+
+### Fixed
+- Chart slides no longer show an empty title placeholder when `chart_data.title` is `None` or empty string.
+- Temp file cleanup in `_cover_image` no longer masks the original exception if `os.unlink` fails.
+- `search_wikipedia` now uses a dedicated lock around `set_lang` and API calls to prevent thread-safety issues with concurrent Wikipedia searches in different languages.
+- `GoogleProvider.generate_structure` now rejects unexpected response types with a clear error instead of returning raw non-model data.
+- `_update_slide` now sanitizes remix instructions via `_sanitize_prompt_field` to strip control characters and enforce length limits.
+
+### Security
+- Web UI remix and regenerate buttons now enforce the same 30-second cooldown as the generate button to prevent API quota exhaustion.
+- `load_deck_spec` error messages no longer expose internal parsing details to prevent information disclosure.
+- Web UI and CLI filename sanitization now rejects Windows reserved names (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`).
+- `TemplateHandler` now validates zip member names to block zip slip attacks (entries with absolute paths or `..` traversal).
+
 ## [0.5.8] - 2026-04-18
 
 ### Changed
