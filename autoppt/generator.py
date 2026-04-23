@@ -354,15 +354,16 @@ class Generator:
         if ".." in path.replace("\\", "/").split("/"):
             raise ValueError(f"Path traversal detected: {path}")
         resolved = os.path.realpath(path)
+        normalised = os.path.normpath(path)
 
         # Blocklist: reject known sensitive system prefixes.
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved.startswith(prefix):
+            if resolved.startswith(prefix) or normalised.startswith(prefix):
                 raise ValueError(f"Access to system path is not allowed: {path}")
 
         # Blocklist: reject sensitive path segments (e.g. ~/.ssh/, ~/.aws/).
         for segment in Config.BLOCKED_PATH_SEGMENTS:
-            if segment in resolved:
+            if segment in resolved or segment in normalised:
                 raise ValueError(f"Access to sensitive path is not allowed: {path}")
 
         # Allowlist: when an allowed base is provided the resolved path must

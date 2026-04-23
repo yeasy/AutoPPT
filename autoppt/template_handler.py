@@ -4,6 +4,7 @@ Template handler for working with existing PowerPoint presentations.
 from __future__ import annotations
 
 import logging
+import os
 import zipfile
 from typing import Any
 from pathlib import Path
@@ -30,11 +31,12 @@ class TemplateHandler:
             raise ValueError(f"Path traversal detected: {template_path}")
         self.template_path = Path(template_path).resolve()
         resolved_str = str(self.template_path)
+        normalised_str = os.path.normpath(str(template_path))
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved_str.startswith(prefix):
+            if resolved_str.startswith(prefix) or normalised_str.startswith(prefix):
                 raise ValueError(f"Access to system path is not allowed: {template_path}")
         for segment in Config.BLOCKED_PATH_SEGMENTS:
-            if segment in resolved_str:
+            if segment in resolved_str or segment in normalised_str:
                 raise ValueError(f"Access to sensitive path is not allowed: {template_path}")
         if not self.template_path.exists():
             raise FileNotFoundError(f"Template not found: {template_path}")

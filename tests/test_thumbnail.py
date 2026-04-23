@@ -882,7 +882,7 @@ class TestOutputPrefixPathValidation:
         with pytest.raises(ValueError, match="Output path is not allowed"):
             generate_thumbnails(
                 str(dummy_pptx),
-                output_prefix="/proc/self/cwd/thumbnails",
+                output_prefix="/proc/nonexistent/thumbnails",
             )
 
     @patch("autoppt.thumbnail.create_grid_image")

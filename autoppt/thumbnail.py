@@ -4,6 +4,7 @@ Thumbnail generation utility for PowerPoint presentations.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import shutil
 import tempfile
@@ -216,11 +217,12 @@ def generate_thumbnails(
     # Reject sensitive system paths (consistent with generator/renderer validation)
     from .config import Config
     resolved_str = str(pptx_file)
+    normalised_str = os.path.normpath(str(pptx_path))
     for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-        if resolved_str.startswith(prefix):
+        if resolved_str.startswith(prefix) or normalised_str.startswith(prefix):
             raise ValueError(f"Access to system path is not allowed: {pptx_path}")
     for segment in Config.BLOCKED_PATH_SEGMENTS:
-        if segment in resolved_str:
+        if segment in resolved_str or segment in normalised_str:
             raise ValueError(f"Access to sensitive path is not allowed: {pptx_path}")
 
     if not pptx_file.exists():
@@ -264,11 +266,12 @@ def generate_thumbnails(
                 raise ValueError(f"Path traversal detected in output_prefix: {output_prefix}")
             output_dir = Path(output_prefix).resolve().parent
             output_resolved = str(output_dir)
+            output_normalised = str(Path(os.path.normpath(output_prefix)).parent)
             for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-                if output_resolved.startswith(prefix):
+                if output_resolved.startswith(prefix) or output_normalised.startswith(prefix):
                     raise ValueError(f"Output path is not allowed: {output_prefix}")
             for segment in Config.BLOCKED_PATH_SEGMENTS:
-                if segment in output_resolved:
+                if segment in output_resolved or segment in output_normalised:
                     raise ValueError(f"Output path is not allowed: {output_prefix}")
             output_dir.mkdir(parents=True, exist_ok=True)
             prefix_name = re.sub(r"[/\\]", "_", Path(output_prefix).name)

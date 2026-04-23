@@ -40,7 +40,7 @@ class Config:
     BLOCKED_SYSTEM_PREFIXES = (
         "/etc/", "/private/etc/",
         "/proc/", "/sys/",
-        "/dev/", "/private/var/run/", "/var/run/",
+        "/dev/", "/run/", "/private/var/run/", "/var/run/",
     )
 
     BLOCKED_PATH_SEGMENTS = (
