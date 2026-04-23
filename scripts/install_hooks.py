@@ -32,6 +32,10 @@ def install_hook():
         print("❌ Error: .git directory not found. Are you in the project root?")
         return
     
+    if os.path.exists(hook_path):
+        print(f"⚠️  Existing pre-commit hook found at {hook_path}, backing up to {hook_path}.bak")
+        os.replace(hook_path, hook_path + ".bak")
+
     with open(hook_path, "w") as f:
         f.write(HOOK_CONTENT)
     
