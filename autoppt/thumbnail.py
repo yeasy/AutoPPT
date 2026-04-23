@@ -1,6 +1,8 @@
 """
 Thumbnail generation utility for PowerPoint presentations.
 """
+from __future__ import annotations
+
 import logging
 import re
 import shutil

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ipaddress
 import logging
 import os
@@ -37,6 +39,7 @@ class Researcher:
         self._article_cache: dict[tuple[str, int], str | None] = {}
         self._context_cache: dict[tuple[tuple[str, ...], bool, bool, str, bool], str] = {}
         self._cache_lock = threading.Lock()
+        self._wiki_lang_lock = threading.Lock()
 
     def _remember(self, cache: dict, key: object, value: _V) -> _V:
         with self._cache_lock:
@@ -153,22 +156,23 @@ class Researcher:
         try:
             import wikipedia
 
-            wikipedia.set_lang(cache_key[2])
-            search_results = wikipedia.search(query, results=1)
-            if not search_results:
-                logger.warning("No Wikipedia results for '%s'", query)
-                return self._remember(self._wiki_cache, cache_key, None)
-            page_title = search_results[0]
-            try:
-                page = wikipedia.page(page_title, auto_suggest=False)
-            except wikipedia.exceptions.DisambiguationError as exc:
-                if exc.options:
-                    try:
-                        page = wikipedia.page(exc.options[0], auto_suggest=False)
-                    except (wikipedia.exceptions.DisambiguationError, wikipedia.exceptions.PageError):
-                        return self._remember(self._wiki_cache, cache_key, None)
-                else:
+            with self._wiki_lang_lock:
+                wikipedia.set_lang(cache_key[2])
+                search_results = wikipedia.search(query, results=1)
+                if not search_results:
+                    logger.warning("No Wikipedia results for '%s'", query)
                     return self._remember(self._wiki_cache, cache_key, None)
+                page_title = search_results[0]
+                try:
+                    page = wikipedia.page(page_title, auto_suggest=False)
+                except wikipedia.exceptions.DisambiguationError as exc:
+                    if exc.options:
+                        try:
+                            page = wikipedia.page(exc.options[0], auto_suggest=False)
+                        except (wikipedia.exceptions.DisambiguationError, wikipedia.exceptions.PageError):
+                            return self._remember(self._wiki_cache, cache_key, None)
+                    else:
+                        return self._remember(self._wiki_cache, cache_key, None)
             summary = page.summary or ""
             if summary:
                 all_sentences = re.split(r'(?<=[.!?])\s+', summary)

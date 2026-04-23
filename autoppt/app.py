@@ -4,10 +4,13 @@ AutoPPT Web Interface
 
 Run with: streamlit run autoppt/app.py
 """
+from __future__ import annotations
+
 import html as html_mod
-import os
-import tempfile
 import logging
+import os
+import re
+import tempfile
 import time
 
 import streamlit as st
@@ -213,7 +216,7 @@ if generate_button:
     elif provider != "mock" and not Config.has_api_key(provider):
         st.error(f"❌ API key for {provider} is not set. Please configure it in .env file.")
     elif "last_generate_time" in st.session_state and time.time() - st.session_state.last_generate_time < _GENERATE_COOLDOWN_SECONDS:
-        remaining = int(_GENERATE_COOLDOWN_SECONDS - (time.time() - st.session_state.last_generate_time))
+        remaining = max(1, int(_GENERATE_COOLDOWN_SECONDS - (time.time() - st.session_state.last_generate_time)))
         st.warning(f"⏳ Please wait {remaining} seconds before generating again.")
     else:
         with st.spinner("🔄 Generating your presentation... This may take a few minutes."):
@@ -221,6 +224,8 @@ if generate_button:
                 from .generator import Generator
 
                 safe_topic = "".join(char for char in topic if char.isalnum() or char in (" ", "-", "_"))[:50].strip() or "presentation"
+                if safe_topic.upper() in {"CON", "PRN", "AUX", "NUL"} or re.match(r"^(COM|LPT)\d$", safe_topic, re.IGNORECASE):
+                    safe_topic = f"deck_{safe_topic}"
                 progress_bar = st.progress(0, text="Initializing generator...")
 
                 with tempfile.TemporaryDirectory(prefix="autoppt-web-") as output_dir:
@@ -324,57 +329,62 @@ if editable_options:
     remix_button = action_col2.button("♻️ Remix Selected Slide", use_container_width=True)
 
     if regenerate_button or remix_button:
-        with st.spinner("🔄 Updating selected slide..."):
-            try:
-                from .generator import Generator
+        if "last_generate_time" in st.session_state and time.time() - st.session_state.last_generate_time < _GENERATE_COOLDOWN_SECONDS:
+            remaining = max(1, int(_GENERATE_COOLDOWN_SECONDS - (time.time() - st.session_state.last_generate_time)))
+            st.warning(f"⏳ Please wait {remaining} seconds before updating a slide.")
+        else:
+            st.session_state.last_generate_time = time.time()
+            with st.spinner("🔄 Updating selected slide..."):
+                try:
+                    from .generator import Generator
 
-                current_deck = st.session_state.generated_deck_spec
-                with Generator(
-                    provider_name=st.session_state.generated_provider,
-                    model=st.session_state.generated_model,
-                ) as remix_gen:
-                    target_layout = WORKBENCH_LAYOUT_OPTIONS[target_layout_label]
-                    if remix_button:
-                        updated_deck = remix_gen.remix_slide(
-                            deck_spec=current_deck,
-                            slide_index=selected_index,
-                            instruction=remix_instruction.strip(),
-                            style=st.session_state.generated_style,
-                            language=st.session_state.generated_language,
-                            target_layout=target_layout,
+                    current_deck = st.session_state.generated_deck_spec
+                    with Generator(
+                        provider_name=st.session_state.generated_provider,
+                        model=st.session_state.generated_model,
+                    ) as remix_gen:
+                        target_layout = WORKBENCH_LAYOUT_OPTIONS[target_layout_label]
+                        if remix_button:
+                            updated_deck = remix_gen.remix_slide(
+                                deck_spec=current_deck,
+                                slide_index=selected_index,
+                                instruction=remix_instruction.strip(),
+                                style=st.session_state.generated_style,
+                                language=st.session_state.generated_language,
+                                target_layout=target_layout,
+                            )
+                        else:
+                            updated_deck = remix_gen.regenerate_slide(
+                                deck_spec=current_deck,
+                                slide_index=selected_index,
+                                style=st.session_state.generated_style,
+                                language=st.session_state.generated_language,
+                                target_layout=target_layout,
+                            )
+                        remixed_bytes = _render_deck_file(
+                            remix_gen,
+                            updated_deck,
+                            st.session_state.generated_filename or "autoppt_remix.pptx",
                         )
-                    else:
-                        updated_deck = remix_gen.regenerate_slide(
-                            deck_spec=current_deck,
-                            slide_index=selected_index,
-                            style=st.session_state.generated_style,
-                            language=st.session_state.generated_language,
-                            target_layout=target_layout,
-                        )
-                    remixed_bytes = _render_deck_file(
-                        remix_gen,
-                        updated_deck,
-                        st.session_state.generated_filename or "autoppt_remix.pptx",
-                    )
 
-                    remix_deck_spec = updated_deck
-                    remix_quality_issues = list(remix_gen.last_quality_report.issues)
-                    st.session_state.generated_deck_spec = remix_deck_spec
-                    st.session_state.generated_file_bytes = remixed_bytes
-                    st.session_state.generated_quality_issues = remix_quality_issues
-                    action_label = "regenerated" if regenerate_button else "remixed"
-                    st.success(f"✅ Selected slide {action_label} successfully.")
-                    st.rerun()
-            except APIKeyError as exc:
-                st.error(f"API key error for {exc.provider}: {exc.message}")
-            except RateLimitError as exc:
-                st.error(f"Rate limit exceeded for {exc.provider}: {exc.message}")
-            except AutoPPTError as exc:
-                logger.exception("Error updating slide")
-                st.error("Slide update error. Please check logs or try again.")
-            except Exception:
-                logger.exception("Unexpected error updating slide")
-                st.error("Unexpected error. Please check logs or try again.")
+                        remix_deck_spec = updated_deck
+                        remix_quality_issues = list(remix_gen.last_quality_report.issues)
+                        st.session_state.generated_deck_spec = remix_deck_spec
+                        st.session_state.generated_file_bytes = remixed_bytes
+                        st.session_state.generated_quality_issues = remix_quality_issues
+                        action_label = "regenerated" if regenerate_button else "remixed"
+                        st.success(f"✅ Selected slide {action_label} successfully.")
+                        st.rerun()
+                except APIKeyError as exc:
+                    st.error(f"API key error for {exc.provider}: {exc.message}")
+                except RateLimitError as exc:
+                    st.error(f"Rate limit exceeded for {exc.provider}: {exc.message}")
+                except AutoPPTError as exc:
+                    logger.exception("Error updating slide")
+                    st.error("Slide update error. Please check logs or try again.")
+                except Exception:
+                    logger.exception("Unexpected error updating slide")
+                    st.error("Unexpected error. Please check logs or try again.")
 
 st.divider()
 st.markdown(

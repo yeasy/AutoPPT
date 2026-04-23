@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import tempfile
@@ -339,11 +341,14 @@ class PPTRenderer:
                 img = img.crop((0, top, width, top + target_height))
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp:
                 temp_path = temp.name
-            try:
-                img.save(temp_path, format="PNG")
-            except Exception:
-                os.unlink(temp_path)
-                raise
+                try:
+                    img.save(temp, format="PNG")
+                except Exception:
+                    try:
+                        os.unlink(temp_path)
+                    except OSError:
+                        pass
+                    raise
             return temp_path
 
     def _add_cover_picture(self, slide, image_path: str, left: float, top: float, width: float, height: float) -> bool:
@@ -625,8 +630,8 @@ class PPTRenderer:
             Inches(self._theme("chart_height_in")),
             chart_data_obj,
         ).chart
-        chart.has_title = True
-        if chart_data.title is not None:
+        if chart_data.title:
+            chart.has_title = True
             chart.chart_title.text_frame.text = chart_data.title
         self._set_notes(slide, notes)
 

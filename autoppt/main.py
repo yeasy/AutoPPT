@@ -4,6 +4,8 @@ AutoPPT - AI-Powered Presentation Generator
 
 Generate professional PowerPoint presentations using AI and real-time research.
 """
+from __future__ import annotations
+
 import argparse
 import logging
 import os
@@ -101,6 +103,8 @@ Examples:
         output_filename = args.output
     else:
         safe_name = re.sub(r"[^\w\-]", "_", args.topic)[:100]
+        if safe_name.upper() in {"CON", "PRN", "AUX", "NUL"} or re.match(r"^(COM|LPT)\d$", safe_name, re.IGNORECASE):
+            safe_name = f"deck_{safe_name}"
         output_filename = os.path.join(Config.OUTPUT_DIR, f"{safe_name}.pptx")
 
     selected_style = args.style

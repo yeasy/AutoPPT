@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 import re
 import tempfile
-from typing import Optional
 
 from tqdm import tqdm
 
@@ -34,6 +35,12 @@ _INJECTION_PREFIX_RE = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 _MULTI_WHITESPACE_RE = re.compile(r"[ \t]{2,}")
+
+_PBAR_TITLE_MAX = 30
+
+
+def _truncate_title(title: str) -> str:
+    return f"{title[:_PBAR_TITLE_MAX]}{'...' if len(title) > _PBAR_TITLE_MAX else ''}"
 
 
 def _sanitize_research_context(text: str) -> str:
@@ -69,7 +76,7 @@ def _sanitize_prompt_field(value: str) -> str:
 class Generator:
     """Main presentation generator class."""
 
-    def __init__(self, provider_name: str = "openai", api_key: Optional[str] = None, model: Optional[str] = None):
+    def __init__(self, provider_name: str = "openai", api_key: str | None = None, model: str | None = None):
         tmpdir = tempfile.TemporaryDirectory(prefix="autoppt-assets-")
         try:
             self.llm = get_provider(provider_name, api_key=api_key, model=model)
@@ -79,10 +86,10 @@ class Generator:
             self.slide_planner = SlidePlanner()
             self.deck_qa = DeckQA()
             self.last_quality_report = DeckQualityReport()
-            self.last_deck_spec: Optional[DeckSpec] = None
-            self.last_outline: Optional[PresentationOutline] = None
+            self.last_deck_spec: DeckSpec | None = None
+            self.last_outline: PresentationOutline | None = None
             self.provider_name = provider_name
-            self._assets_tmpdir: Optional[tempfile.TemporaryDirectory[str]] = tmpdir
+            self._assets_tmpdir: tempfile.TemporaryDirectory[str] | None = tmpdir
             self.assets_dir = tmpdir.name
         except Exception:
             tmpdir.cleanup()
@@ -102,7 +109,7 @@ class Generator:
         except Exception:
             logger.debug("Error during Generator cleanup", exc_info=True)
 
-    def __enter__(self) -> "Generator":
+    def __enter__(self) -> Generator:
         return self
 
     def __exit__(self, *args: object) -> None:
@@ -117,7 +124,7 @@ class Generator:
         output_file: str = "output.pptx",
         slides_count: int = 10,
         language: str = "English",
-        template_path: Optional[str] = None,
+        template_path: str | None = None,
         create_thumbnails: bool = False,
     ) -> str:
         if self._assets_tmpdir is None:
@@ -192,7 +199,7 @@ class Generator:
         style: str = "minimalist",
         output_file: str = "output.pptx",
         language: str = "English",
-        template_path: Optional[str] = None,
+        template_path: str | None = None,
         create_thumbnails: bool = False,
     ) -> str:
         if self._assets_tmpdir is None:
@@ -216,7 +223,7 @@ class Generator:
         style: str,
         output_file: str,
         language: str,
-        template_path: Optional[str],
+        template_path: str | None,
         create_thumbnails: bool,
     ) -> str:
         total_slides = sum(len(section.slides) for section in outline.sections)
@@ -251,7 +258,7 @@ class Generator:
         topic: str,
         style: str = "minimalist",
         language: str = "English",
-        template_path: Optional[str] = None,
+        template_path: str | None = None,
     ) -> DeckSpec:
         if self._assets_tmpdir is None:
             raise RuntimeError("Generator has been closed; create a new instance.")
@@ -274,7 +281,7 @@ class Generator:
                 deck_spec.slides.append(self.layout_selector.section_slide(section.title))
 
                 for slide_index, slide_title in enumerate(section.slides):
-                    pbar.set_description(f"Slide: {slide_title[:30]}...")
+                    pbar.set_description(f"Slide: {_truncate_title(slide_title)}")
                     try:
                         plan = self._plan_slide(
                             section_title=section.title,
@@ -296,7 +303,7 @@ class Generator:
                             )
                         )
                     except (AutoPPTError, ValueError) as exc:
-                        logger.error("Error generating slide '%s': %s", slide_title, exc)
+                        logger.error("Error generating slide '%s': %s", slide_title, exc, exc_info=True)
                         deck_spec.slides.append(self.layout_selector.error_slide(slide_title, str(exc)))
                     except Exception as exc:
                         if isinstance(exc, (MemoryError, RecursionError)):
@@ -315,7 +322,7 @@ class Generator:
         deck_spec: DeckSpec,
         output_file: str,
         create_thumbnails: bool = False,
-        template_path: Optional[str] = None,
+        template_path: str | None = None,
     ) -> str:
         resolved_output = self._validate_file_path(output_file)
         self._prepare_renderer(deck_spec.style, template_path or deck_spec.template_path)
@@ -397,7 +404,8 @@ class Generator:
             try:
                 deck_spec = DeckSpec.model_validate_json(file_handle.read())
             except Exception as exc:
-                raise ValueError(f"Invalid deck spec file: {exc}") from exc
+                logger.debug("Deck spec parse error: %s", exc)
+                raise ValueError("Invalid or malformed deck spec file") from exc
 
         if len(deck_spec.slides) > self._MAX_SLIDES_COUNT:
             raise ValueError(
@@ -432,8 +440,8 @@ class Generator:
         self,
         deck_spec: DeckSpec,
         slide_index: int,
-        style: Optional[str] = None,
-        language: Optional[str] = None,
+        style: str | None = None,
+        language: str | None = None,
         target_layout: SlideLayout | SlideType | str | None = None,
     ) -> DeckSpec:
         return self._update_slide(
@@ -450,8 +458,8 @@ class Generator:
         deck_spec: DeckSpec,
         slide_index: int,
         instruction: str = "",
-        style: Optional[str] = None,
-        language: Optional[str] = None,
+        style: str | None = None,
+        language: str | None = None,
         target_layout: SlideLayout | SlideType | str | None = None,
     ) -> DeckSpec:
         return self._update_slide(
@@ -467,9 +475,9 @@ class Generator:
         self,
         deck_spec: DeckSpec,
         slide_index: int,
-        instruction: Optional[str],
-        style: Optional[str] = None,
-        language: Optional[str] = None,
+        instruction: str | None,
+        style: str | None = None,
+        language: str | None = None,
         target_layout: SlideLayout | SlideType | str | None = None,
     ) -> DeckSpec:
         updated_deck = deck_spec.model_copy(deep=True)
@@ -478,6 +486,8 @@ class Generator:
         target_slide = updated_deck.slides[slide_index]
         if not target_slide.editable or target_slide.layout in {SlideLayout.TITLE, SlideLayout.SECTION, SlideLayout.CITATIONS}:
             raise ValueError("Only generated content slides can be remixed.")
+        if instruction:
+            instruction = _sanitize_prompt_field(instruction)
 
         remix_language = language or updated_deck.language
         remix_style = style or updated_deck.style
@@ -507,7 +517,7 @@ class Generator:
         self.last_deck_spec = updated_deck.model_copy(deep=True)
         return updated_deck
 
-    def _prepare_renderer(self, style: str, template_path: Optional[str]) -> None:
+    def _prepare_renderer(self, style: str, template_path: str | None) -> None:
         if template_path:
             self._validate_file_path(template_path, must_exist=True)
         self.renderer = PPTRenderer(template_path=template_path)
@@ -520,8 +530,8 @@ class Generator:
         slide_title: str,
         topic: str,
         language: str,
-        remix_instruction: Optional[str] = None,
-        current_slide: Optional[SlideSpec] = None,
+        remix_instruction: str | None = None,
+        current_slide: SlideSpec | None = None,
         force_slide_type: SlideType | None = None,
     ) -> SlidePlan:
         return self.slide_planner.plan(
@@ -584,7 +594,7 @@ class Generator:
         slide_config: SlideConfig,
         section_index: int,
         slide_index: int,
-    ) -> Optional[str]:
+    ) -> str | None:
         if not slide_config.image_query:
             return None
 

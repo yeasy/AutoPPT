@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 import logging
 import math
@@ -565,10 +567,9 @@ def get_sample_definition(sample_id: str) -> SampleDefinition:
 def build_sample_deck(sample_id: str, asset_dir: str | Path | None = None) -> DeckSpec:
     """Build a sample deck spec.
 
-    When *asset_dir* is ``None`` a temporary directory is created and the caller
-    is responsible for cleaning it up after the returned ``DeckSpec`` is no
-    longer needed.  Prefer passing an explicit directory managed via
-    ``tempfile.TemporaryDirectory`` to avoid leaks.
+    *asset_dir* is required and must point to an existing directory managed
+    via ``tempfile.TemporaryDirectory`` to avoid leaks.  Passing ``None``
+    raises ``ValueError``.
     """
     definition = get_sample_definition(sample_id)
     builder = _SAMPLE_BUILDERS[sample_id]

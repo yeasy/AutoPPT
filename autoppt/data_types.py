@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 from enum import Enum
 
@@ -21,7 +23,7 @@ class ChartData(BaseModel):
     series_name: str = Field(default="Series 1", max_length=200, description="Name of the data series")
 
     @model_validator(mode="after")
-    def _check_lengths(self) -> "ChartData":
+    def _check_lengths(self) -> ChartData:
         if not self.categories:
             raise ValueError("categories must not be empty")
         if len(self.categories) != len(self.values):

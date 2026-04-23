@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+import re
 
 from .data_types import DeckSpec, SlideConfig, SlideLayout, SlidePlan, SlideSpec, SlideType
 
@@ -227,11 +230,14 @@ class LayoutSelector:
     def citations_slide(self, citations: list[str]) -> SlideSpec:
         return SlideSpec(layout=SlideLayout.CITATIONS, title="References", citations=citations)
 
+    _PATH_RE = re.compile(r"(?:/[\w./-]+)+")
+
     def error_slide(self, slide_title: str, error_message: str) -> SlideSpec:
+        safe_msg = self._PATH_RE.sub("[path]", error_message)
         return SlideSpec(
             layout=SlideLayout.CONTENT,
             title=slide_title,
-            bullets=[f"Content generation failed: {error_message[:50]}{'...' if len(error_message) > 50 else ''}"],
+            bullets=[f"Content generation failed: {safe_msg[:50]}{'...' if len(safe_msg) > 50 else ''}"],
             speaker_notes="Please regenerate this slide.",
         )
 

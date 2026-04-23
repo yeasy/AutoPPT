@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from pydantic import BaseModel, Field
 
@@ -82,12 +84,16 @@ class DeckQA:
             right_non_empty = [b for b in slide.right_bullets if b.strip()] if slide.right_bullets else []
             if not left_non_empty or not right_non_empty:
                 issues.append(self._issue("incomplete_columns", "Two-column slide is missing content on one side.", index, slide))
+            elif len(left_non_empty) > 6 or len(right_non_empty) > 6:
+                issues.append(self._issue("dense_columns", "Two-column slide has more than 6 bullet points on one side.", index, slide))
 
         elif slide.layout == SlideLayout.COMPARISON:
             left_non_empty = [b for b in slide.left_bullets if b.strip()] if slide.left_bullets else []
             right_non_empty = [b for b in slide.right_bullets if b.strip()] if slide.right_bullets else []
             if not left_non_empty or not right_non_empty:
                 issues.append(self._issue("incomplete_comparison", "Comparison slide is missing points for one option.", index, slide))
+            elif len(left_non_empty) > 6 or len(right_non_empty) > 6:
+                issues.append(self._issue("dense_comparison", "Comparison slide has more than 6 bullet points on one side.", index, slide))
 
         elif slide.layout == SlideLayout.QUOTE:
             if not slide.quote_text or not slide.quote_author:

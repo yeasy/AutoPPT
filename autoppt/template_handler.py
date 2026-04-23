@@ -1,6 +1,8 @@
 """
 Template handler for working with existing PowerPoint presentations.
 """
+from __future__ import annotations
+
 import logging
 import zipfile
 from typing import Any
@@ -44,7 +46,11 @@ class TemplateHandler:
 
         try:
             with zipfile.ZipFile(str(self.template_path), "r") as zf:
-                total = sum(info.file_size for info in zf.infolist())
+                total = 0
+                for info in zf.infolist():
+                    if info.filename.startswith("/") or ".." in info.filename.split("/"):
+                        raise ValueError(f"Unsafe entry in template archive: {info.filename}")
+                    total += info.file_size
                 if total > Config.MAX_DECOMPRESSED_BYTES:
                     raise ValueError(
                         f"Template decompressed size ({total} bytes) exceeds limit ({Config.MAX_DECOMPRESSED_BYTES})"
