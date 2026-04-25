@@ -230,7 +230,7 @@ class LayoutSelector:
     def citations_slide(self, citations: list[str]) -> SlideSpec:
         return SlideSpec(layout=SlideLayout.CITATIONS, title="References", citations=citations)
 
-    _PATH_RE = re.compile(r"(?:/[\w./-]+)+")
+    _PATH_RE = re.compile(r"(?:/[\w./-]+)+|[A-Za-z]:\\[\w.\\ -]+")
 
     def error_slide(self, slide_title: str, error_message: str) -> SlideSpec:
         safe_msg = self._PATH_RE.sub("[path]", error_message)

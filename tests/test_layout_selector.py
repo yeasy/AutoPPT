@@ -747,3 +747,9 @@ class TestErrorSlidePathSanitization:
         slide = selector.error_slide("Err", "Cannot copy /tmp/a.txt to /var/run/secrets/token")
         assert "/tmp/" not in slide.bullets[0]
         assert "/var/run/" not in slide.bullets[0]
+
+    def test_windows_path_redacted(self):
+        selector = LayoutSelector()
+        slide = selector.error_slide("Err", r"File not found: C:\Users\admin\Documents\secret.pptx")
+        assert "admin" not in slide.bullets[0]
+        assert "[path]" in slide.bullets[0]
