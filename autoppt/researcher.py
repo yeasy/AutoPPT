@@ -251,8 +251,8 @@ class Researcher:
                         allow_redirects=False,
                     )
                     if response.status_code in (301, 302, 303, 307, 308):
-                        response.close()
                         raw_location = response.headers.get("Location", "")
+                        response.close()
                         if not raw_location:
                             logger.warning("Redirect with no Location header from %s", current_url)
                             return False
@@ -427,8 +427,8 @@ class Researcher:
                     allow_redirects=False,
                 )
                 if response.status_code in (301, 302, 303, 307, 308):
-                    response.close()
                     raw_location = response.headers.get("Location", "")
+                    response.close()
                     if not raw_location:
                         return self._remember(self._article_cache, cache_key, None)
                     redirect_url = urljoin(current_url, raw_location)

@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `install_hooks.py` now backs up any existing pre-commit hook before overwriting.
 
 ### Fixed
+- `download_image` and `fetch_article_content` now read redirect `Location` header before closing the response.
 - Chart slides no longer show an empty title placeholder when `chart_data.title` is `None` or empty string.
 - Temp file cleanup in `_cover_image` no longer masks the original exception if `os.unlink` fails.
 - `search_wikipedia` now uses a dedicated lock around `set_lang` and API calls to prevent thread-safety issues with concurrent Wikipedia searches in different languages.
