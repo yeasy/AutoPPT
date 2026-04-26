@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - All source modules now use `from __future__ import annotations` for consistent type annotation handling.
+- `_sanitize_research_context` now strips zero-width Unicode characters (U+200B, U+200C, U+200D, U+FEFF) to prevent obfuscated prompt injection.
+- `_INJECTION_PREFIX_RE` now matches indented lines and additional injection prefixes (`DIRECTIVE:`, `REQUIREMENT:`, `As an AI`, `<|system|>`, `<|endoftext|>`).
+- `download_image` now cleans up partial files on all early-exit paths inside the retry loop, not only after loop exhaustion.
+- `check_sensitive.py` URL credential regex now correctly detects embedded credentials in URLs.
+- Web UI remix instruction text area now enforces `max_chars=500` matching the downstream sanitization limit.
 - Progress bar description now only appends `...` when the slide title is actually truncated beyond 30 characters.
 - `PROVIDER_MODELS` for Anthropic now includes `claude-opus-4-7`.
 - `build_sample_deck` docstring now accurately reflects that `asset_dir` is required.
@@ -33,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `search_wikipedia` now uses a dedicated lock around `set_lang` and API calls to prevent thread-safety issues with concurrent Wikipedia searches in different languages.
 - `GoogleProvider.generate_structure` now rejects unexpected response types with a clear error instead of returning raw non-model data.
 - `_update_slide` now sanitizes remix instructions via `_sanitize_prompt_field` to strip control characters and enforce length limits.
+- Image overlay now uses `1.0 - opacity` for `fill.transparency`, fixing nearly-opaque overlays that obscured background images.
+- Web UI preview panel now escapes user-controlled `topic` and `language` fields via `html_mod.escape()` to prevent Markdown injection.
 
 ### Security
 - Web UI remix and regenerate buttons now enforce the same 30-second cooldown as the generate button to prevent API quota exhaustion.
