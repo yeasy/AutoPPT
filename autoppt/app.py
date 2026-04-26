@@ -184,8 +184,8 @@ if auto_style and topic:
 
 with col2:
     st.header("📋 Preview")
-    _preview_topic = topic or "Not specified"
-    _preview_language = language or "English"
+    _preview_topic = html_mod.escape(topic) if topic else "Not specified"
+    _preview_language = html_mod.escape(language) if language else "English"
     _preview_style = style_display or "default"
     _preview_provider = provider or "openai"
     st.info(
@@ -321,6 +321,7 @@ if editable_options:
         "Remix instruction",
         placeholder="e.g., Turn this into a cleaner comparison with sharper metrics and fewer bullets.",
         height=100,
+        max_chars=500,
         key="remix_instruction",
     )
     st.caption(selected_slide.layout_rationale or "This slide can be regenerated from its saved plan and source config.")
