@@ -238,6 +238,13 @@ class Researcher:
             logger.warning("Blocked save to sensitive path: %s", save_path)
             return False
 
+        def _cleanup() -> None:
+            try:
+                if os.path.exists(resolved_save):
+                    os.remove(resolved_save)
+            except OSError:
+                pass
+
         for attempt in range(retries):
             try:
                 current_url = url
@@ -255,36 +262,43 @@ class Researcher:
                         response.close()
                         if not raw_location:
                             logger.warning("Redirect with no Location header from %s", current_url)
+                            _cleanup()
                             return False
                         redirect_url = urljoin(current_url, raw_location)
                         if not self._is_safe_url(redirect_url):
                             logger.warning("Redirect to non-public URL blocked: %s -> %s", current_url, redirect_url)
+                            _cleanup()
                             return False
                         current_url = redirect_url
                         continue
                     break
                 else:
                     logger.warning("Too many redirects for %s", url)
+                    _cleanup()
                     return False
                 if response is None:
                     logger.warning("No response received for %s", url)
+                    _cleanup()
                     return False
                 try:
                     if response.status_code != 200:
                         logger.warning("Image download returned status %s", response.status_code)
                         if 400 <= response.status_code < 500:
+                            _cleanup()
                             return False
                         continue
 
                     content_type = response.headers.get("Content-Type", "").lower()
                     if content_type and not content_type.startswith("image/"):
                         logger.warning("Skipping non-image response from %s (%s)", url, content_type)
+                        _cleanup()
                         return False
 
                     content_length = response.headers.get("Content-Length")
                     try:
                         if content_length and int(content_length) > Config.IMAGE_DOWNLOAD_MAX_BYTES:
                             logger.warning("Skipping oversized image from %s", url)
+                            _cleanup()
                             return False
                     except (ValueError, TypeError):
                         pass
@@ -302,18 +316,12 @@ class Researcher:
                                 break
                             file_handle.write(chunk)
                     if oversized:
-                        try:
-                            os.remove(resolved_save)
-                        except OSError:
-                            pass
+                        _cleanup()
                         return False
 
                     if not self._validate_image_file(resolved_save):
                         logger.warning("Downloaded file is not a valid image: %s", url)
-                        try:
-                            os.remove(resolved_save)
-                        except OSError:
-                            pass
+                        _cleanup()
                         return False
 
                     logger.debug("Downloaded image to %s", resolved_save)
@@ -324,11 +332,7 @@ class Researcher:
                 logger.warning("Image download attempt %s/%s failed: %s", attempt + 1, retries, exc)
                 if attempt < retries - 1:
                     time.sleep(_IMAGE_RETRY_DELAY_SECONDS)
-        try:
-            if os.path.exists(resolved_save):
-                os.remove(resolved_save)
-        except OSError:
-            pass
+        _cleanup()
         return False
 
     def gather_context(
