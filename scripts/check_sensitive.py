@@ -13,7 +13,7 @@ SENSITIVE_PATTERNS = [
     (r"sk-[a-zA-Z0-9]{32,}", "Potential OpenAI/Anthropic API Key"),
     (r"AIza[0-9A-Za-z-_]{35}", "Potential Google API Key"),
     (r"/Users/baohua", "Local user path leakage"),
-    (r"\"(http|https)://[^\"]*:[^\"]*@\"", "Hardcoded credentials in URL"),
+    (r"https?://[^\"'\s]+:[^\"'\s]+@[^\"'\s]+", "Hardcoded credentials in URL"),
 ]
 
 UNWANTED_EXTENSIONS = [".log", ".tmp", ".temp"]
