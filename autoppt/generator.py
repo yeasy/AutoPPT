@@ -24,14 +24,14 @@ _MAX_PROMPT_FIELD_LEN = 500
 _MAX_RESEARCH_CONTEXT_LEN = 100_000
 _MAX_LIST_ITEMS = 100
 _MAX_CONTEXT_PREVIEW_LEN = 12_000
-_CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_CONTROL_CHAR_RE = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f​‌‍﻿]")
 
 
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
 _XML_TAG_RE = re.compile(r"</?[a-zA-Z][a-zA-Z0-9_-]*(?:\s[^>]*)?/?>")
 _SECTION_MARKER_RE = re.compile(r"^(?:===|---).+", re.MULTILINE)
 _INJECTION_PREFIX_RE = re.compile(
-    r"^(?:TASK:|INSTRUCTIONS:|You MUST\b|You are\b|OUTPUT\b|RESPOND\b|IGNORE\b|FORGET\b).*$",
+    r"^\s*(?:TASK:|INSTRUCTIONS:|DIRECTIVE:|REQUIREMENT:|You MUST\b|You are\b|As an AI\b|OUTPUT\b|RESPOND\b|IGNORE\b|FORGET\b|<\|system\|>|<\|endoftext\|>).*$",
     re.MULTILINE | re.IGNORECASE,
 )
 _MULTI_WHITESPACE_RE = re.compile(r"[ \t]{2,}")
