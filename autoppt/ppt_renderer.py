@@ -672,7 +672,7 @@ class PPTRenderer:
         )
         overlay.fill.solid()
         overlay.fill.fore_color.rgb = self._theme("image_overlay_color")
-        overlay.fill.transparency = self._theme("image_overlay_opacity")
+        overlay.fill.transparency = 1.0 - self._theme("image_overlay_opacity")
         overlay.line.fill.background()
 
         if overlay_title:

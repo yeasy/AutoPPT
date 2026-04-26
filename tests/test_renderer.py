@@ -888,6 +888,21 @@ class TestCoverPictureGracefulError:
         assert result is False
 
 
+class TestImageOverlayTransparency:
+    """Tests that image overlay opacity themes are valid for transparency conversion."""
+
+    def test_overlay_opacity_in_valid_range(self):
+        from autoppt.themes import get_theme, get_theme_names
+        for name in get_theme_names():
+            theme = get_theme(name)
+            opacity = theme["image_overlay_opacity"]
+            transparency = 1.0 - opacity
+            assert 0.0 <= transparency <= 1.0, (
+                f"Theme '{name}': 1.0 - opacity ({opacity}) = {transparency}, "
+                f"which is outside the valid [0, 1] transparency range"
+            )
+
+
 class TestChartDataRejectsEmptyCategories:
     """Tests for ChartData validation rejecting empty categories."""
 
