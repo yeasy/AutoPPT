@@ -1,6 +1,7 @@
 """
 AutoPPT - AI-Powered Presentation Generator
 """
+from __future__ import annotations
 
 from .generator import Generator
 from .config import Config
