@@ -7,7 +7,6 @@ import zipfile
 from typing import Any
 
 from PIL import Image
-Image.MAX_IMAGE_PIXELS = 25_000_000  # Prevent decompression bombs before full decode
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor

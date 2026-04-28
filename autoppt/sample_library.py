@@ -12,7 +12,6 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
-Image.MAX_IMAGE_PIXELS = 25_000_000
 from .data_types import ChartData, ChartType, DeckSpec, SlideLayout, SlideSpec, StatisticData
 from .generator import Generator
 from .thumbnail import check_dependencies, convert_pdf_to_images, convert_to_pdf

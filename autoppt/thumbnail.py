@@ -12,7 +12,6 @@ import subprocess
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
-Image.MAX_IMAGE_PIXELS = 25_000_000
 
 logger = logging.getLogger(__name__)
 
