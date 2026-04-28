@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- `Image.MAX_IMAGE_PIXELS` is now set once from `Config.MAX_IMAGE_PIXELS` in `__init__.py` instead of being duplicated across three modules.
+- `Researcher._wiki_lang_lock` is now a class-level lock, fixing thread-safety when multiple `Researcher` instances call `wikipedia.set_lang()` concurrently.
+- `check_sensitive.py` now detects any macOS/Linux user path (not just one hardcoded username) and skips path checks in test files.
 - All source modules now use `from __future__ import annotations` for consistent type annotation handling.
 - `_sanitize_research_context` now strips zero-width Unicode characters (U+200B, U+200C, U+200D, U+FEFF) to prevent obfuscated prompt injection.
 - `_INJECTION_PREFIX_RE` now matches indented lines and additional injection prefixes (`DIRECTIVE:`, `REQUIREMENT:`, `As an AI`, `<|system|>`, `<|endoftext|>`).
