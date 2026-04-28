@@ -30,6 +30,8 @@ _IMAGE_RETRY_DELAY_SECONDS = 2
 class Researcher:
     """Research module for gathering web content and images."""
 
+    _wiki_lang_lock = threading.Lock()
+
     def __init__(self) -> None:
         Config.initialize()
         self.ddgs = DDGS()
@@ -39,7 +41,6 @@ class Researcher:
         self._article_cache: dict[tuple[str, int], str | None] = {}
         self._context_cache: dict[tuple[tuple[str, ...], bool, bool, str, bool], str] = {}
         self._cache_lock = threading.Lock()
-        self._wiki_lang_lock = threading.Lock()
 
     def _remember(self, cache: dict, key: object, value: _V) -> _V:
         with self._cache_lock:
