@@ -2,7 +2,6 @@
 Unit tests for LLM providers.
 """
 import pytest
-from typing import List
 
 from autoppt.llm_provider import (
     BaseLLMProvider,

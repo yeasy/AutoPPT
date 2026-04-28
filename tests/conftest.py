@@ -2,13 +2,8 @@
 Pytest configuration and shared fixtures for AutoPPT tests.
 """
 import pytest
-import os
-import sys
 import tempfile
 import shutil
-
-# Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 @pytest.fixture

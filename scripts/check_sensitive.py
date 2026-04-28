@@ -8,12 +8,13 @@ import sys
 import re
 import subprocess
 
-# Patterns to search for
+# Patterns to search for (pattern, description, skip_tests)
 SENSITIVE_PATTERNS = [
-    (r"sk-[a-zA-Z0-9]{32,}", "Potential OpenAI/Anthropic API Key"),
-    (r"AIza[0-9A-Za-z-_]{35}", "Potential Google API Key"),
-    (r"/Users/baohua", "Local user path leakage"),
-    (r"https?://[^\"'\s]+:[^\"'\s]+@[^\"'\s]+", "Hardcoded credentials in URL"),
+    (r"sk-[a-zA-Z0-9]{32,}", "Potential OpenAI/Anthropic API Key", False),
+    (r"AIza[0-9A-Za-z-_]{35}", "Potential Google API Key", False),
+    (r"/Users/[a-zA-Z0-9._-]+(?=/)", "Local macOS user path leakage", True),
+    (r"/home/[a-zA-Z0-9._-]+(?=/)", "Local Linux user path leakage", True),
+    (r"https?://[^\"'\s]+:[^\"'\s]+@[^\"'\s]+", "Hardcoded credentials in URL", False),
 ]
 
 UNWANTED_EXTENSIONS = [".log", ".tmp", ".temp"]
@@ -44,7 +45,10 @@ def check_files():
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
-                    for pattern, description in SENSITIVE_PATTERNS:
+                    is_test = file_path.startswith("tests/")
+                    for pattern, description, skip_tests in SENSITIVE_PATTERNS:
+                        if skip_tests and is_test:
+                            continue
                         if re.search(pattern, content):
                             print(f"❌ {description} found in: {file_path}")
                             errors += 1
