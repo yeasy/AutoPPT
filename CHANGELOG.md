@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_cover_image` now writes directly to the open temp file handle instead of closing and reopening.
 - Cooldown display now uses `max(1, remaining)` to avoid showing zero or negative seconds.
 - `install_hooks.py` now backs up any existing pre-commit hook before overwriting.
+- `_cover_image` pixel limit now uses `Config.MAX_IMAGE_PIXELS` instead of a hardcoded constant, completing the centralization.
+- `_check_zip_bomb` now validates zip entry names to block zip-slip attacks, consistent with `TemplateHandler`.
+- Removed redundant `/.env/` from `BLOCKED_PATH_SEGMENTS` (already covered by `/.env`).
+- `.dockerignore` no longer excludes `README.md`, which is required by the Dockerfile builder stage.
 
 ### Fixed
 - `download_image` and `fetch_article_content` now read redirect `Location` header before closing the response.
