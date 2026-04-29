@@ -1096,6 +1096,7 @@ class TestZipBombProtection:
         # Monkey-patch the check to simulate huge decompressed size
         from unittest.mock import patch, MagicMock
         fake_info = MagicMock()
+        fake_info.filename = "content.xml"
         fake_info.file_size = Config.MAX_DECOMPRESSED_BYTES + 1
 
         with patch("autoppt.ppt_renderer.zipfile.ZipFile") as mock_zf:
@@ -1615,3 +1616,64 @@ class TestSlideLayoutFallback:
         initial = len(renderer.prs.slides)
         renderer.render_slide(spec)
         assert len(renderer.prs.slides) == initial + 1
+
+
+class TestCoverImageUsesConfigPixelLimit:
+    """Tests that _cover_image uses Config.MAX_IMAGE_PIXELS instead of a hardcoded value."""
+
+    def test_cover_image_respects_config_pixel_limit(self, tmp_path):
+        from autoppt.exceptions import RenderError
+        from autoppt.config import Config
+
+        renderer = PPTRenderer()
+        img_path = str(tmp_path / "large.png")
+        Image.new("RGB", (1, 1), color="red").save(img_path)
+
+        with patch("autoppt.ppt_renderer.Image.open") as mock_open:
+            mock_img = MagicMock()
+            mock_img.__enter__ = MagicMock(return_value=mock_img)
+            mock_img.__exit__ = MagicMock(return_value=False)
+            mock_img.size = (Config.MAX_IMAGE_PIXELS + 1, 1)
+            mock_open.return_value = mock_img
+
+            with pytest.raises(RenderError, match="Image too large"):
+                renderer._cover_image(img_path, 1.0)
+
+
+class TestZipSlipProtection:
+    """Tests that _check_zip_bomb rejects zip entries with path traversal."""
+
+    def test_zip_entry_with_absolute_path_rejected(self, tmp_path):
+        import zipfile
+        from autoppt.exceptions import RenderError
+        from autoppt.ppt_renderer import _check_zip_bomb
+
+        bomb_path = tmp_path / "abs.pptx"
+        with zipfile.ZipFile(str(bomb_path), "w") as zf:
+            zf.writestr("/etc/passwd", "root:x:0:0")
+
+        with pytest.raises(RenderError, match="Unsafe entry"):
+            _check_zip_bomb(str(bomb_path))
+
+    def test_zip_entry_with_traversal_rejected(self, tmp_path):
+        import zipfile
+        from autoppt.exceptions import RenderError
+        from autoppt.ppt_renderer import _check_zip_bomb
+
+        bomb_path = tmp_path / "traversal.pptx"
+        with zipfile.ZipFile(str(bomb_path), "w") as zf:
+            zf.writestr("../../../etc/passwd", "root:x:0:0")
+
+        with pytest.raises(RenderError, match="Unsafe entry"):
+            _check_zip_bomb(str(bomb_path))
+
+    def test_zip_normal_entries_pass(self, tmp_path):
+        import zipfile
+        from autoppt.ppt_renderer import _check_zip_bomb
+
+        normal_path = tmp_path / "normal.pptx"
+        with zipfile.ZipFile(str(normal_path), "w") as zf:
+            zf.writestr("ppt/slides/slide1.xml", "<xml/>")
+            zf.writestr("[Content_Types].xml", "<xml/>")
+
+        _check_zip_bomb(str(normal_path))

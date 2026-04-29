@@ -23,10 +23,14 @@ from .themes import get_theme
 logger = logging.getLogger(__name__)
 
 def _check_zip_bomb(path: str) -> None:
-    """Reject PPTX files whose decompressed content exceeds the safety limit."""
+    """Reject PPTX files with zip-slip entries or decompressed content exceeding the safety limit."""
     try:
         with zipfile.ZipFile(path, "r") as zf:
-            total = sum(info.file_size for info in zf.infolist())
+            total = 0
+            for info in zf.infolist():
+                if info.filename.startswith("/") or ".." in info.filename.split("/"):
+                    raise RenderError("init", f"Unsafe entry in template archive: {info.filename}")
+                total += info.file_size
             if total > Config.MAX_DECOMPRESSED_BYTES:
                 raise RenderError(
                     "init",
@@ -325,7 +329,7 @@ class PPTRenderer:
             raise RenderError("_cover_image", f"Image decompression bomb detected: {exc}") from exc
         with raw_image:
             w, h = raw_image.size
-            if w * h > 25_000_000:
+            if w * h > Config.MAX_IMAGE_PIXELS:
                 raise RenderError("_cover_image", f"Image too large: {w}x{h} pixels")
             img = raw_image.convert("RGB")
             width, height = img.size
