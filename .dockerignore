@@ -19,7 +19,6 @@ htmlcov
 output/*.pptx
 temp_images/*
 *.log
-README.md
 CHANGELOG.md
 LICENSE
 docs/
