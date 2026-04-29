@@ -48,7 +48,7 @@ class Config:
         "/.ssh/", "/.gnupg/", "/.aws/",
         "/.config/", "/.kube/", "/.docker/",
         "/.local/", "/.bash", "/.profile", "/.zsh",
-        "/.env/", "/.env",
+        "/.env",
     )
 
     _env_loaded = False
