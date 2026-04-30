@@ -277,10 +277,6 @@ class Researcher:
                     logger.warning("Too many redirects for %s", url)
                     _cleanup()
                     return False
-                if response is None:
-                    logger.warning("No response received for %s", url)
-                    _cleanup()
-                    return False
                 try:
                     if response.status_code != 200:
                         logger.warning("Image download returned status %s", response.status_code)
@@ -445,9 +441,6 @@ class Researcher:
                 break
             else:
                 logger.warning("Too many redirects for %s", url)
-                return self._remember(self._article_cache, cache_key, None)
-            if response is None:
-                logger.warning("No response received for %s", url)
                 return self._remember(self._article_cache, cache_key, None)
             try:
                 if response.status_code != 200:

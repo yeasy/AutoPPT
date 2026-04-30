@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Removed unreachable `response is None` checks in `download_image` and `fetch_article_content`; the preceding for/else loop guarantees `response` is always set or the function has already returned.
 - `Image.MAX_IMAGE_PIXELS` is now set once from `Config.MAX_IMAGE_PIXELS` in `__init__.py` instead of being duplicated across three modules.
 - `Researcher._wiki_lang_lock` is now a class-level lock, fixing thread-safety when multiple `Researcher` instances call `wikipedia.set_lang()` concurrently.
 - `check_sensitive.py` now detects any macOS/Linux user path (not just one hardcoded username) and skips path checks in test files.
