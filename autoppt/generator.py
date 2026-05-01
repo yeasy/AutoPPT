@@ -263,6 +263,7 @@ class Generator:
         if self._assets_tmpdir is None:
             raise RuntimeError("Generator has been closed; create a new instance.")
         total_slides = sum(len(section.slides) for section in outline.sections)
+        style = _sanitize_prompt_field(style)
         deck_spec = self.layout_selector.create_deck(
             outline.title,
             topic,
@@ -377,7 +378,7 @@ class Generator:
                     f"Path '{path}' is outside the allowed directory '{allowed_base}'"
                 )
 
-        if os.path.islink(path) or (os.path.exists(resolved) and os.path.islink(resolved)):
+        if os.path.islink(path):
             raise ValueError(f"Refusing to write through symlink: {path}")
 
         if must_exist and not os.path.isfile(resolved):
