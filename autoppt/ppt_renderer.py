@@ -184,12 +184,10 @@ class PPTRenderer:
         return self.current_style[key]
 
     def _slide_width_inches(self) -> float:
-        w = self.prs.slide_width
-        return (w if w is not None else 9144000) / 914400
+        return (self.prs.slide_width or 9144000) / 914400
 
     def _slide_height_inches(self) -> float:
-        h = self.prs.slide_height
-        return (h if h is not None else 6858000) / 914400
+        return (self.prs.slide_height or 6858000) / 914400
 
     def _apply_background(self, slide) -> None:
         if self.current_style.get("gradient"):
@@ -332,27 +330,30 @@ class PPTRenderer:
             if w * h > Config.MAX_IMAGE_PIXELS:
                 raise RenderError("_cover_image", f"Image too large: {w}x{h} pixels")
             img = raw_image.convert("RGB")
-            width, height = img.size
-            current_ratio = width / max(height, 1)
-            if current_ratio > target_ratio:
-                target_width = max(int(height * target_ratio), 1)
-                left = max((width - target_width) // 2, 0)
-                img = img.crop((left, 0, left + target_width, height))
-            else:
-                target_height = max(int(width / target_ratio), 1)
-                top = max((height - target_height) // 2, 0)
-                img = img.crop((0, top, width, top + target_height))
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp:
-                temp_path = temp.name
-                try:
-                    img.save(temp, format="PNG")
-                except Exception:
+            try:
+                width, height = img.size
+                current_ratio = width / max(height, 1)
+                if current_ratio > target_ratio:
+                    target_width = max(int(height * target_ratio), 1)
+                    left = max((width - target_width) // 2, 0)
+                    img = img.crop((left, 0, left + target_width, height))
+                else:
+                    target_height = max(int(width / target_ratio), 1)
+                    top = max((height - target_height) // 2, 0)
+                    img = img.crop((0, top, width, top + target_height))
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp:
+                    temp_path = temp.name
                     try:
-                        os.unlink(temp_path)
-                    except OSError:
-                        pass
-                    raise
-            return temp_path
+                        img.save(temp, format="PNG")
+                    except Exception:
+                        try:
+                            os.unlink(temp_path)
+                        except OSError:
+                            pass
+                        raise
+                return temp_path
+            finally:
+                img.close()
 
     def _add_cover_picture(self, slide, image_path: str, left: float, top: float, width: float, height: float) -> bool:
         if not image_path or not os.path.exists(image_path):
