@@ -97,7 +97,6 @@ def _run_with_retries(provider_name: str, operation: Callable[[], Any]) -> Any:
                     time.sleep(delay)
                     continue
             raise
-    raise RuntimeError(f"Exhausted {Config.API_RETRY_ATTEMPTS} retry attempts") from last_exc
 
 
 class BaseLLMProvider(ABC):

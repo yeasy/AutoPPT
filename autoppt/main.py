@@ -79,7 +79,7 @@ Examples:
     log_level = logging.DEBUG if args.verbose else logging.INFO
     Config.initialize(configure_logging=True, log_level=log_level)
 
-    if not args.topic or not args.topic.strip():
+    if not args.topic.strip():
         parser.error("--topic must not be empty")
     if len(args.topic) > 1000:
         parser.error("--topic must not exceed 1000 characters")

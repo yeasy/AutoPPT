@@ -135,7 +135,7 @@ class SlidePlanner:
             plan.rationale = "Title suggests a product, scene, or visual showcase."
             return plan
 
-        if current_slide and current_slide.layout is not None and current_slide.layout.value in self._LAYOUT_TO_TYPE:
+        if current_slide and current_slide.layout.value in self._LAYOUT_TO_TYPE:
             plan.slide_type = self._LAYOUT_TO_TYPE[current_slide.layout.value]
             plan.left_title = current_slide.left_title
             plan.right_title = current_slide.right_title
