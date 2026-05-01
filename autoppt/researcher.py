@@ -128,7 +128,9 @@ class Researcher:
         cache_key = (query, max_results)
         with self._cache_lock:
             if cache_key in self._search_cache:
-                return self._search_cache[cache_key]
+                val = self._search_cache.pop(cache_key)
+                self._search_cache[cache_key] = val
+                return val
 
         logger.info("Searching for: %s", query)
         try:
@@ -151,7 +153,9 @@ class Researcher:
         cache_key = (query, sentences, self._resolve_wikipedia_language(language))
         with self._cache_lock:
             if cache_key in self._wiki_cache:
-                return self._wiki_cache[cache_key]
+                val = self._wiki_cache.pop(cache_key)
+                self._wiki_cache[cache_key] = val
+                return val
 
         logger.info("Searching Wikipedia for: %s", query)
         try:
@@ -196,7 +200,9 @@ class Researcher:
         cache_key = (query, max_results)
         with self._cache_lock:
             if cache_key in self._image_cache:
-                return self._image_cache[cache_key]
+                val = self._image_cache.pop(cache_key)
+                self._image_cache[cache_key] = val
+                return val
 
         logger.info("Searching images for: %s", query)
         try:
@@ -344,7 +350,9 @@ class Researcher:
         cache_key = (tuple(queries), include_wikipedia, fetch_full_text, language, offline_enabled)
         with self._cache_lock:
             if cache_key in self._context_cache:
-                return self._context_cache[cache_key]
+                val = self._context_cache.pop(cache_key)
+                self._context_cache[cache_key] = val
+                return val
 
         if offline_enabled:
             logger.info("Offline mode enabled, skipping web research for %s query terms", len(queries))
@@ -406,7 +414,9 @@ class Researcher:
         cache_key = (url, max_chars)
         with self._cache_lock:
             if cache_key in self._article_cache:
-                return self._article_cache[cache_key]
+                val = self._article_cache.pop(cache_key)
+                self._article_cache[cache_key] = val
+                return val
 
         if self._is_offline(offline):
             logger.info("Offline mode enabled, skipping article fetch for: %s", url)
