@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- LRU research caches now reorder entries on hit, fixing stale eviction order that could discard frequently-used results.
+- `_cover_image` in `ppt_renderer` now explicitly closes the converted `Image` object to avoid relying on garbage collection for large images.
+- `_cover_image` in `sample_library` now guards against zero-dimension source images instead of raising `ZeroDivisionError`.
+- `_validate_file_path` symlink check simplified; removed dead `os.path.islink(resolved)` branch that is always `False` after `os.path.realpath`.
+- `_slide_width_inches` / `_slide_height_inches` simplified from verbose ternary to `or` fallback.
+- Removed unreachable `RuntimeError` after the retry loop in `_run_with_retries`; every loop iteration either returns or raises.
+- Removed redundant `is not None` check on the non-optional `SlideSpec.layout` field in `SlidePlanner`.
+- Removed dead `not args.topic` guard in CLI; `argparse` with `required=True` already guarantees a value.
+- `build_deck_spec` now sanitizes the `style` parameter via `_sanitize_prompt_field` before storing it in `DeckSpec`.
 - Removed unreachable `response is None` checks in `download_image` and `fetch_article_content`; the preceding for/else loop guarantees `response` is always set or the function has already returned.
 - `Image.MAX_IMAGE_PIXELS` is now set once from `Config.MAX_IMAGE_PIXELS` in `__init__.py` instead of being duplicated across three modules.
 - `Researcher._wiki_lang_lock` is now a class-level lock, fixing thread-safety when multiple `Researcher` instances call `wikipedia.set_lang()` concurrently.
