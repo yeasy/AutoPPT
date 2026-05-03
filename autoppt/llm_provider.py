@@ -64,12 +64,10 @@ def _is_transient_error(exc: Exception) -> bool:
 def _run_with_retries(provider_name: str, operation: Callable[[], Any]) -> Any:
     if Config.API_RETRY_ATTEMPTS < 1:
         raise ValueError(f"API_RETRY_ATTEMPTS must be >= 1, got {Config.API_RETRY_ATTEMPTS}")
-    last_exc: Exception | None = None
     for attempt in range(Config.API_RETRY_ATTEMPTS):
         try:
             return operation()
         except Exception as exc:
-            last_exc = exc
             is_last = attempt >= Config.API_RETRY_ATTEMPTS - 1
             if _is_rate_limit_error(exc):
                 if not is_last:
