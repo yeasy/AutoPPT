@@ -184,10 +184,12 @@ class PPTRenderer:
         return self.current_style[key]
 
     def _slide_width_inches(self) -> float:
-        return (self.prs.slide_width or 9144000) / 914400
+        w = self.prs.slide_width
+        return (w if w is not None else 9144000) / 914400
 
     def _slide_height_inches(self) -> float:
-        return (self.prs.slide_height or 6858000) / 914400
+        h = self.prs.slide_height
+        return (h if h is not None else 6858000) / 914400
 
     def _apply_background(self, slide) -> None:
         if self.current_style.get("gradient"):
@@ -753,7 +755,7 @@ class PPTRenderer:
         for segment in Config.BLOCKED_PATH_SEGMENTS:
             if segment in resolved:
                 raise RenderError("save", f"Access to sensitive path is not allowed: {output_path}")
-        if os.path.islink(output_path) or (os.path.exists(resolved) and os.path.islink(resolved)):
+        if os.path.islink(output_path):
             raise RenderError("save", f"Refusing to write through symlink: {output_path}")
         try:
             self.prs.save(resolved)
