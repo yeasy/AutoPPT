@@ -106,8 +106,8 @@ class Generator:
     def __del__(self) -> None:
         try:
             self.close()
-        except Exception:
-            logger.debug("Error during Generator cleanup", exc_info=True)
+        except BaseException:
+            pass
 
     def __enter__(self) -> Generator:
         return self

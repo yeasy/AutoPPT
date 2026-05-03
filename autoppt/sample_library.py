@@ -243,7 +243,7 @@ def _cover_image(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     src_w, src_h = image.size
     if src_w < 1 or src_h < 1:
         return image.resize(size, Image.Resampling.LANCZOS)
-    scale = max(target_w / max(src_w, 1), target_h / max(src_h, 1))
+    scale = max(target_w / src_w, target_h / src_h)
     resized = image.resize((int(src_w * scale), int(src_h * scale)), Image.Resampling.LANCZOS)
     left = max((resized.width - target_w) // 2, 0)
     top = max((resized.height - target_h) // 2, 0)
