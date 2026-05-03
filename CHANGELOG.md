@@ -12,8 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_cover_image` in `ppt_renderer` now explicitly closes the converted `Image` object to avoid relying on garbage collection for large images.
 - `_cover_image` in `sample_library` now guards against zero-dimension source images instead of raising `ZeroDivisionError`.
 - `_validate_file_path` symlink check simplified; removed dead `os.path.islink(resolved)` branch that is always `False` after `os.path.realpath`.
-- `_slide_width_inches` / `_slide_height_inches` simplified from verbose ternary to `or` fallback.
+- `_slide_width_inches` / `_slide_height_inches` now use explicit `None` check instead of `or` fallback, preventing false substitution when slide dimensions are zero.
 - Removed unreachable `RuntimeError` after the retry loop in `_run_with_retries`; every loop iteration either returns or raises.
+- Removed dead `last_exc` variable in `_run_with_retries`; the only consumer was removed with the unreachable `RuntimeError`.
+- `PPTRenderer.save()` symlink check simplified; removed dead `os.path.islink(resolved)` branch, consistent with `_validate_file_path`.
+- `_cover_image` in `sample_library` removed redundant `max(src_w, 1)` guards that are unreachable after the zero-dimension early return.
+- `Generator.__del__` now catches `BaseException` instead of `Exception` to handle interpreter shutdown safely.
 - Removed redundant `is not None` check on the non-optional `SlideSpec.layout` field in `SlidePlanner`.
 - Removed dead `not args.topic` guard in CLI; `argparse` with `required=True` already guarantees a value.
 - `build_deck_spec` now sanitizes the `style` parameter via `_sanitize_prompt_field` before storing it in `DeckSpec`.
@@ -57,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_update_slide` now sanitizes remix instructions via `_sanitize_prompt_field` to strip control characters and enforce length limits.
 - Image overlay now uses `1.0 - opacity` for `fill.transparency`, fixing nearly-opaque overlays that obscured background images.
 - Web UI preview panel now escapes user-controlled `topic` and `language` fields via `html_mod.escape()` to prevent Markdown injection.
+- Web UI preview panel now also escapes `style` and `provider` fields for consistent HTML escaping.
 
 ### Security
 - Web UI remix and regenerate buttons now enforce the same 30-second cooldown as the generate button to prevent API quota exhaustion.
