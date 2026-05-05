@@ -10,7 +10,8 @@ services:
       # Mount samples for easy access
       - ./samples:/app/samples:ro
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       - STREAMLIT_SERVER_HEADLESS=true
     restart: unless-stopped
@@ -24,6 +25,7 @@ services:
     volumes:
       - ./output:/app/output
     env_file:
-      - .env
+      - path: .env
+        required: false
     entrypoint: ["autoppt"]
     command: ["--help"]
