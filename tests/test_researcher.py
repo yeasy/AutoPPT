@@ -2075,13 +2075,13 @@ class TestGatherContextAllEmptyResults:
 
 
 class TestGatherContextExecutorTimeout:
-    """Test that executor.map in gather_context has a timeout."""
+    """Test that executor.map timeout in gather_context is handled gracefully."""
 
     @patch.object(Researcher, 'search')
     @patch.object(Researcher, 'search_wikipedia')
     @patch.object(Researcher, 'fetch_article_content')
-    def test_executor_timeout_propagates(self, mock_fetch, mock_wiki, mock_search):
-        """When a fetch exceeds the executor timeout, TimeoutError should propagate."""
+    def test_executor_timeout_handled_gracefully(self, mock_fetch, mock_wiki, mock_search):
+        """When a fetch exceeds the executor timeout, gather_context proceeds with partial results."""
         import concurrent.futures
 
         mock_search.return_value = [
@@ -2093,13 +2093,14 @@ class TestGatherContextExecutorTimeout:
         )
 
         researcher = Researcher()
-        with pytest.raises(concurrent.futures.TimeoutError):
-            researcher.gather_context(
-                ["slow query"],
-                include_wikipedia=False,
-                fetch_full_text=True,
-                offline=False,
-            )
+        result = researcher.gather_context(
+            ["slow query"],
+            include_wikipedia=False,
+            fetch_full_text=True,
+            offline=False,
+        )
+        assert "Slow" in result
+        assert "body" in result
 
 
 class TestArticleFetchTimeoutConfig:

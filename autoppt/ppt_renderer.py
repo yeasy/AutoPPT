@@ -667,7 +667,11 @@ class PPTRenderer:
             logger.warning("Image not found: %s", image_path)
             return
         slide = self._add_blank_slide()
-        self._add_cover_picture(slide, image_path, 0, 0, self._slide_width_inches(), self._slide_height_inches())
+        if not self._add_cover_picture(slide, image_path, 0, 0, self._slide_width_inches(), self._slide_height_inches()):
+            xml_slides = self.prs.slides._sldIdLst
+            xml_slides.remove(xml_slides[-1])
+            logger.warning("Failed to add cover image, removing slide: %s", image_path)
+            return
 
         overlay = slide.shapes.add_shape(
             MSO_AUTO_SHAPE_TYPE.RECTANGLE,

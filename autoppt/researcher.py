@@ -178,7 +178,7 @@ class Researcher:
                             return self._remember(self._wiki_cache, cache_key, None)
                     else:
                         return self._remember(self._wiki_cache, cache_key, None)
-            summary = page.summary or ""
+                summary = page.summary or ""
             if summary:
                 all_sentences = re.split(r'(?<=[.!?])\s+', summary)
                 summary = " ".join(all_sentences[:sentences])
@@ -366,14 +366,18 @@ class Researcher:
 
             if fetch_full_text and results:
                 worker_count = max(1, min(len(results), Config.RESEARCH_FETCH_WORKERS))
-                with ThreadPoolExecutor(max_workers=worker_count) as executor:
-                    contents = list(
-                        executor.map(
-                            lambda result: self.fetch_article_content(result["href"], max_chars=3000) if result.get("href") else None,
-                            results,
-                            timeout=Config.ARTICLE_FETCH_TIMEOUT + 10,
+                try:
+                    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                        contents = list(
+                            executor.map(
+                                lambda result: self.fetch_article_content(result["href"], max_chars=3000) if result.get("href") else None,
+                                results,
+                                timeout=Config.ARTICLE_FETCH_TIMEOUT + 10,
+                            )
                         )
-                    )
+                except TimeoutError:
+                    logger.warning("Article fetch timed out for query '%s', proceeding with partial results", query)
+                    contents = [None] * len(results)
                 full_content_by_url = {
                     result["href"]: content
                     for result, content in zip(results, contents)
