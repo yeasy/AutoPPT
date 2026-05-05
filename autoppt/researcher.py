@@ -7,7 +7,7 @@ import re
 import socket
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FuturesTimeoutError
 from typing import TypeVar
 from urllib.parse import urljoin, urlparse
 
@@ -375,7 +375,7 @@ class Researcher:
                                 timeout=Config.ARTICLE_FETCH_TIMEOUT + 10,
                             )
                         )
-                except TimeoutError:
+                except (TimeoutError, _FuturesTimeoutError):
                     logger.warning("Article fetch timed out for query '%s', proceeding with partial results", query)
                     contents = [None] * len(results)
                 full_content_by_url = {
