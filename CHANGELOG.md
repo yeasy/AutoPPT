@@ -50,6 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_check_zip_bomb` now validates zip entry names to block zip-slip attacks, consistent with `TemplateHandler`.
 - Removed redundant `/.env/` from `BLOCKED_PATH_SEGMENTS` (already covered by `/.env`).
 - `.dockerignore` no longer excludes `README.md`, which is required by the Dockerfile builder stage.
+- `_is_rate_limit_error` now uses word-boundary matching for "quota" to prevent false positives on words like "misquotation".
+- `_is_transient_error` now matches specific timeout phrases (`request timeout`, `read timeout`, `connect timeout`, `connection timeout`) instead of bare `timeout` to reduce false positives.
+- `gather_context` article-fetch executor now uses `shutdown(wait=False, cancel_futures=True)` to actually bound wall-clock time on timeout.
+- `slide_from_config` now uses `elif` chain for slide type dispatch, preventing fragile fall-through on demotion paths.
+- CONTENT fallback now preserves `left_bullets`/`right_bullets` data when `bullets` is empty during COMPARISON/TWO_COLUMN demotion.
+- STATISTICS slide demotion now logs a warning when statistics data is missing, consistent with QUOTE, CHART, COMPARISON, and TWO_COLUMN demotion paths.
 
 ### Fixed
 - `download_image` and `fetch_article_content` now read redirect `Location` header before closing the response.
@@ -60,8 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GoogleProvider.generate_structure` now rejects unexpected response types with a clear error instead of returning raw non-model data.
 - `_update_slide` now sanitizes remix instructions via `_sanitize_prompt_field` to strip control characters and enforce length limits.
 - Image overlay now uses `1.0 - opacity` for `fill.transparency`, fixing nearly-opaque overlays that obscured background images.
-- Web UI preview panel now escapes user-controlled `topic` and `language` fields via `html_mod.escape()` to prevent Markdown injection.
-- Web UI preview panel now also escapes `style` and `provider` fields for consistent HTML escaping.
+- Web UI preview panel now escapes both HTML and Markdown special characters to prevent injection in `st.info()` context.
 
 ### Security
 - Web UI remix and regenerate buttons now enforce the same 30-second cooldown as the generate button to prevent API quota exhaustion.
