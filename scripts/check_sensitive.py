@@ -10,8 +10,10 @@ import subprocess
 
 # Patterns to search for (pattern, description, skip_tests)
 SENSITIVE_PATTERNS = [
-    (r"sk-[a-zA-Z0-9]{32,}", "Potential OpenAI/Anthropic API Key", False),
+    (r"sk-[a-zA-Z0-9_-]{20,}", "Potential OpenAI/Anthropic API Key", False),
     (r"AIza[0-9A-Za-z-_]{35}", "Potential Google API Key", False),
+    (r"AKIA[0-9A-Z]{16}", "Potential AWS Access Key", False),
+    (r"xox[bpras]-[0-9a-zA-Z-]{10,}", "Potential Slack Token", False),
     (r"/Users/[a-zA-Z0-9._-]+(?=/)", "Local macOS user path leakage", True),
     (r"/home/[a-zA-Z0-9._-]+(?=/)", "Local Linux user path leakage", True),
     (r"https?://[^\"'\s]+:[^\"'\s]+@[^\"'\s]+", "Hardcoded credentials in URL", False),
@@ -31,17 +33,19 @@ def check_files():
         git_files = []
     
     for file_path in git_files:
-        if "check_sensitive.py" in file_path:
+        if os.path.basename(file_path) == "check_sensitive.py":
             continue
-            
+
         # Check extensions
         _, ext = os.path.splitext(file_path)
         if ext in UNWANTED_EXTENSIONS or os.path.basename(file_path) in UNWANTED_FILES:
             print(f"❌ Unwanted file found in index: {file_path}")
             errors += 1
-            
+
         # Check content of text files
-        if ext in [".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml"]:
+        if (ext in [".py", ".md", ".txt", ".json", ".yaml", ".yml", ".toml",
+                    ".cfg", ".ini", ".conf", ".sh", ".bash", ".env", ".example"]
+                or os.path.basename(file_path) in ("Dockerfile", "Makefile")):
             try:
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     content = f.read()
