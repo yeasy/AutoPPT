@@ -32,6 +32,8 @@ class ChartData(BaseModel):
             )
         if any(not math.isfinite(v) for v in self.values):
             raise ValueError("values must be finite numbers (no NaN or inf)")
+        if self.chart_type == ChartType.PIE and any(v < 0 for v in self.values):
+            raise ValueError("pie chart values must be non-negative")
         return self
 
 

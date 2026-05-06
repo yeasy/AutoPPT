@@ -547,4 +547,31 @@ class TestChartDataNonFiniteValues:
                 values=[float("-inf")],
             )
 
+    def test_pie_rejects_negative_values(self):
+        with pytest.raises(ValidationError, match="non-negative"):
+            ChartData(
+                chart_type=ChartType.PIE,
+                title="Bad Pie",
+                categories=["A", "B"],
+                values=[10.0, -5.0],
+            )
+
+    def test_pie_accepts_zero_values(self):
+        chart = ChartData(
+            chart_type=ChartType.PIE,
+            title="Zero Pie",
+            categories=["A", "B"],
+            values=[0.0, 10.0],
+        )
+        assert chart.values == [0.0, 10.0]
+
+    def test_bar_allows_negative_values(self):
+        chart = ChartData(
+            chart_type=ChartType.BAR,
+            title="Negative Bar",
+            categories=["A", "B"],
+            values=[-5.0, 10.0],
+        )
+        assert chart.values == [-5.0, 10.0]
+
 
