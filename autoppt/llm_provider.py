@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Type, TypeVar, get_args, get_origin
@@ -44,7 +45,7 @@ def _is_rate_limit_error(exc: Exception) -> bool:
     if status == 429:
         return True
     message = str(exc).lower()
-    return "429" in message or "rate_limit" in message or "rate limit" in message or "quota" in message
+    return "429" in message or "rate_limit" in message or "rate limit" in message or bool(re.search(r"\bquota\b", message))
 
 
 def _is_transient_error(exc: Exception) -> bool:
@@ -55,7 +56,8 @@ def _is_transient_error(exc: Exception) -> bool:
     message = str(exc).lower()
     transient_signals = (
         "connection reset", "connection refused", "connection closed",
-        "timeout", "timed out", "temporarily", "overloaded",
+        "timed out", "request timeout", "read timeout", "connect timeout", "connection timeout",
+        "temporarily", "overloaded",
         "internal server error", "bad gateway", "service unavailable",
     )
     return any(signal in message for signal in transient_signals)

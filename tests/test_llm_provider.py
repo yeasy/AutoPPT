@@ -1789,6 +1789,11 @@ class TestRateLimitDetection:
         assert _is_rate_limit_error(Exception("rate_limit_exceeded")) is True
         assert _is_rate_limit_error(Exception("Rate limit reached")) is True
 
+    def test_quota_substring_not_false_positive(self):
+        from autoppt.llm_provider import _is_rate_limit_error
+        assert _is_rate_limit_error(Exception("misquotation in response")) is False
+        assert _is_rate_limit_error(Exception("disk quota exceeded")) is True
+
 
 class TestTransientErrorDetectionPrecision:
     """Test that transient error detection is precise enough to avoid false positives."""
