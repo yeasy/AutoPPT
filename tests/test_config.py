@@ -167,3 +167,21 @@ class TestConfig:
         """ARTICLE_FETCH_TIMEOUT must be a positive number."""
         assert hasattr(Config, "ARTICLE_FETCH_TIMEOUT")
         assert Config.ARTICLE_FETCH_TIMEOUT > 0
+
+
+class TestEscapeMarkdown:
+
+    def test_escapes_markdown_special_chars(self):
+        from autoppt.app import _escape_markdown
+        assert "[click](url)" not in _escape_markdown("[click](url)")
+        assert "\\[" in _escape_markdown("[click](url)")
+
+    def test_escapes_html_and_markdown(self):
+        from autoppt.app import _escape_markdown
+        result = _escape_markdown("<b>**bold**</b>")
+        assert "**" not in result
+        assert "&lt;" in result
+
+    def test_plain_text_unchanged(self):
+        from autoppt.app import _escape_markdown
+        assert _escape_markdown("Hello World") == "Hello World"

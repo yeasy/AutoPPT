@@ -24,6 +24,13 @@ from .style_selector import auto_select_style, get_all_styles, get_style_descrip
 
 logger = logging.getLogger(__name__)
 
+_MD_SPECIAL_RE = re.compile(r"([\\`*_\[\](){}#+\-.!|~>])")
+
+
+def _escape_markdown(text: str) -> str:
+    return _MD_SPECIAL_RE.sub(r"\\\1", html_mod.escape(text))
+
+
 Config.initialize()
 
 WORKBENCH_LAYOUT_OPTIONS = {
@@ -184,10 +191,10 @@ if auto_style and topic:
 
 with col2:
     st.header("📋 Preview")
-    _preview_topic = html_mod.escape(topic) if topic else "Not specified"
-    _preview_language = html_mod.escape(language) if language else "English"
-    _preview_style = html_mod.escape(style_display) if style_display else "default"
-    _preview_provider = html_mod.escape(provider) if provider else "openai"
+    _preview_topic = _escape_markdown(topic) if topic else "Not specified"
+    _preview_language = _escape_markdown(language) if language else "English"
+    _preview_style = _escape_markdown(style_display) if style_display else "default"
+    _preview_provider = _escape_markdown(provider) if provider else "openai"
     st.info(
         f"""
 **Topic:** {_preview_topic}
