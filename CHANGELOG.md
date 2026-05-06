@@ -56,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `slide_from_config` now uses `elif` chain for slide type dispatch, preventing fragile fall-through on demotion paths.
 - CONTENT fallback now preserves `left_bullets`/`right_bullets` data when `bullets` is empty during COMPARISON/TWO_COLUMN demotion.
 - STATISTICS slide demotion now logs a warning when statistics data is missing, consistent with QUOTE, CHART, COMPARISON, and TWO_COLUMN demotion paths.
+- `check_sensitive.py` OpenAI key regex now matches modern `sk-proj-*` and `sk-svcacct-*` key formats.
+- `check_sensitive.py` now scans `.cfg`, `.ini`, `.conf`, `.sh`, `.bash`, `.env`, `.example`, `Dockerfile`, and `Makefile` files.
+- `check_sensitive.py` now detects AWS access keys (`AKIA...`) and Slack tokens (`xox[bpras]-...`).
+- `check_sensitive.py` self-exclusion now uses exact basename match instead of substring.
+- `anthropic`, `google-genai`, and `markitdown` dependencies now have upper-bound constraints to prevent breaking installs.
+- `ChartData` now rejects negative values for PIE charts via model validation.
 
 ### Fixed
 - `download_image` and `fetch_article_content` now read redirect `Location` header before closing the response.
