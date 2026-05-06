@@ -527,6 +527,38 @@ def test_comparison_one_side_explicit_demotes_to_content():
     assert slide_spec.layout == SlideLayout.CONTENT
 
 
+def test_comparison_demotion_preserves_left_bullets_when_bullets_empty():
+    selector = LayoutSelector()
+    slide_config = SlideConfig(
+        title="Column Data Preserved",
+        bullets=[],
+        slide_type=SlideType.COMPARISON,
+        left_bullets=["Alpha", "Beta"],
+        right_bullets=[],
+    )
+
+    slide_spec = selector.slide_from_config(slide_config)
+
+    assert slide_spec.layout == SlideLayout.CONTENT
+    assert slide_spec.bullets == ["Alpha", "Beta"]
+
+
+def test_two_column_demotion_preserves_column_data_when_bullets_empty():
+    selector = LayoutSelector()
+    slide_config = SlideConfig(
+        title="Two Column Preserved",
+        bullets=[],
+        slide_type=SlideType.TWO_COLUMN,
+        left_bullets=["X", "Y"],
+        right_bullets=[],
+    )
+
+    slide_spec = selector.slide_from_config(slide_config)
+
+    assert slide_spec.layout == SlideLayout.CONTENT
+    assert slide_spec.bullets == ["X", "Y"]
+
+
 def test_two_column_uses_explicit_left_right_bullets_over_split():
     """When a SlideConfig has both left_bullets and right_bullets set,
     slide_from_config should use them directly instead of splitting bullets."""

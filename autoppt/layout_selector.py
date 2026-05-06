@@ -59,18 +59,20 @@ class LayoutSelector:
             "source_config": slide_config,
         }
 
-        if slide_config.slide_type == SlideType.STATISTICS and slide_config.statistics:
-            return SlideSpec(
-                layout=SlideLayout.STATISTICS,
-                title=slide_config.title,
-                bullets=slide_config.bullets,
-                speaker_notes=slide_config.speaker_notes,
-                citations=slide_config.citations,
-                statistics=slide_config.statistics,
-                **metadata,
-            )
+        if slide_config.slide_type == SlideType.STATISTICS:
+            if slide_config.statistics:
+                return SlideSpec(
+                    layout=SlideLayout.STATISTICS,
+                    title=slide_config.title,
+                    bullets=slide_config.bullets,
+                    speaker_notes=slide_config.speaker_notes,
+                    citations=slide_config.citations,
+                    statistics=slide_config.statistics,
+                    **metadata,
+                )
+            logger.warning("STATISTICS slide '%s' missing statistics data, demoting to CONTENT", slide_config.title)
 
-        if slide_config.slide_type == SlideType.QUOTE:
+        elif slide_config.slide_type == SlideType.QUOTE:
             if slide_config.quote_text and slide_config.quote_author:
                 return self.quote_slide(
                     title=slide_config.title,
@@ -83,7 +85,7 @@ class LayoutSelector:
                 )
             logger.warning("QUOTE slide '%s' missing quote_text or author, demoting to CONTENT", slide_config.title)
 
-        if slide_config.slide_type == SlideType.COMPARISON:
+        elif slide_config.slide_type == SlideType.COMPARISON:
             if slide_config.left_bullets or slide_config.right_bullets:
                 left_b = slide_config.left_bullets or []
                 right_b = slide_config.right_bullets or []
@@ -107,7 +109,7 @@ class LayoutSelector:
                     **metadata,
                 )
 
-        if slide_config.slide_type == SlideType.TWO_COLUMN:
+        elif slide_config.slide_type == SlideType.TWO_COLUMN:
             if slide_config.left_bullets or slide_config.right_bullets:
                 left_b = slide_config.left_bullets or []
                 right_b = slide_config.right_bullets or []
@@ -127,7 +129,7 @@ class LayoutSelector:
                     **metadata,
                 )
 
-        if slide_config.slide_type == SlideType.IMAGE:
+        elif slide_config.slide_type == SlideType.IMAGE:
             return SlideSpec(
                 layout=SlideLayout.IMAGE,
                 title=slide_config.title,
@@ -139,7 +141,7 @@ class LayoutSelector:
                 **metadata,
             )
 
-        if slide_config.slide_type == SlideType.CHART:
+        elif slide_config.slide_type == SlideType.CHART:
             if slide_config.chart_data:
                 return SlideSpec(
                     layout=SlideLayout.CHART,
@@ -152,10 +154,13 @@ class LayoutSelector:
                 )
             logger.warning("CHART slide '%s' missing chart_data, demoting to CONTENT", slide_config.title)
 
+        effective_bullets = slide_config.bullets
+        if not effective_bullets and (slide_config.left_bullets or slide_config.right_bullets):
+            effective_bullets = (slide_config.left_bullets or []) + (slide_config.right_bullets or [])
         return SlideSpec(
             layout=SlideLayout.CONTENT,
             title=slide_config.title,
-            bullets=slide_config.bullets,
+            bullets=effective_bullets,
             speaker_notes=slide_config.speaker_notes,
             citations=slide_config.citations,
             image_path=image_path,
