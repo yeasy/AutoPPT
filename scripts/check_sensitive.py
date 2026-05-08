@@ -14,6 +14,8 @@ SENSITIVE_PATTERNS = [
     (r"AIza[0-9A-Za-z-_]{35}", "Potential Google API Key", False),
     (r"AKIA[0-9A-Z]{16}", "Potential AWS Access Key", False),
     (r"xox[bpras]-[0-9a-zA-Z-]{10,}", "Potential Slack Token", False),
+    (r"gh[pousr]_[A-Za-z0-9_]{36,}", "Potential GitHub Token", False),
+    (r"github_pat_[A-Za-z0-9_]{36,}", "Potential GitHub Fine-Grained Token", False),
     (r"/Users/[a-zA-Z0-9._-]+(?=/)", "Local macOS user path leakage", True),
     (r"/home/[a-zA-Z0-9._-]+(?=/)", "Local Linux user path leakage", True),
     (r"https?://[^\"'\s]+:[^\"'\s]+@[^\"'\s]+", "Hardcoded credentials in URL", False),
