@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.9] - 2026-05-08
+
 ### Changed
 - LRU research caches now reorder entries on hit, fixing stale eviction order that could discard frequently-used results.
 - `_cover_image` in `ppt_renderer` now explicitly closes the converted `Image` object to avoid relying on garbage collection for large images.
@@ -62,6 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `check_sensitive.py` self-exclusion now uses exact basename match instead of substring.
 - `anthropic`, `google-genai`, and `markitdown` dependencies now have upper-bound constraints to prevent breaking installs.
 - `ChartData` now rejects negative values for PIE charts via model validation.
+- Remaining unbounded dependencies (`ddgs`, `Pillow`, `python-dotenv`, `python-pptx`, `requests`, `streamlit`, `tqdm`, `trafilatura`, `wikipedia`) now have upper-bound constraints to prevent breaking installs.
+- `check_sensitive.py` now detects GitHub tokens (`ghp_*`, `gho_*`, `ghu_*`, `ghs_*`, `ghr_*`) and fine-grained tokens (`github_pat_*`).
+- `.gitignore` now excludes `uv.lock` to avoid committing generated lock files.
 
 ### Fixed
 - `download_image` and `fetch_article_content` now read redirect `Location` header before closing the response.
@@ -365,7 +370,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Four visual themes.
 - Six sample presentations.
 
-[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.8...HEAD
+[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.9...HEAD
+[0.5.9]: https://github.com/yeasy/autoppt/compare/v0.5.8...v0.5.9
 [0.5.8]: https://github.com/yeasy/autoppt/compare/v0.5.7...v0.5.8
 [0.5.7]: https://github.com/yeasy/autoppt/compare/v0.5.6...v0.5.7
 [0.5.6]: https://github.com/yeasy/autoppt/compare/v0.5.5...v0.5.6
