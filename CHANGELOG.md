@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `_cover_image` now closes the `convert("RGB")` intermediate `Image` after `crop()` reassigns it; previous fix only closed the cropped result, leaking the converted source until GC.
+
 ## [0.5.9] - 2026-05-08
 
 ### Changed
