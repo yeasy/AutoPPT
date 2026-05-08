@@ -69,5 +69,8 @@ output/
 htmlcov/
 coverage.xml
 
+# Package manager lock files
+uv.lock
+
 # Jupyter
 .ipynb_checkpoints/
