@@ -338,22 +338,25 @@ class PPTRenderer:
                 if current_ratio > target_ratio:
                     target_width = max(int(height * target_ratio), 1)
                     left = max((width - target_width) // 2, 0)
-                    img = img.crop((left, 0, left + target_width, height))
+                    cropped = img.crop((left, 0, left + target_width, height))
                 else:
                     target_height = max(int(width / target_ratio), 1)
                     top = max((height - target_height) // 2, 0)
-                    img = img.crop((0, top, width, top + target_height))
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp:
-                    temp_path = temp.name
-                    try:
-                        img.save(temp, format="PNG")
-                    except Exception:
+                    cropped = img.crop((0, top, width, top + target_height))
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp:
+                        temp_path = temp.name
                         try:
-                            os.unlink(temp_path)
-                        except OSError:
-                            pass
-                        raise
-                return temp_path
+                            cropped.save(temp, format="PNG")
+                        except Exception:
+                            try:
+                                os.unlink(temp_path)
+                            except OSError:
+                                pass
+                            raise
+                    return temp_path
+                finally:
+                    cropped.close()
             finally:
                 img.close()
 
