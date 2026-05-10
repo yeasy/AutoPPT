@@ -24,7 +24,7 @@ _MAX_PROMPT_FIELD_LEN = 500
 _MAX_RESEARCH_CONTEXT_LEN = 100_000
 _MAX_LIST_ITEMS = 100
 _MAX_CONTEXT_PREVIEW_LEN = 12_000
-_CONTROL_CHAR_RE = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f​‌‍﻿]")
+_CONTROL_CHAR_RE = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\u200b\u200c\u200d\ufeff]")
 
 
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
