@@ -1,6 +1,6 @@
 # AutoPPT 架构说明
 
-[English README](architecture.md)
+[English version](architecture.md)
 
 本文档说明最近一轮重构之后的目标架构。
 

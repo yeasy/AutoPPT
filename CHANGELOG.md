@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `_CONTROL_CHAR_RE` in `generator` now uses explicit `\u` escapes instead of embedding invisible Unicode characters directly in the source string.
+- HTTP `User-Agent` header in `researcher` now includes the package version (`AutoPPT/<version>`).
+- `__version__` in `__init__` now derives from `Config.VERSION` to keep the runtime version in one place.
+
 ### Fixed
 - `_cover_image` now closes the `convert("RGB")` intermediate `Image` after `crop()` reassigns it; previous fix only closed the cropped result, leaking the converted source until GC.
+- Architecture zh-CN cross-link label corrected from "English README" to "English version".
 
 ## [0.5.9] - 2026-05-08
 
