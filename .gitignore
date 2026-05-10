@@ -72,5 +72,8 @@ coverage.xml
 # Package manager lock files
 uv.lock
 
+# Agent working directory
+.agent/
+
 # Jupyter
 .ipynb_checkpoints/
