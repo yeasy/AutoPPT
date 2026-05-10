@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class Config:
+    VERSION = "0.5.9"
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
     GOOGLE_API_KEY: str | None = None

@@ -20,6 +20,7 @@ from .config import Config
 
 logger = logging.getLogger(__name__)
 
+_USER_AGENT = f"AutoPPT/{Config.VERSION}"
 
 _MAX_REDIRECTS = 5
 _MAX_CONTEXT_CHARS = 100_000
@@ -261,7 +262,7 @@ class Researcher:
                         current_url,
                         timeout=Config.IMAGE_DOWNLOAD_TIMEOUT,
                         stream=True,
-                        headers={"User-Agent": "AutoPPT"},
+                        headers={"User-Agent": _USER_AGENT},
                         allow_redirects=False,
                     )
                     if response.status_code in (301, 302, 303, 307, 308):
@@ -439,7 +440,7 @@ class Researcher:
                 response = requests.get(
                     current_url,
                     timeout=Config.ARTICLE_FETCH_TIMEOUT,
-                    headers={"User-Agent": "AutoPPT"},
+                    headers={"User-Agent": _USER_AGENT},
                     stream=True,
                     allow_redirects=False,
                 )
