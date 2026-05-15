@@ -367,20 +367,18 @@ class Researcher:
 
             if fetch_full_text and results:
                 worker_count = max(1, min(len(results), Config.RESEARCH_FETCH_WORKERS))
-                executor = ThreadPoolExecutor(max_workers=worker_count)
-                try:
-                    contents = list(
-                        executor.map(
-                            lambda result: self.fetch_article_content(result["href"], max_chars=3000) if result.get("href") else None,
-                            results,
-                            timeout=Config.ARTICLE_FETCH_TIMEOUT + 10,
+                with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                    try:
+                        contents = list(
+                            executor.map(
+                                lambda result: self.fetch_article_content(result["href"], max_chars=3000) if result.get("href") else None,
+                                results,
+                                timeout=Config.ARTICLE_FETCH_TIMEOUT + 10,
+                            )
                         )
-                    )
-                except (TimeoutError, _FuturesTimeoutError):
-                    logger.warning("Article fetch timed out for query '%s', proceeding with partial results", query)
-                    contents = [None] * len(results)
-                finally:
-                    executor.shutdown(wait=False, cancel_futures=True)
+                    except (TimeoutError, _FuturesTimeoutError):
+                        logger.warning("Article fetch timed out for query '%s', proceeding with partial results", query)
+                        contents = [None] * len(results)
                 full_content_by_url = {
                     result["href"]: content
                     for result, content in zip(results, contents)
