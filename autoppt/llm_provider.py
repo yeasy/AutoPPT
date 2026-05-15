@@ -348,6 +348,10 @@ Respond ONLY with the JSON object, no additional text.
                 raise ValueError(
                     f"Anthropic returned invalid JSON: {response_text[:200]}"
                 )
+            if not isinstance(data, dict):
+                raise ValueError(
+                    f"Anthropic returned a JSON {type(data).__name__}, expected object"
+                )
             logger.warning("Anthropic response required raw_decode fallback (offset %d)", offset)
         return schema.model_validate(data)
 

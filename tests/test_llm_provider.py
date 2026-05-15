@@ -2043,6 +2043,32 @@ class TestRawDecodeWarningLog:
                 )
 
 
+class TestRawDecodeRejectsNonDict:
+    """Test that raw_decode fallback rejects JSON arrays."""
+
+    def test_raw_decode_array_raises_value_error(self):
+        from unittest.mock import patch, MagicMock
+        from autoppt.llm_provider import AnthropicProvider
+
+        provider = AnthropicProvider.__new__(AnthropicProvider)
+        provider.client = MagicMock()
+        provider.model = "claude-test"
+
+        raw_response = 'Here is the data: ["item1", "item2", "item3"] done'
+        mock_block = MagicMock()
+        mock_block.text = raw_response
+        mock_message = MagicMock()
+        mock_message.content = [mock_block]
+        mock_message.stop_reason = "end_turn"
+
+        with patch("autoppt.llm_provider.Config") as mock_config:
+            mock_config.API_RETRY_ATTEMPTS = 1
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+            provider.client.messages.create.return_value = mock_message
+            with pytest.raises(ValueError, match="expected object"):
+                provider.generate_structure("test", SlideConfig)
+
+
 class TestOpenAIBaseURLWarning:
     """Tests for OPENAI_API_BASE non-local URL warning."""
 
