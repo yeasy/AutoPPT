@@ -305,12 +305,12 @@ class Generator:
                         )
                     except (AutoPPTError, ValueError) as exc:
                         logger.error("Error generating slide '%s': %s", slide_title, exc, exc_info=True)
-                        deck_spec.slides.append(self.layout_selector.error_slide(slide_title, str(exc)))
+                        deck_spec.slides.append(self.layout_selector.error_slide(slide_title, type(exc).__name__))
                     except Exception as exc:
                         if isinstance(exc, (MemoryError, RecursionError)):
                             raise
                         logger.error("Unexpected error generating slide '%s': %s", slide_title, exc, exc_info=True)
-                        deck_spec.slides.append(self.layout_selector.error_slide(slide_title, str(exc)))
+                        deck_spec.slides.append(self.layout_selector.error_slide(slide_title, type(exc).__name__))
                     pbar.update(1)
 
         self._refresh_citations_slide(deck_spec)
