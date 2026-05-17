@@ -468,6 +468,76 @@ class TestFetchArticleContentTypeValidation:
         mock_response.iter_content.assert_called()
 
 
+class TestFetchArticleContentLengthPrecheck:
+    """Tests for Content-Length pre-check in fetch_article_content."""
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_rejects_oversized_content_length_header(self, mock_get, mock_safe):
+        """fetch_article_content should reject responses with Content-Length exceeding limit."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Length": str(3 * 1024 * 1024), "Content-Type": "text/html"}
+        mock_get.return_value = mock_response
+
+        researcher = Researcher()
+        result = researcher.fetch_article_content("https://example.com/huge")
+        assert result is None
+        mock_response.iter_content.assert_not_called()
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_accepts_small_content_length_header(self, mock_get, mock_safe):
+        """fetch_article_content should proceed when Content-Length is within limit."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Length": "1024", "Content-Type": "text/html"}
+        mock_response.iter_content.return_value = iter([b"<html><body>Small page</body></html>"])
+        mock_get.return_value = mock_response
+
+        mock_trafilatura = MagicMock()
+        mock_trafilatura.extract.return_value = "This is extracted text that is long enough to pass the one hundred character threshold needed by the function."
+
+        researcher = Researcher()
+        import builtins
+        original_import = builtins.__import__
+
+        def patched_import(name, *args, **kwargs):
+            if name == "trafilatura":
+                return mock_trafilatura
+            return original_import(name, *args, **kwargs)
+
+        with patch('builtins.__import__', side_effect=patched_import):
+            result = researcher.fetch_article_content("https://example.com/small")
+        assert result is not None
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_handles_invalid_content_length(self, mock_get, mock_safe):
+        """fetch_article_content should handle non-numeric Content-Length gracefully."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.headers = {"Content-Length": "not-a-number", "Content-Type": "text/html"}
+        mock_response.iter_content.return_value = iter([b"<html><body>Page content</body></html>"])
+        mock_get.return_value = mock_response
+
+        mock_trafilatura = MagicMock()
+        mock_trafilatura.extract.return_value = "Extracted text content that is long enough to pass the one hundred character threshold needed by the extraction function."
+
+        researcher = Researcher()
+        import builtins
+        original_import = builtins.__import__
+
+        def patched_import(name, *args, **kwargs):
+            if name == "trafilatura":
+                return mock_trafilatura
+            return original_import(name, *args, **kwargs)
+
+        with patch('builtins.__import__', side_effect=patched_import):
+            result = researcher.fetch_article_content("https://example.com/invalid-cl")
+        assert result is not None
+
+
 class TestFetchArticleContentTruncation:
     """Tests for fetch_article_content response size limit and streaming."""
 

@@ -461,6 +461,13 @@ class Researcher:
                 if response.status_code != 200:
                     logger.debug("Article fetch returned status %s for %s", response.status_code, url)
                     return self._remember(self._article_cache, cache_key, None)
+                content_length = response.headers.get("Content-Length")
+                try:
+                    if content_length and int(content_length) > _MAX_ARTICLE_BYTES:
+                        logger.warning("Skipping oversized article from %s", url)
+                        return self._remember(self._article_cache, cache_key, None)
+                except (ValueError, TypeError):
+                    pass
                 raw_ct = response.headers.get("Content-Type")
                 if raw_ct and isinstance(raw_ct, str):
                     content_type = raw_ct.lower()
