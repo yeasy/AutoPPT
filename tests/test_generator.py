@@ -1476,6 +1476,17 @@ def test_sanitize_research_context_strips_zero_width_chars():
     assert "helloworld" in result
 
 
+def test_sanitize_research_context_strips_invisible_formatting_chars():
+    from autoppt.generator import _sanitize_research_context
+
+    text = "hello⁠world⁡test⁯ end"
+    result = _sanitize_research_context(text)
+    assert "⁠" not in result
+    assert "⁡" not in result
+    assert "⁯" not in result
+    assert "helloworld" in result
+
+
 # ---------------------------------------------------------------------------
 # _coerce_slide_type edge cases
 # ---------------------------------------------------------------------------
