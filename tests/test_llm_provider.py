@@ -2069,6 +2069,31 @@ class TestRawDecodeRejectsNonDict:
                 provider.generate_structure("test", SlideConfig)
 
 
+class TestAnthropicPrimaryJsonArrayRejection:
+    """Test that the primary json.loads path also rejects non-dict JSON."""
+
+    def test_primary_parse_array_raises_value_error(self):
+        from unittest.mock import patch, MagicMock
+        from autoppt.llm_provider import AnthropicProvider
+
+        provider = AnthropicProvider.__new__(AnthropicProvider)
+        provider.client = MagicMock()
+        provider.model = "claude-test"
+
+        mock_block = MagicMock()
+        mock_block.text = '["item1", "item2"]'
+        mock_message = MagicMock()
+        mock_message.content = [mock_block]
+        mock_message.stop_reason = "end_turn"
+
+        with patch("autoppt.llm_provider.Config") as mock_config:
+            mock_config.API_RETRY_ATTEMPTS = 1
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+            provider.client.messages.create.return_value = mock_message
+            with pytest.raises(ValueError, match="expected object"):
+                provider.generate_structure("test", SlideConfig)
+
+
 class TestOpenAIBaseURLWarning:
     """Tests for OPENAI_API_BASE non-local URL warning."""
 

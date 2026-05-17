@@ -330,6 +330,10 @@ Respond ONLY with the JSON object, no additional text.
 
         try:
             data = json.loads(response_text)
+            if not isinstance(data, dict):
+                raise ValueError(
+                    f"Anthropic returned a JSON {type(data).__name__}, expected object"
+                )
         except json.JSONDecodeError:
             # Fallback: use raw_decode to find the largest JSON object
             decoder = json.JSONDecoder()
