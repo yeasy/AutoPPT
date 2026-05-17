@@ -110,6 +110,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Optional local OpenAI-compatible endpoint
 OPENAI_API_BASE=http://localhost:1234/v1
 
+# Optional Anthropic-compatible endpoint
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+
 # Optional offline mode
 AUTOPPT_OFFLINE=1
 ```
@@ -131,8 +134,8 @@ autoppt --topic "Startup Pitch" --confirm-outline
 # Generate outline only
 autoppt --topic "Q1 Report" --outline-only
 
-# Use a specific provider and style
-autoppt --topic "Planets in Solar System" --provider google --style dark
+# Use a specific provider, style, and slide count
+autoppt --topic "Planets in Solar System" --provider google --style dark --slides 8
 
 # Use a custom template and render thumbnails
 autoppt --topic "Q3 Report" --template templates/your-template.pptx --thumbnails

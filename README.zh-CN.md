@@ -110,6 +110,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 # 可选：本地兼容 OpenAI 的服务端点
 OPENAI_API_BASE=http://localhost:1234/v1
 
+# 可选：Anthropic 兼容端点
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+
 # 可选：离线模式
 AUTOPPT_OFFLINE=1
 ```
@@ -131,8 +134,8 @@ autoppt --topic "Startup Pitch" --confirm-outline
 # 仅生成大纲，不导出 PPT
 autoppt --topic "Q1 Report" --outline-only
 
-# 指定模型服务商和主题
-autoppt --topic "Planets in Solar System" --provider google --style dark
+# 指定模型服务商、主题和页数
+autoppt --topic "Planets in Solar System" --provider google --style dark --slides 8
 
 # 使用模板并输出缩略图
 autoppt --topic "Q3 Report" --template templates/your-template.pptx --thumbnails
