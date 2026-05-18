@@ -7,14 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-17
+
 ### Changed
 - `_CONTROL_CHAR_RE` in `generator` now uses explicit `\u` escapes instead of embedding invisible Unicode characters directly in the source string.
 - HTTP `User-Agent` header in `researcher` now includes the package version (`AutoPPT/<version>`).
 - `__version__` in `__init__` now derives from `Config.VERSION` to keep the runtime version in one place.
+- `_sanitize_research_context` now strips invisible formatting characters (U+2060-U+206F) in addition to zero-width characters.
+- `ANTHROPIC_BASE_URL` and `--slides` flag now documented in both READMEs.
 
 ### Fixed
 - `_cover_image` now closes the `convert("RGB")` intermediate `Image` after `crop()` reassigns it; previous fix only closed the cropped result, leaking the converted source until GC.
 - Architecture zh-CN cross-link label corrected from "English README" to "English version".
+- Anthropic `generate_structure` primary `json.loads` path now rejects non-dict JSON; the prior fix only covered the `raw_decode` fallback.
+- `fetch_article_content` now checks `Content-Length` header before streaming, rejecting oversized responses early.
+
+### Security
+- Error slide messages now show only exception type names to prevent API endpoint or internal hostname leakage.
+- `ThreadPoolExecutor` resource leak fixed in `gather_context`; old pattern leaked worker threads on the success path.
+- `.env.example` now documents all environment variables read by the code.
 
 ## [0.5.9] - 2026-05-08
 
@@ -379,7 +390,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Four visual themes.
 - Six sample presentations.
 
-[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.5.9...HEAD
+[Unreleased]: https://github.com/yeasy/autoppt/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/yeasy/autoppt/compare/v0.5.9...v0.6.0
 [0.5.9]: https://github.com/yeasy/autoppt/compare/v0.5.8...v0.5.9
 [0.5.8]: https://github.com/yeasy/autoppt/compare/v0.5.7...v0.5.8
 [0.5.7]: https://github.com/yeasy/autoppt/compare/v0.5.6...v0.5.7
