@@ -137,6 +137,9 @@ autoppt --topic "Q1 Report" --outline-only
 # Use a specific provider, style, and slide count
 autoppt --topic "Planets in Solar System" --provider google --style dark --slides 8
 
+# Use a specific model name
+autoppt --topic "Climate Change" --provider openai --model gpt-4o
+
 # Use a custom template and render thumbnails
 autoppt --topic "Q3 Report" --template templates/your-template.pptx --thumbnails
 

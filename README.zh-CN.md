@@ -137,6 +137,9 @@ autoppt --topic "Q1 Report" --outline-only
 # 指定模型服务商、主题和页数
 autoppt --topic "Planets in Solar System" --provider google --style dark --slides 8
 
+# 指定具体的模型名称
+autoppt --topic "Climate Change" --provider openai --model gpt-4o
+
 # 使用模板并输出缩略图
 autoppt --topic "Q3 Report" --template templates/your-template.pptx --thumbnails
 
