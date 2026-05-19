@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `_escape_markdown` in `app` now uses markdown backslash escaping for `<` and `>` instead of HTML entity encoding, fixing double-encoding that displayed `&amp;` literally in Streamlit.
+- Zip-slip entry checks in `ppt_renderer` and `template_handler` now normalize backslashes before splitting, consistent with the `save()` path-traversal check.
+- `generate_thumbnails` in `thumbnail` now validates `output_prefix` before the expensive PDF conversion instead of after.
+- `get_theme` in `themes` no longer wraps `overrides` in a redundant `dict()` copy before `update()`.
+- `STYLE_KEYWORDS` now includes an explicit empty `minimalist` entry instead of patching the sync assertion with `| {DEFAULT_STYLE}`.
+
 ## [0.6.0] - 2026-05-17
 
 ### Changed
