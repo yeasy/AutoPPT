@@ -180,7 +180,7 @@ class TestEscapeMarkdown:
         from autoppt.app import _escape_markdown
         result = _escape_markdown("<b>**bold**</b>")
         assert "**" not in result
-        assert "&lt;" in result
+        assert "\\<" in result
 
     def test_plain_text_unchanged(self):
         from autoppt.app import _escape_markdown

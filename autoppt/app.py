@@ -24,11 +24,11 @@ from .style_selector import auto_select_style, get_all_styles, get_style_descrip
 
 logger = logging.getLogger(__name__)
 
-_MD_SPECIAL_RE = re.compile(r"([\\`*_\[\](){}#+\-.!|~>])")
+_MD_SPECIAL_RE = re.compile(r"([\\`*_\[\](){}#+\-.!|~<>])")
 
 
 def _escape_markdown(text: str) -> str:
-    return _MD_SPECIAL_RE.sub(r"\\\1", html_mod.escape(text))
+    return _MD_SPECIAL_RE.sub(r"\\\1", text)
 
 
 Config.initialize()
