@@ -310,7 +310,7 @@ def get_theme(name: str | None) -> dict[str, Any]:
     if overrides is None:
         logger.warning("Unknown theme '%s', falling back to minimalist", theme_name)
         overrides = THEME_DEFINITIONS.get("minimalist", {})
-    theme.update(dict(overrides))
+    theme.update(overrides)
     return theme
 
 
