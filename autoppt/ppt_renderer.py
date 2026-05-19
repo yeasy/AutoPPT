@@ -28,7 +28,7 @@ def _check_zip_bomb(path: str) -> None:
         with zipfile.ZipFile(path, "r") as zf:
             total = 0
             for info in zf.infolist():
-                if info.filename.startswith("/") or ".." in info.filename.split("/"):
+                if info.filename.startswith("/") or ".." in info.filename.replace("\\", "/").split("/"):
                     raise RenderError("init", f"Unsafe entry in template archive: {info.filename}")
                 total += info.file_size
             if total > Config.MAX_DECOMPRESSED_BYTES:

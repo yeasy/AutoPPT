@@ -50,7 +50,7 @@ class TemplateHandler:
             with zipfile.ZipFile(str(self.template_path), "r") as zf:
                 total = 0
                 for info in zf.infolist():
-                    if info.filename.startswith("/") or ".." in info.filename.split("/"):
+                    if info.filename.startswith("/") or ".." in info.filename.replace("\\", "/").split("/"):
                         raise ValueError(f"Unsafe entry in template archive: {info.filename}")
                     total += info.file_size
                 if total > Config.MAX_DECOMPRESSED_BYTES:
