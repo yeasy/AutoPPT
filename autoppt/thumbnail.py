@@ -229,6 +229,18 @@ def generate_thumbnails(
     if pptx_file.suffix.lower() != ".pptx":
         raise ValueError(f"Expected a .pptx file, got: {pptx_file.suffix}")
 
+    if ".." in str(output_prefix).replace("\\", "/").split("/"):
+        raise ValueError(f"Path traversal detected in output_prefix: {output_prefix}")
+    output_dir = Path(output_prefix).resolve().parent
+    output_resolved = str(output_dir)
+    output_normalised = str(Path(os.path.normpath(output_prefix)).parent)
+    for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+        if output_resolved.startswith(prefix) or output_normalised.startswith(prefix):
+            raise ValueError(f"Output path is not allowed: {output_prefix}")
+    for segment in Config.BLOCKED_PATH_SEGMENTS:
+        if segment in output_resolved or segment in output_normalised:
+            raise ValueError(f"Output path is not allowed: {output_prefix}")
+
     # Check dependencies
     is_ok, missing = check_dependencies()
     if not is_ok:
@@ -261,17 +273,6 @@ def generate_thumbnails(
             total_slides = len(slide_images)
             num_grids = (total_slides + max_slides_per_grid - 1) // max_slides_per_grid
 
-            if ".." in str(output_prefix).replace("\\", "/").split("/"):
-                raise ValueError(f"Path traversal detected in output_prefix: {output_prefix}")
-            output_dir = Path(output_prefix).resolve().parent
-            output_resolved = str(output_dir)
-            output_normalised = str(Path(os.path.normpath(output_prefix)).parent)
-            for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-                if output_resolved.startswith(prefix) or output_normalised.startswith(prefix):
-                    raise ValueError(f"Output path is not allowed: {output_prefix}")
-            for segment in Config.BLOCKED_PATH_SEGMENTS:
-                if segment in output_resolved or segment in output_normalised:
-                    raise ValueError(f"Output path is not allowed: {output_prefix}")
             output_dir.mkdir(parents=True, exist_ok=True)
             prefix_name = re.sub(r"[/\\]", "_", Path(output_prefix).name)
 
