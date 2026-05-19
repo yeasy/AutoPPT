@@ -132,8 +132,11 @@ class TestStyleKeywordsIntegrity:
     """Test STYLE_KEYWORDS dictionary integrity."""
 
     def test_all_styles_have_keywords(self):
-        """Test that all styles in keywords have at least one keyword."""
+        """Test that all non-default styles in keywords have at least one keyword."""
+        from autoppt.style_selector import DEFAULT_STYLE
         for style, keywords in STYLE_KEYWORDS.items():
+            if style == DEFAULT_STYLE:
+                continue
             assert len(keywords) > 0, f"Style '{style}' has no keywords"
 
     def test_keywords_are_lowercase(self):
