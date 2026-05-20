@@ -337,6 +337,8 @@ class LayoutSelector:
                 f"{category}: {value}"
                 for category, value in zip(slide_spec.chart_data.categories, slide_spec.chart_data.values)
             ]
+        if slide_spec.image_caption:
+            return [slide_spec.image_caption]
         return []
 
     def _quote_text_for_slide(self, slide_spec: SlideSpec) -> str:

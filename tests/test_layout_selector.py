@@ -785,3 +785,18 @@ class TestErrorSlidePathSanitization:
         slide = selector.error_slide("Err", r"File not found: C:\Users\admin\Documents\secret.pptx")
         assert "admin" not in slide.bullets[0]
         assert "[path]" in slide.bullets[0]
+
+
+def test_flatten_slide_bullets_from_image_caption():
+    """Slide with only image_caption (no bullets, columns, quote, stats, chart)
+    should return [image_caption]."""
+    selector = LayoutSelector()
+    slide = SlideSpec(
+        layout=SlideLayout.IMAGE,
+        title="Photo Slide",
+        image_caption="A beautiful sunset over the ocean",
+    )
+
+    result = selector._flatten_slide_bullets(slide)
+
+    assert result == ["A beautiful sunset over the ocean"]
