@@ -247,7 +247,10 @@ def _cover_image(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     resized = image.resize((int(src_w * scale), int(src_h * scale)), Image.Resampling.LANCZOS)
     left = max((resized.width - target_w) // 2, 0)
     top = max((resized.height - target_h) // 2, 0)
-    return resized.crop((left, top, left + target_w, top + target_h))
+    cropped = resized.crop((left, top, left + target_w, top + target_h))
+    if cropped is not resized:
+        resized.close()
+    return cropped
 
 
 def _theme_palette(style: str) -> tuple[tuple[int, int, int], tuple[int, int, int], tuple[int, int, int]]:
@@ -258,6 +261,12 @@ def _theme_palette(style: str) -> tuple[tuple[int, int, int], tuple[int, int, in
         "dark": ((12, 18, 42), (28, 60, 122), (120, 224, 255)),
         "corporate": ((24, 52, 98), (69, 119, 202), (208, 232, 255)),
         "startup": ((108, 56, 12), (244, 138, 35), (255, 233, 187)),
+        "tech_gradient": ((44, 66, 162), (108, 45, 164), (79, 216, 255)),
+        "ocean": ((0, 90, 135), (0, 42, 82), (119, 240, 223)),
+        "sunset": ((248, 112, 84), (176, 54, 117), (255, 215, 131)),
+        "magazine": ((115, 20, 34), (60, 30, 40), (203, 36, 62)),
+        "luxury": ((25, 22, 28), (54, 42, 58), (204, 156, 72)),
+        "minimalist": ((40, 46, 60), (98, 112, 140), (225, 232, 244)),
     }
     start, end, accent = palettes.get(style, ((40, 46, 60), (98, 112, 140), (225, 232, 244)))
     return start, end, accent
@@ -270,15 +279,20 @@ def _build_card_background(deck: DeckSpec, size: tuple[int, int]) -> Image.Image
                 return _cover_image(image.convert("RGB"), size)
 
     start, end, accent = _theme_palette(deck.style)
-    background = _gradient_image(size, start, end).convert("RGBA")
+    grad = _gradient_image(size, start, end)
+    background = grad.convert("RGBA")
+    grad.close()
 
     glow = Image.new("RGBA", size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     glow_draw.ellipse((60, 40, 380, 360), fill=accent + (110,))
     glow_draw.ellipse((size[0] - 320, size[1] - 280, size[0] + 40, size[1] + 20), fill=accent + (70,))
-    glow = glow.filter(ImageFilter.GaussianBlur(radius=30))
-    background = Image.alpha_composite(background, glow)
-    return background.convert("RGB")
+    blurred = glow.filter(ImageFilter.GaussianBlur(radius=30))
+    glow.close()
+    composited = Image.alpha_composite(background, blurred)
+    background.close()
+    blurred.close()
+    return composited.convert("RGB")
 
 
 def _get_card_lines(deck: DeckSpec) -> list[str]:
@@ -478,16 +492,21 @@ def render_readme_showcase_previews(output_dir: str | Path) -> list[Path]:
 
     created: list[Path] = []
     for filename, config in manifests.items():
-        canvas = _gradient_image((1800, 980), (10, 16, 28), (24, 40, 70))
-        canvas = canvas.convert("RGBA")
+        grad = _gradient_image((1800, 980), (10, 16, 28), (24, 40, 70))
+        canvas = grad.convert("RGBA")
+        grad.close()
 
         glow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
         glow_draw = ImageDraw.Draw(glow)
         glow_draw.ellipse((60, 80, 520, 480), fill=(60, 160, 255, 92))
         glow_draw.ellipse((1240, 40, 1770, 560), fill=(255, 120, 180, 76))
         glow_draw.ellipse((1120, 560, 1760, 1020), fill=(92, 255, 206, 62))
-        glow = glow.filter(ImageFilter.GaussianBlur(radius=50))
-        canvas = Image.alpha_composite(canvas, glow)
+        blurred = glow.filter(ImageFilter.GaussianBlur(radius=50))
+        glow.close()
+        old_canvas = canvas
+        canvas = Image.alpha_composite(canvas, blurred)
+        old_canvas.close()
+        blurred.close()
         draw = ImageDraw.Draw(canvas)
 
         locale: str = config["locale"]  # type: ignore[assignment]
@@ -529,6 +548,7 @@ def render_readme_showcase_previews(output_dir: str | Path) -> list[Path]:
             x_positions = [96, 648, 1200]
             for x, card in zip(x_positions, cards):
                 canvas.paste(card, (x, 264), card)
+                card.close()
 
         output_path = output_root / filename
         canvas.convert("RGB").save(output_path, format="PNG")
