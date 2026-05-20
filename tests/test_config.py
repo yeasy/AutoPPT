@@ -185,3 +185,7 @@ class TestEscapeMarkdown:
     def test_plain_text_unchanged(self):
         from autoppt.app import _escape_markdown
         assert _escape_markdown("Hello World") == "Hello World"
+
+    def test_escapes_dollar_sign(self):
+        from autoppt.app import _escape_markdown
+        assert "\\$" in _escape_markdown("Cost is $100")

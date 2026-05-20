@@ -24,7 +24,7 @@ from .style_selector import auto_select_style, get_all_styles, get_style_descrip
 
 logger = logging.getLogger(__name__)
 
-_MD_SPECIAL_RE = re.compile(r"([\\`*_\[\](){}#+\-.!|~<>])")
+_MD_SPECIAL_RE = re.compile(r"([\\`*_\[\](){}#+\-.!|~<>$])")
 
 
 def _escape_markdown(text: str) -> str:
@@ -231,7 +231,7 @@ if generate_button:
                 from .generator import Generator
 
                 safe_topic = "".join(char for char in topic if char.isalnum() or char in (" ", "-", "_"))[:50].strip() or "presentation"
-                if safe_topic.upper() in {"CON", "PRN", "AUX", "NUL"} or re.match(r"^(COM|LPT)\d$", safe_topic, re.IGNORECASE):
+                if safe_topic.upper() in {"CON", "PRN", "AUX", "NUL"} or re.match(r"^(COM|LPT)[0-9]$", safe_topic, re.IGNORECASE):
                     safe_topic = f"deck_{safe_topic}"
                 progress_bar = st.progress(0, text="Initializing generator...")
 
