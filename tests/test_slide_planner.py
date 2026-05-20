@@ -993,6 +993,52 @@ class TestSplitBulletsEdgeCases:
         assert right == ["R1", "R2"]
 
 
+class TestLayoutToTypePreservation:
+    """Verify _LAYOUT_TO_TYPE preserves chart, statistics, and image layouts during remix."""
+
+    def test_preserves_chart_layout(self):
+        planner = SlidePlanner()
+        current = SlideSpec(
+            layout=SlideLayout.CHART,
+            title="Revenue Chart",
+        )
+        plan = planner.plan(
+            slide_title="Revenue Chart",
+            section_title="Financials",
+            topic="Business",
+            current_slide=current,
+        )
+        assert plan.slide_type == SlideType.CHART
+
+    def test_preserves_statistics_layout(self):
+        planner = SlidePlanner()
+        current = SlideSpec(
+            layout=SlideLayout.STATISTICS,
+            title="Key Metrics",
+        )
+        plan = planner.plan(
+            slide_title="Key Metrics",
+            section_title="KPIs",
+            topic="Business",
+            current_slide=current,
+        )
+        assert plan.slide_type == SlideType.STATISTICS
+
+    def test_preserves_image_layout(self):
+        planner = SlidePlanner()
+        current = SlideSpec(
+            layout=SlideLayout.IMAGE,
+            title="Product Photo",
+        )
+        plan = planner.plan(
+            slide_title="Product Photo",
+            section_title="Gallery",
+            topic="Products",
+            current_slide=current,
+        )
+        assert plan.slide_type == SlideType.IMAGE
+
+
 class TestFirstSentenceEdgeCases:
     """Tests for SlidePlanner._first_sentence."""
 

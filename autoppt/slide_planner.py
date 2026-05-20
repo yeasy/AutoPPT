@@ -25,6 +25,9 @@ class SlidePlanner:
         "comparison": SlideType.COMPARISON,
         "two_column": SlideType.TWO_COLUMN,
         "quote": SlideType.QUOTE,
+        "chart": SlideType.CHART,
+        "statistics": SlideType.STATISTICS,
+        "image": SlideType.IMAGE,
     }
 
     def plan(
