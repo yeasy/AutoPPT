@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `generate_thumbnails` in `thumbnail` now validates `output_prefix` before the expensive PDF conversion instead of after.
 - `get_theme` in `themes` no longer wraps `overrides` in a redundant `dict()` copy before `update()`.
 - `STYLE_KEYWORDS` now includes an explicit empty `minimalist` entry instead of patching the sync assertion with `| {DEFAULT_STYLE}`.
+- `_LAYOUT_TO_TYPE` in `slide_planner` now includes `chart`, `statistics`, and `image` mappings, fixing silent layout loss during remix.
+- `_escape_markdown` in `app` now escapes `$` to prevent Streamlit LaTeX rendering of dollar amounts.
+- `_theme_palette` in `sample_library` now covers `tech_gradient`, `ocean`, `sunset`, `magazine`, `luxury`, and `minimalist` styles instead of falling back to generic gray.
+- `_cover_image` in `sample_library` now closes the intermediate resized image after cropping, consistent with the `ppt_renderer` fix.
+- `_build_card_background` and `render_readme_showcase_previews` in `sample_library` now close intermediate PIL images to avoid accumulating handles.
+- `_flatten_slide_bullets` in `layout_selector` now falls back to `image_caption` when no other content sources exist.
+- Windows reserved-name regex in `main` and `app` now uses `[0-9]` instead of `\d` for strict ASCII digit matching.
+- CLI `--output` path validation in `main` now checks `os.path.normpath` in addition to `os.path.realpath`, consistent with `template_handler` and `thumbnail`.
+
+### Fixed
+- `_is_safe_url` in `researcher` now rejects URLs whose hostnames resolve to zero DNS addresses instead of treating them as safe.
 
 ## [0.6.0] - 2026-05-17
 
