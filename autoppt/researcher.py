@@ -83,6 +83,8 @@ class Researcher:
             if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
                 return False
             infos = socket.getaddrinfo(parsed.hostname, None, proto=socket.IPPROTO_TCP)
+            if not infos:
+                return False
             for info in infos:
                 addr = ipaddress.ip_address(info[4][0])
                 if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:

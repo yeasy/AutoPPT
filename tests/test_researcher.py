@@ -246,6 +246,11 @@ class TestSSRFProtection:
         assert socket.getdefaulttimeout() == original_timeout
 
 
+    @patch("socket.getaddrinfo", return_value=[])
+    def test_rejects_empty_dns_result(self, mock_dns):
+        """Hostname resolving to zero addresses should be rejected."""
+        assert Researcher._is_safe_url("http://empty-dns.example.com/img.jpg") is False
+
 class TestOfflineMode:
     def test_gather_context_returns_empty_string_offline(self, monkeypatch):
         monkeypatch.setenv("AUTOPPT_OFFLINE", "1")
