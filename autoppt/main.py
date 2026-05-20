@@ -94,16 +94,17 @@ Examples:
         if ".." in args.output.replace("\\", "/").split("/"):
             parser.error(f"Path traversal detected: {args.output}")
         resolved_output = os.path.realpath(args.output)
+        normalised_output = os.path.normpath(args.output)
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved_output.startswith(prefix):
+            if resolved_output.startswith(prefix) or normalised_output.startswith(prefix):
                 parser.error(f"Output path is not allowed: {args.output}")
         for segment in Config.BLOCKED_PATH_SEGMENTS:
-            if segment in resolved_output:
+            if segment in resolved_output or segment in normalised_output:
                 parser.error(f"Output path is not allowed: {args.output}")
         output_filename = args.output
     else:
         safe_name = re.sub(r"[^\w\-]", "_", args.topic)[:100]
-        if safe_name.upper() in {"CON", "PRN", "AUX", "NUL"} or re.match(r"^(COM|LPT)\d$", safe_name, re.IGNORECASE):
+        if safe_name.upper() in {"CON", "PRN", "AUX", "NUL"} or re.match(r"^(COM|LPT)[0-9]$", safe_name, re.IGNORECASE):
             safe_name = f"deck_{safe_name}"
         output_filename = os.path.join(Config.OUTPUT_DIR, f"{safe_name}.pptx")
 
