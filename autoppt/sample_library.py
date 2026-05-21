@@ -192,8 +192,12 @@ def _build_visual_asset(asset_dir: Path, name: str, palette: dict[str, Any], mot
     for ellipse in palette["ellipses"]:
         x0, y0, x1, y1, alpha = ellipse
         glow_draw.ellipse((x0, y0, x1, y1), fill=palette["accent"] + (alpha,))
-    glow = glow.filter(ImageFilter.GaussianBlur(radius=35))
-    image = Image.alpha_composite(image, glow)
+    blurred_glow = glow.filter(ImageFilter.GaussianBlur(radius=35))
+    glow.close()
+    composited = Image.alpha_composite(image, blurred_glow)
+    image.close()
+    blurred_glow.close()
+    image = composited
 
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay)
@@ -217,8 +221,13 @@ def _build_visual_asset(asset_dir: Path, name: str, palette: dict[str, Any], mot
                 outline=palette["line"] + (120,),
                 width=5,
             )
-    image = Image.alpha_composite(image, overlay).convert("RGB")
-    image.save(output_path, format="PNG")
+    final = Image.alpha_composite(image, overlay)
+    image.close()
+    overlay.close()
+    rgb = final.convert("RGB")
+    final.close()
+    rgb.save(output_path, format="PNG")
+    rgb.close()
     return str(output_path)
 
 
@@ -248,8 +257,7 @@ def _cover_image(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     left = max((resized.width - target_w) // 2, 0)
     top = max((resized.height - target_h) // 2, 0)
     cropped = resized.crop((left, top, left + target_w, top + target_h))
-    if cropped is not resized:
-        resized.close()
+    resized.close()
     return cropped
 
 
@@ -267,6 +275,12 @@ def _theme_palette(style: str) -> tuple[tuple[int, int, int], tuple[int, int, in
         "magazine": ((115, 20, 34), (60, 30, 40), (203, 36, 62)),
         "luxury": ((25, 22, 28), (54, 42, 58), (204, 156, 72)),
         "minimalist": ((40, 46, 60), (98, 112, 140), (225, 232, 244)),
+        "academic": ((115, 15, 42), (76, 68, 62), (164, 86, 52)),
+        "chalkboard": ((30, 45, 35), (38, 56, 44), (255, 200, 100)),
+        "blueprint": ((0, 51, 102), (0, 24, 48), (104, 192, 255)),
+        "sketch": ((60, 60, 60), (80, 80, 80), (255, 140, 90)),
+        "retro": ((125, 84, 40), (94, 72, 50), (180, 120, 60)),
+        "neon": ((15, 10, 25), (30, 0, 50), (255, 72, 162)),
     }
     start, end, accent = palettes.get(style, ((40, 46, 60), (98, 112, 140), (225, 232, 244)))
     return start, end, accent
@@ -292,7 +306,9 @@ def _build_card_background(deck: DeckSpec, size: tuple[int, int]) -> Image.Image
     composited = Image.alpha_composite(background, blurred)
     background.close()
     blurred.close()
-    return composited.convert("RGB")
+    result = composited.convert("RGB")
+    composited.close()
+    return result
 
 
 def _get_card_lines(deck: DeckSpec) -> list[str]:
@@ -464,7 +480,11 @@ def _real_preview_image_for_sample(sample_id: str, deck: DeckSpec, *, cache_dir:
             return None
         preview_path = temp_root / f"{sample_id}-preview.jpg"
         with Image.open(images[0]) as image:
-            image.convert("RGB").save(preview_path, format="JPEG", quality=92)
+            converted = image.convert("RGB")
+            try:
+                converted.save(preview_path, format="JPEG", quality=92)
+            finally:
+                converted.close()
         final_path = cache_dir / preview_path.name
         cache_dir.mkdir(parents=True, exist_ok=True)
         shutil.move(str(preview_path), str(final_path))
@@ -551,7 +571,10 @@ def render_readme_showcase_previews(output_dir: str | Path) -> list[Path]:
                 card.close()
 
         output_path = output_root / filename
-        canvas.convert("RGB").save(output_path, format="PNG")
+        rgb_canvas = canvas.convert("RGB")
+        canvas.close()
+        rgb_canvas.save(output_path, format="PNG")
+        rgb_canvas.close()
         created.append(output_path)
 
     return created
