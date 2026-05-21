@@ -2501,6 +2501,20 @@ class TestDownloadImageBlockedPath:
         assert result is False
 
 
+class TestDownloadImageNormpathCheck:
+    """Tests for download_image checking normpath against blocked paths."""
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_rejects_normpath_blocked_segment(self, mock_safe):
+        """download_image should check normpath in addition to realpath."""
+        researcher = Researcher()
+        result = researcher.download_image(
+            "http://example.com/img.jpg",
+            "/home/user/.ssh/img.jpg",
+        )
+        assert result is False
+
+
 class TestSearchImagesException:
     """Tests for search_images handling exceptions."""
 
