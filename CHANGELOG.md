@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_flatten_slide_bullets` in `layout_selector` now falls back to `image_caption` when no other content sources exist.
 - Windows reserved-name regex in `main` and `app` now uses `[0-9]` instead of `\d` for strict ASCII digit matching.
 - CLI `--output` path validation in `main` now checks `os.path.normpath` in addition to `os.path.realpath`, consistent with `template_handler` and `thumbnail`.
+- `AnthropicProvider.generate_structure` raw_decode fallback now only accepts dict objects and searches the original unmodified response text, fixing cases where fenced-block extraction picked the wrong block or an array wrapper hid a valid dict.
+- `_build_visual_asset` in `sample_library` now closes all intermediate PIL images (glow, overlay, composites) instead of leaking them until GC.
+- `_build_card_background` in `sample_library` now closes the RGBA composite before converting to RGB.
+- `_real_preview_image_for_sample` in `sample_library` now closes the RGB conversion intermediate.
+- `render_readme_showcase_previews` in `sample_library` now closes the canvas after final RGB conversion.
+- `_cover_image` in `sample_library` now unconditionally closes the resized image after cropping instead of relying on identity comparison.
+- `create_grid_image` in `thumbnail` now closes each resized slide image after pasting into the grid.
+- `generate_thumbnails` in `thumbnail` now closes each grid image after saving.
+- `_theme_palette` in `sample_library` now covers `academic`, `chalkboard`, `blueprint`, `sketch`, `retro`, and `neon` styles.
+- `download_image` in `researcher` now checks `os.path.normpath` against blocked paths, consistent with CLI and renderer validation.
 
 ### Fixed
 - `_is_safe_url` in `researcher` now rejects URLs whose hostnames resolve to zero DNS addresses instead of treating them as safe.
