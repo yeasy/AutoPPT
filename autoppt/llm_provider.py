@@ -319,6 +319,7 @@ Respond ONLY with the JSON object, no additional text.
         if not response_text:
             raise ValueError("Anthropic response contained no text block")
         logger.debug("Raw Anthropic response length: %d chars", len(response_text))
+        original_response = response_text
         if "```json" in response_text:
             response_text = response_text.split("```json", 1)[1].split("```", 1)[0].strip()
         elif "```" in response_text:
@@ -334,27 +335,22 @@ Respond ONLY with the JSON object, no additional text.
                 raise ValueError(
                     f"Anthropic returned a JSON {type(data).__name__}, expected object"
                 )
-        except json.JSONDecodeError:
-            # Fallback: use raw_decode to find the largest JSON object
+        except (json.JSONDecodeError, ValueError):
             decoder = json.JSONDecoder()
-            best: tuple[dict | list | None, int, int] = (None, -1, 0)  # (data, offset, length)
-            for i, ch in enumerate(response_text):
-                if ch in ("{", "["):
+            best: tuple[dict | None, int, int] = (None, -1, 0)
+            for i, ch in enumerate(original_response):
+                if ch == "{":
                     try:
-                        obj, end = decoder.raw_decode(response_text, i)
+                        obj, end = decoder.raw_decode(original_response, i)
                         span = end - i
-                        if span > best[2]:
+                        if isinstance(obj, dict) and span > best[2]:
                             best = (obj, i, span)
                     except json.JSONDecodeError:
                         continue
             data, offset, _ = best
             if data is None:
                 raise ValueError(
-                    f"Anthropic returned invalid JSON: {response_text[:200]}"
-                )
-            if not isinstance(data, dict):
-                raise ValueError(
-                    f"Anthropic returned a JSON {type(data).__name__}, expected object"
+                    f"Anthropic returned invalid JSON: {original_response[:200]}"
                 )
             logger.warning("Anthropic response required raw_decode fallback (offset %d)", offset)
         return schema.model_validate(data)

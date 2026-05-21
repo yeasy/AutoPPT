@@ -2065,7 +2065,7 @@ class TestRawDecodeRejectsNonDict:
             mock_config.API_RETRY_ATTEMPTS = 1
             mock_config.API_RETRY_DELAY_SECONDS = 0
             provider.client.messages.create.return_value = mock_message
-            with pytest.raises(ValueError, match="expected object"):
+            with pytest.raises(ValueError, match="invalid JSON"):
                 provider.generate_structure("test", SlideConfig)
 
 
@@ -2090,8 +2090,56 @@ class TestAnthropicPrimaryJsonArrayRejection:
             mock_config.API_RETRY_ATTEMPTS = 1
             mock_config.API_RETRY_DELAY_SECONDS = 0
             provider.client.messages.create.return_value = mock_message
-            with pytest.raises(ValueError, match="expected object"):
+            with pytest.raises(ValueError, match="invalid JSON"):
                 provider.generate_structure("test", SlideConfig)
+
+
+class TestRawDecodeDictOnlyFallback:
+    """Test that raw_decode fallback only accepts dicts, and searches original text."""
+
+    def test_raw_decode_finds_dict_inside_array_wrapper(self):
+        from unittest.mock import patch, MagicMock
+        from autoppt.llm_provider import AnthropicProvider
+
+        provider = AnthropicProvider.__new__(AnthropicProvider)
+        provider.client = MagicMock()
+        provider.model = "claude-test"
+
+        raw_response = 'Here is the result: [{"title": "Test Title", "slide_type": "content", "bullets": ["A"], "speaker_notes": "", "citations": []}] end'
+        mock_block = MagicMock()
+        mock_block.text = raw_response
+        mock_message = MagicMock()
+        mock_message.content = [mock_block]
+        mock_message.stop_reason = "end_turn"
+
+        with patch("autoppt.llm_provider.Config") as mock_config:
+            mock_config.API_RETRY_ATTEMPTS = 1
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+            provider.client.messages.create.return_value = mock_message
+            result = provider.generate_structure("test", SlideConfig)
+            assert result.title == "Test Title"
+
+    def test_raw_decode_uses_original_text_after_bad_fence(self):
+        from unittest.mock import patch, MagicMock
+        from autoppt.llm_provider import AnthropicProvider
+
+        provider = AnthropicProvider.__new__(AnthropicProvider)
+        provider.client = MagicMock()
+        provider.model = "claude-test"
+
+        raw_response = '```json\nbroken content\n```\nBut here is the real data: {"title": "Real", "slide_type": "content", "bullets": ["B"], "speaker_notes": "", "citations": []}'
+        mock_block = MagicMock()
+        mock_block.text = raw_response
+        mock_message = MagicMock()
+        mock_message.content = [mock_block]
+        mock_message.stop_reason = "end_turn"
+
+        with patch("autoppt.llm_provider.Config") as mock_config:
+            mock_config.API_RETRY_ATTEMPTS = 1
+            mock_config.API_RETRY_DELAY_SECONDS = 0
+            provider.client.messages.create.return_value = mock_message
+            result = provider.generate_structure("test", SlideConfig)
+            assert result.title == "Real"
 
 
 class TestOpenAIBaseURLWarning:
