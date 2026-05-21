@@ -171,6 +171,7 @@ def create_grid_image(
         with Image.open(img_path) as img:
             img_resized = img.resize((thumb_width, thumb_height), Image.Resampling.LANCZOS)
             grid_img.paste(img_resized, (x, y + label_height))
+            img_resized.close()
 
             # Draw border
             draw.rectangle(
@@ -297,6 +298,7 @@ def generate_thumbnails(
                 if grid_img is None:
                     continue
                 grid_img.save(output_path, quality=JPEG_QUALITY)
+                grid_img.close()
                 generated_files.append(str(output_path))
 
                 logger.info("Created thumbnail grid: %s", output_path)
