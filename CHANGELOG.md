@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- `_draw_showcase_card` and `_draw_real_preview_card` in `sample_library` now close all intermediate PIL images (background, mask, overlay, border, and replaced composites) instead of leaking them until GC.
+- `_build_card_background` in `sample_library` now closes the RGB conversion intermediate when the image-path branch is taken.
 - `_escape_markdown` in `app` now uses markdown backslash escaping for `<` and `>` instead of HTML entity encoding, fixing double-encoding that displayed `&amp;` literally in Streamlit.
 - Zip-slip entry checks in `ppt_renderer` and `template_handler` now normalize backslashes before splitting, consistent with the `save()` path-traversal check.
 - `generate_thumbnails` in `thumbnail` now validates `output_prefix` before the expensive PDF conversion instead of after.

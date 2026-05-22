@@ -290,7 +290,11 @@ def _build_card_background(deck: DeckSpec, size: tuple[int, int]) -> Image.Image
     for slide in deck.slides:
         if slide.image_path and Path(slide.image_path).exists():
             with Image.open(slide.image_path) as image:
-                return _cover_image(image.convert("RGB"), size)
+                rgb = image.convert("RGB")
+                try:
+                    return _cover_image(rgb, size)
+                finally:
+                    rgb.close()
 
     start, end, accent = _theme_palette(deck.style)
     grad = _gradient_image(size, start, end)
@@ -330,18 +334,25 @@ def _draw_showcase_card(
 ) -> Image.Image:
     width, height = card_size
     card = Image.new("RGBA", card_size, (0, 0, 0, 0))
-    background = _build_card_background(deck, card_size).convert("RGBA")
+    bg_rgb = _build_card_background(deck, card_size)
+    background = bg_rgb.convert("RGBA")
+    bg_rgb.close()
 
     mask = Image.new("L", card_size, 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, width, height), radius=34, fill=255)
     card.paste(background, (0, 0), mask)
+    background.close()
+    mask.close()
 
     overlay = Image.new("RGBA", card_size, (8, 12, 18, 0))
     overlay_draw = ImageDraw.Draw(overlay)
     overlay_draw.rounded_rectangle((0, 0, width, height), radius=34, fill=(8, 12, 18, 120))
     overlay_draw.rounded_rectangle((24, 24, 190, 66), radius=18, fill=(255, 255, 255, 42))
     overlay_draw.rounded_rectangle((24, 86, width - 24, height - 24), radius=24, fill=(6, 10, 18, 132))
+    old_card = card
     card = Image.alpha_composite(card, overlay)
+    old_card.close()
+    overlay.close()
     draw = ImageDraw.Draw(card)
 
     title_font = _load_font(
@@ -401,7 +412,10 @@ def _draw_showcase_card(
     border = Image.new("RGBA", card_size, (0, 0, 0, 0))
     border_draw = ImageDraw.Draw(border)
     border_draw.rounded_rectangle((1, 1, width - 2, height - 2), radius=34, outline=(255, 255, 255, 90), width=2)
+    old_card = card
     card = Image.alpha_composite(card, border)
+    old_card.close()
+    border.close()
     return card
 
 
@@ -413,20 +427,29 @@ def _draw_real_preview_card(
     locale: str,
 ) -> Image.Image:
     with Image.open(preview_path) as image:
-        preview = _cover_image(image.convert("RGB"), card_size).convert("RGBA")
+        rgb = image.convert("RGB")
+        covered = _cover_image(rgb, card_size)
+        rgb.close()
+        preview = covered.convert("RGBA")
+        covered.close()
 
     mask = Image.new("L", card_size, 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, card_size[0], card_size[1]), radius=34, fill=255)
 
     card = Image.new("RGBA", card_size, (0, 0, 0, 0))
     card.paste(preview, (0, 0), mask)
+    preview.close()
+    mask.close()
 
     overlay = Image.new("RGBA", card_size, (0, 0, 0, 0))
     overlay_draw = ImageDraw.Draw(overlay)
     overlay_draw.rounded_rectangle((0, 0, card_size[0], card_size[1]), radius=34, fill=(8, 12, 18, 54))
     overlay_draw.rounded_rectangle((24, card_size[1] - 170, card_size[0] - 24, card_size[1] - 24), radius=22, fill=(8, 12, 18, 172))
     overlay_draw.rounded_rectangle((24, 24, 172, 64), radius=18, fill=(255, 255, 255, 42))
+    old_card = card
     card = Image.alpha_composite(card, overlay)
+    old_card.close()
+    overlay.close()
 
     draw = ImageDraw.Draw(card)
     title_font = _load_font(
@@ -460,7 +483,10 @@ def _draw_real_preview_card(
     border = Image.new("RGBA", card_size, (0, 0, 0, 0))
     border_draw = ImageDraw.Draw(border)
     border_draw.rounded_rectangle((1, 1, card_size[0] - 2, card_size[1] - 2), radius=34, outline=(255, 255, 255, 90), width=2)
+    old_card = card
     card = Image.alpha_composite(card, border)
+    old_card.close()
+    border.close()
     return card
 
 
