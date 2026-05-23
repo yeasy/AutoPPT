@@ -257,6 +257,7 @@ def _cover_image(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     left = max((resized.width - target_w) // 2, 0)
     top = max((resized.height - target_h) // 2, 0)
     cropped = resized.crop((left, top, left + target_w, top + target_h))
+    cropped.load()
     resized.close()
     return cropped
 
