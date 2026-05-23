@@ -2501,6 +2501,22 @@ class TestDownloadImageBlockedPath:
         assert result is False
 
 
+class TestDownloadImageCaseInsensitiveBlocked:
+    """Tests for download_image rejecting blocked paths case-insensitively."""
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_rejects_uppercase_ssh_path(self, mock_safe):
+        researcher = Researcher()
+        result = researcher.download_image("http://example.com/img.jpg", "/home/user/.SSH/authorized_keys")
+        assert result is False
+
+    @patch.object(Researcher, "_is_safe_url", return_value=True)
+    def test_rejects_mixedcase_docker_path(self, mock_safe):
+        researcher = Researcher()
+        result = researcher.download_image("http://example.com/img.jpg", "/home/user/.Docker/config.json")
+        assert result is False
+
+
 class TestDownloadImageNormpathCheck:
     """Tests for download_image checking normpath against blocked paths."""
 

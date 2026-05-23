@@ -759,8 +759,9 @@ class PPTRenderer:
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
             if resolved.startswith(prefix):
                 raise RenderError("save", f"Access to system path is not allowed: {output_path}")
+        resolved_lower = resolved.lower()
         for segment in Config.BLOCKED_PATH_SEGMENTS:
-            if segment in resolved:
+            if segment in resolved_lower:
                 raise RenderError("save", f"Access to sensitive path is not allowed: {output_path}")
         if os.path.islink(output_path):
             raise RenderError("save", f"Refusing to write through symlink: {output_path}")

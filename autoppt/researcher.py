@@ -245,7 +245,9 @@ class Researcher:
             if resolved_save.startswith(prefix) or normalised_save.startswith(prefix):
                 logger.warning("Blocked save to system path: %s", save_path)
                 return False
-        if any(seg in resolved_save or seg in normalised_save for seg in Config.BLOCKED_PATH_SEGMENTS):
+        resolved_save_lower = resolved_save.lower()
+        normalised_save_lower = normalised_save.lower()
+        if any(seg in resolved_save_lower or seg in normalised_save_lower for seg in Config.BLOCKED_PATH_SEGMENTS):
             logger.warning("Blocked save to sensitive path: %s", save_path)
             return False
 

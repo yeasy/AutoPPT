@@ -1896,6 +1896,19 @@ class TestValidateFilePath:
             gen._validate_file_path(sensitive_path)
         gen.close()
 
+    @pytest.mark.parametrize("sensitive_path", [
+        "/home/user/.SSH/id_rsa",
+        "/home/user/.Gnupg/pubring.kbx",
+        "/home/user/.AWS/credentials",
+        "/home/user/.Config/gcloud/credentials.db",
+        "/home/user/.DOCKER/config.json",
+    ])
+    def test_rejects_case_insensitive_sensitive_segments(self, sensitive_path):
+        gen = Generator(provider_name="mock")
+        with pytest.raises(ValueError, match="sensitive path"):
+            gen._validate_file_path(sensitive_path)
+        gen.close()
+
     def test_rejects_symlink_path(self, tmp_path):
         """_validate_file_path should refuse to write through a symlink."""
         target = tmp_path / "real_file.txt"

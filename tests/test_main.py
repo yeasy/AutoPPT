@@ -693,6 +693,14 @@ def test_cli_blocked_path_segment_kube(mock_init, mock_args):
         main()
 
 
+@patch("autoppt.main.Config.initialize")
+def test_cli_blocked_path_segment_case_insensitive(mock_init, mock_args):
+    """--output with uppercase sensitive segments must be rejected."""
+    mock_args.return_value = _default_args(output="/tmp/.SSH/foo.pptx")
+    with pytest.raises(SystemExit):
+        main()
+
+
 # ---------------------------------------------------------------------------
 # Windows reserved filename prefix (main.py lines 106-107)
 # ---------------------------------------------------------------------------

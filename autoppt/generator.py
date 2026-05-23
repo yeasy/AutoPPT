@@ -363,8 +363,10 @@ class Generator:
                 raise ValueError(f"Access to system path is not allowed: {path}")
 
         # Blocklist: reject sensitive path segments (e.g. ~/.ssh/, ~/.aws/).
+        resolved_lower = resolved.lower()
+        normalised_lower = normalised.lower()
         for segment in Config.BLOCKED_PATH_SEGMENTS:
-            if segment in resolved or segment in normalised:
+            if segment in resolved_lower or segment in normalised_lower:
                 raise ValueError(f"Access to sensitive path is not allowed: {path}")
 
         # Allowlist: when an allowed base is provided the resolved path must

@@ -49,6 +49,16 @@ class TestTemplateHandler:
         with pytest.raises(ValueError, match="sensitive path"):
             TemplateHandler("/home/user/.docker/template.pptx")
 
+    def test_init_rejects_case_insensitive_ssh(self):
+        """Paths containing .SSH/ (uppercase) must be rejected."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            TemplateHandler("/home/user/.SSH/template.pptx")
+
+    def test_init_rejects_case_insensitive_docker(self):
+        """Paths containing .Docker/ (mixed case) must be rejected."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            TemplateHandler("/home/user/.Docker/template.pptx")
+
     def test_analyze_layouts(self, sample_template):
         """Test layout analysis."""
         handler = TemplateHandler(str(sample_template))

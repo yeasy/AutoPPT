@@ -1400,6 +1400,18 @@ class TestRendererSaveBlockedPath:
         with pytest.raises(RenderError, match="sensitive path"):
             renderer.save("/home/user/.env/evil.pptx")
 
+    @pytest.mark.parametrize("sensitive_path", [
+        "/home/user/.SSH/evil.pptx",
+        "/home/user/.Gnupg/evil.pptx",
+        "/home/user/.DOCKER/evil.pptx",
+    ])
+    def test_save_rejects_case_insensitive_sensitive_segments(self, sensitive_path):
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="sensitive path"):
+            renderer.save(sensitive_path)
+
     def test_save_rejects_path_traversal(self):
         """save() should reject paths containing '..' segments."""
         from autoppt.exceptions import RenderError

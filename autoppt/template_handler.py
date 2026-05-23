@@ -35,8 +35,10 @@ class TemplateHandler:
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
             if resolved_str.startswith(prefix) or normalised_str.startswith(prefix):
                 raise ValueError(f"Access to system path is not allowed: {template_path}")
+        resolved_str_lower = resolved_str.lower()
+        normalised_str_lower = normalised_str.lower()
         for segment in Config.BLOCKED_PATH_SEGMENTS:
-            if segment in resolved_str or segment in normalised_str:
+            if segment in resolved_str_lower or segment in normalised_str_lower:
                 raise ValueError(f"Access to sensitive path is not allowed: {template_path}")
         if not self.template_path.exists():
             raise FileNotFoundError(f"Template not found: {template_path}")

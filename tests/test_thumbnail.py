@@ -644,6 +644,16 @@ class TestPptxExtensionValidation:
         with pytest.raises(ValueError, match="sensitive path"):
             generate_thumbnails("/home/user/.docker/something.pptx")
 
+    def test_rejects_case_insensitive_ssh(self):
+        """generate_thumbnails should reject .SSH (uppercase) paths."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            generate_thumbnails("/home/user/.SSH/something.pptx")
+
+    def test_rejects_case_insensitive_docker(self):
+        """generate_thumbnails should reject .Docker (mixed case) paths."""
+        with pytest.raises(ValueError, match="sensitive path"):
+            generate_thumbnails("/home/user/.Docker/something.pptx")
+
     def test_rejects_path_traversal_in_pptx_path(self):
         """generate_thumbnails should reject pptx paths with '..' segments."""
         with pytest.raises(ValueError, match="traversal"):
