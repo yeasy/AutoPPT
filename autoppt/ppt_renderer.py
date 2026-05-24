@@ -756,12 +756,14 @@ class PPTRenderer:
         if ".." in output_path.replace("\\", "/").split("/"):
             raise RenderError("save", f"Path traversal detected: {output_path}")
         resolved = os.path.realpath(output_path)
+        normalised = os.path.normpath(output_path)
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved.startswith(prefix):
+            if resolved.startswith(prefix) or normalised.startswith(prefix):
                 raise RenderError("save", f"Access to system path is not allowed: {output_path}")
         resolved_lower = resolved.lower()
+        normalised_lower = normalised.lower()
         for segment in Config.BLOCKED_PATH_SEGMENTS:
-            if segment in resolved_lower:
+            if segment in resolved_lower or segment in normalised_lower:
                 raise RenderError("save", f"Access to sensitive path is not allowed: {output_path}")
         if os.path.islink(output_path):
             raise RenderError("save", f"Refusing to write through symlink: {output_path}")

@@ -800,6 +800,54 @@ def test_apply_plan_layout_locked_two_column_demotion_logs_warning(caplog):
     assert "Layout-locked TWO_COLUMN demoted to CONTENT" in caplog.text
 
 
+def test_apply_plan_comparison_demotion_clears_column_fields():
+    """When COMPARISON is demoted to CONTENT, stale column fields must be cleared."""
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="A vs B",
+        slide_type=SlideType.COMPARISON,
+        layout_locked=True,
+        left_title="Side A",
+        right_title="Side B",
+    )
+    config = SlideConfig(
+        title="A vs B",
+        slide_type=SlideType.CONTENT,
+        bullets=["Only one bullet"],
+        left_bullets=["Old left"],
+        right_bullets=[],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+    assert result.left_bullets == []
+    assert result.right_bullets == []
+    assert result.left_title is None
+    assert result.right_title is None
+
+
+def test_apply_plan_two_column_demotion_clears_column_fields():
+    """When TWO_COLUMN is demoted to CONTENT, stale column fields must be cleared."""
+    planner = SlidePlanner()
+    plan = SlidePlan(
+        title="Framework",
+        slide_type=SlideType.TWO_COLUMN,
+        layout_locked=True,
+        left_title="Build",
+        right_title="Run",
+    )
+    config = SlideConfig(
+        title="Framework",
+        slide_type=SlideType.CONTENT,
+        bullets=["Only one bullet"],
+    )
+    result = planner.apply_plan(config, plan)
+    assert result.slide_type == SlideType.CONTENT
+    assert result.left_bullets == []
+    assert result.right_bullets == []
+    assert result.left_title is None
+    assert result.right_title is None
+
+
 def test_apply_plan_comparison_two_bullets_stays_comparison():
     """COMPARISON with exactly 2 bullets should split 1+1 and stay COMPARISON."""
     planner = SlidePlanner()

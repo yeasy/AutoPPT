@@ -1465,6 +1465,26 @@ class TestRendererSaveBlockedPath:
             renderer.save(str(link))
 
 
+class TestRendererSaveNormpath:
+    """Tests for save() checking normpath in addition to realpath."""
+
+    def test_save_rejects_normpath_sensitive_segment(self):
+        """save() should reject paths whose normpath contains a blocked segment."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="sensitive path"):
+            renderer.save("/home/user/.ssh/output.pptx")
+
+    def test_save_rejects_normpath_system_prefix(self):
+        """save() should reject paths whose normpath starts with a blocked prefix."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        renderer.add_title_slide("Test", "Sub")
+        with pytest.raises(RenderError, match="system path"):
+            renderer.save("/etc/output.pptx")
+
+
 class TestImageSlideNotesPass:
     """Tests that fullscreen image slide passes notes through."""
 

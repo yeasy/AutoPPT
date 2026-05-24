@@ -293,8 +293,10 @@ class Researcher:
                     if response.status_code != 200:
                         logger.warning("Image download returned status %s", response.status_code)
                         if 400 <= response.status_code < 500:
+                            response.close()
                             _cleanup()
                             return False
+                        response.close()
                         continue
 
                     content_type = response.headers.get("Content-Type", "").lower()

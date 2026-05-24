@@ -177,6 +177,10 @@ class SlidePlanner:
                 else:
                     logger.info("Inferred COMPARISON demoted to CONTENT: insufficient bullets for two columns")
                 data["slide_type"] = SlideType.CONTENT
+                data["left_bullets"] = []
+                data["right_bullets"] = []
+                data["left_title"] = None
+                data["right_title"] = None
             else:
                 data["slide_type"] = SlideType.COMPARISON
                 data["left_title"] = slide_config.left_title or plan.left_title or "Option A"
@@ -192,6 +196,10 @@ class SlidePlanner:
                 else:
                     logger.info("Inferred TWO_COLUMN demoted to CONTENT: insufficient bullets for two columns")
                 data["slide_type"] = SlideType.CONTENT
+                data["left_bullets"] = []
+                data["right_bullets"] = []
+                data["left_title"] = None
+                data["right_title"] = None
             else:
                 data["slide_type"] = SlideType.TWO_COLUMN
                 data["left_title"] = slide_config.left_title or plan.left_title or "Column A"

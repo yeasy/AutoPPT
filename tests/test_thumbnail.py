@@ -50,6 +50,13 @@ class TestThumbnailGeneration:
         with pytest.raises(FileNotFoundError):
             generate_thumbnails("nonexistent.pptx")
 
+    def test_generate_thumbnails_rejects_directory(self, tmp_path):
+        """Test that a directory with .pptx suffix is rejected."""
+        dir_path = tmp_path / "fake.pptx"
+        dir_path.mkdir()
+        with pytest.raises(FileNotFoundError):
+            generate_thumbnails(str(dir_path))
+
     @patch("autoppt.thumbnail.convert_to_pdf")
     @patch("autoppt.thumbnail.convert_pdf_to_images")
     @patch("autoppt.thumbnail.create_grid_image")

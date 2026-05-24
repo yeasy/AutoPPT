@@ -227,7 +227,7 @@ def generate_thumbnails(
         if segment in resolved_str_lower or segment in normalised_str_lower:
             raise ValueError(f"Access to sensitive path is not allowed: {pptx_path}")
 
-    if not pptx_file.exists():
+    if not pptx_file.is_file():
         raise FileNotFoundError(f"File not found: {pptx_path}")
     if pptx_file.suffix.lower() != ".pptx":
         raise ValueError(f"Expected a .pptx file, got: {pptx_file.suffix}")

@@ -1589,6 +1589,50 @@ class TestDownloadImage5xxRetry:
         assert mock_get.call_count == 2
 
 
+class TestDownloadImageResponseClosedOnNon200:
+    """Test that download_image closes the response on non-200 status before retry."""
+
+    @patch('autoppt.researcher.Researcher._is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_response_closed_on_5xx_retry(self, mock_get, mock_safe, tmp_path):
+        """5xx response should be closed before retrying."""
+        import os
+
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.headers = {}
+        mock_response.close = MagicMock()
+        mock_get.return_value = mock_response
+
+        researcher = Researcher()
+        save_path = os.path.join(str(tmp_path), "image.jpg")
+
+        with patch('autoppt.researcher.time.sleep'):
+            researcher.download_image("https://example.com/image.jpg", save_path, retries=2)
+
+        assert mock_response.close.call_count >= 2
+
+    @patch('autoppt.researcher.Researcher._is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_response_closed_on_4xx_no_retry(self, mock_get, mock_safe, tmp_path):
+        """4xx response should be closed without retrying."""
+        import os
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.headers = {}
+        mock_response.close = MagicMock()
+        mock_get.return_value = mock_response
+
+        researcher = Researcher()
+        save_path = os.path.join(str(tmp_path), "image.jpg")
+
+        result = researcher.download_image("https://example.com/image.jpg", save_path)
+
+        assert result is False
+        mock_response.close.assert_called()
+
+
 class TestFetchArticleRedirectLimit:
     """Test that fetch_article_content respects the redirect limit."""
 

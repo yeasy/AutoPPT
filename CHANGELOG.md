@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- `save()` in `ppt_renderer` now checks `os.path.normpath` in addition to `os.path.realpath` against blocked paths, consistent with all other path validation sites.
+- `download_image` in `researcher` now closes the HTTP response on non-200 status codes before retrying, preventing connection pool leaks when `stream=True`.
+- `apply_plan` in `slide_planner` now clears stale `left_bullets`, `right_bullets`, `left_title`, and `right_title` fields when demoting COMPARISON or TWO_COLUMN to CONTENT, preventing layout re-inference loops.
+- `generate_thumbnails` in `thumbnail` now uses `is_file()` instead of `exists()` to reject directories with `.pptx` suffix.
 - `_draw_showcase_card` and `_draw_real_preview_card` in `sample_library` now close all intermediate PIL images (background, mask, overlay, border, and replaced composites) instead of leaking them until GC.
 - `_build_card_background` in `sample_library` now closes the RGB conversion intermediate when the image-path branch is taken.
 - `_escape_markdown` in `app` now uses markdown backslash escaping for `<` and `>` instead of HTML entity encoding, fixing double-encoding that displayed `&amp;` literally in Streamlit.
