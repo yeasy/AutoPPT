@@ -887,6 +887,18 @@ class TestCoverPictureGracefulError:
 
         assert result is False
 
+    def test_add_cover_picture_returns_false_on_add_picture_error(self, tmp_path):
+        """_add_cover_picture should return False when add_picture raises."""
+        renderer = PPTRenderer()
+        slide = renderer._add_blank_slide()
+        img_path = str(tmp_path / "ok.png")
+        Image.new("RGB", (100, 100), color="blue").save(img_path)
+
+        with patch.object(slide.shapes, "add_picture", side_effect=ValueError("bad image")):
+            result = renderer._add_cover_picture(slide, img_path, 0, 0, 10, 7.5)
+
+        assert result is False
+
 
 class TestImageOverlayTransparency:
     """Tests that image overlay opacity themes are valid for transparency conversion."""

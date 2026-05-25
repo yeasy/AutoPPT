@@ -371,6 +371,9 @@ class PPTRenderer:
         try:
             slide.shapes.add_picture(cropped_path, Inches(left), Inches(top), Inches(width), Inches(height))
             return True
+        except Exception as exc:
+            logger.warning("Failed to add picture %s: %s", image_path, exc)
+            return False
         finally:
             try:
                 os.unlink(cropped_path)

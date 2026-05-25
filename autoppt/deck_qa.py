@@ -112,7 +112,7 @@ class DeckQA:
                 issues.append(self._issue("missing_image", "Image slide has no resolved image asset.", index, slide))
 
         elif slide.layout == SlideLayout.CITATIONS:
-            if not slide.citations:
+            if not slide.citations or not any(c.strip() for c in slide.citations):
                 issues.append(self._issue("empty_citations", "Citations slide has no citation entries.", index, slide))
 
         return issues

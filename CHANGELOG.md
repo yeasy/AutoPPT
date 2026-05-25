@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `download_image` in `researcher` now checks `os.path.normpath` against blocked paths, consistent with CLI and renderer validation.
 
 ### Fixed
+- `_add_cover_picture` in `ppt_renderer` now catches exceptions from `add_picture` and returns `False` instead of propagating, matching the method's `bool` return contract and enabling caller fallback logic.
+- `DeckQA` citations check now rejects slides whose `citations` list contains only blank strings.
 - `_is_safe_url` in `researcher` now rejects URLs whose hostnames resolve to zero DNS addresses instead of treating them as safe.
 
 ## [0.6.0] - 2026-05-17

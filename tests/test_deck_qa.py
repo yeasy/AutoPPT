@@ -164,6 +164,18 @@ def test_deck_qa_flags_empty_citations():
     assert any(issue.code == "empty_citations" for issue in report.issues)
 
 
+def test_deck_qa_flags_blank_only_citations():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[SlideSpec(layout=SlideLayout.CITATIONS, title="References", citations=["", "  "])],
+    )
+
+    report = DeckQA().analyze(deck)
+
+    assert any(issue.code == "empty_citations" for issue in report.issues)
+
+
 def test_layout_selector_builds_quote_slide():
     slide = LayoutSelector().quote_slide(
         title="Founder's Principle",
