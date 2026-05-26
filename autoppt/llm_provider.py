@@ -45,7 +45,7 @@ def _is_rate_limit_error(exc: Exception) -> bool:
     if status == 429:
         return True
     message = str(exc).lower()
-    return "429" in message or "rate_limit" in message or "rate limit" in message or bool(re.search(r"\bquota\b", message))
+    return bool(re.search(r"\b429\b", message)) or "rate_limit" in message or "rate limit" in message or bool(re.search(r"\bquota\b", message))
 
 
 def _is_transient_error(exc: Exception) -> bool:
@@ -331,28 +331,31 @@ Respond ONLY with the JSON object, no additional text.
 
         try:
             data = json.loads(response_text)
-            if not isinstance(data, dict):
-                raise ValueError(
-                    f"Anthropic returned a JSON {type(data).__name__}, expected object"
-                )
-        except (json.JSONDecodeError, ValueError):
-            decoder = json.JSONDecoder()
-            best: tuple[dict | None, int, int] = (None, -1, 0)
-            for i, ch in enumerate(original_response):
-                if ch == "{":
-                    try:
-                        obj, end = decoder.raw_decode(original_response, i)
-                        span = end - i
-                        if isinstance(obj, dict) and span > best[2]:
-                            best = (obj, i, span)
-                    except json.JSONDecodeError:
-                        continue
-            data, offset, _ = best
-            if data is None:
-                raise ValueError(
-                    f"Anthropic returned invalid JSON: {original_response[:200]}"
-                )
-            logger.warning("Anthropic response required raw_decode fallback (offset %d)", offset)
+        except json.JSONDecodeError:
+            data = None
+        if isinstance(data, dict):
+            return schema.model_validate(data)
+        if data is not None:
+            raise ValueError(
+                f"Anthropic returned a JSON {type(data).__name__}, expected object"
+            )
+        decoder = json.JSONDecoder()
+        best: tuple[dict | None, int, int] = (None, -1, 0)
+        for i, ch in enumerate(original_response):
+            if ch == "{":
+                try:
+                    obj, end = decoder.raw_decode(original_response, i)
+                    span = end - i
+                    if isinstance(obj, dict) and span > best[2]:
+                        best = (obj, i, span)
+                except json.JSONDecodeError:
+                    continue
+        data, offset, _ = best
+        if data is None:
+            raise ValueError(
+                f"Anthropic returned invalid JSON: {original_response[:200]}"
+            )
+        logger.warning("Anthropic response required raw_decode fallback (offset %d)", offset)
         return schema.model_validate(data)
 
 

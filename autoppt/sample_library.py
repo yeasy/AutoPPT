@@ -185,7 +185,9 @@ def _gradient_image(size: tuple[int, int], start: tuple[int, int, int], end: tup
 def _build_visual_asset(asset_dir: Path, name: str, palette: dict[str, Any], motif: str) -> str:
     asset_dir.mkdir(parents=True, exist_ok=True)
     output_path = asset_dir / f"{name}.png"
-    image = _gradient_image((1600, 900), palette["start"], palette["end"]).convert("RGBA")
+    grad = _gradient_image((1600, 900), palette["start"], palette["end"])
+    image = grad.convert("RGBA")
+    grad.close()
 
     glow = Image.new("RGBA", image.size, (0, 0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)

@@ -136,6 +136,10 @@ class TestRetryLogic:
         assert _is_rate_limit_error(Exception("quota exceeded")) is True
         assert _is_rate_limit_error(Exception("something else")) is False
 
+    def test_rate_limit_no_false_positive_on_token_count(self):
+        from autoppt.llm_provider import _is_rate_limit_error
+        assert _is_rate_limit_error(Exception("Maximum context length is 4296 tokens")) is False
+
     def test_rate_limit_detection_from_status_code_attr(self):
         from autoppt.llm_provider import _is_rate_limit_error
 
@@ -2090,7 +2094,7 @@ class TestAnthropicPrimaryJsonArrayRejection:
             mock_config.API_RETRY_ATTEMPTS = 1
             mock_config.API_RETRY_DELAY_SECONDS = 0
             provider.client.messages.create.return_value = mock_message
-            with pytest.raises(ValueError, match="invalid JSON"):
+            with pytest.raises(ValueError, match="expected object"):
                 provider.generate_structure("test", SlideConfig)
 
 
