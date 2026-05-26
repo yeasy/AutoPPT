@@ -251,6 +251,16 @@ class TestSSRFProtection:
         """Hostname resolving to zero addresses should be rejected."""
         assert Researcher._is_safe_url("http://empty-dns.example.com/img.jpg") is False
 
+    @patch("socket.getaddrinfo", return_value=[(2, 1, 6, '', ('100.64.1.1', 0))])
+    def test_rejects_cgnat_address(self, mock_dns):
+        """CGNAT range (100.64.0.0/10) must be blocked for SSRF protection."""
+        assert Researcher._is_safe_url("http://cgnat.example.com/img.jpg") is False
+
+    @patch("socket.getaddrinfo", return_value=[(2, 1, 6, '', ('100.127.255.254', 0))])
+    def test_rejects_cgnat_upper_bound(self, mock_dns):
+        assert Researcher._is_safe_url("http://cgnat-upper.example.com/img.jpg") is False
+
+
 class TestOfflineMode:
     def test_gather_context_returns_empty_string_offline(self, monkeypatch):
         monkeypatch.setenv("AUTOPPT_OFFLINE", "1")

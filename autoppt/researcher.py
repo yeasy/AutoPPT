@@ -92,6 +92,9 @@ class Researcher:
                 if (addr.is_private or addr.is_loopback or addr.is_link_local
                         or addr.is_reserved or addr.is_multicast or addr.is_unspecified):
                     return False
+                if (isinstance(addr, ipaddress.IPv4Address)
+                        and addr in ipaddress.IPv4Network("100.64.0.0/10")):
+                    return False
         except (socket.gaierror, socket.timeout, ValueError, OSError) as exc:
             logger.debug("URL safety check failed for %s: %s", url, exc)
             return False
