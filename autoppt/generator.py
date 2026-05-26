@@ -263,6 +263,10 @@ class Generator:
         if self._assets_tmpdir is None:
             raise RuntimeError("Generator has been closed; create a new instance.")
         total_slides = sum(len(section.slides) for section in outline.sections)
+        if total_slides > self._MAX_SLIDES_COUNT:
+            raise ValueError(
+                f"Outline has {total_slides} slides, max is {self._MAX_SLIDES_COUNT}"
+            )
         style = _sanitize_prompt_field(style)
         deck_spec = self.layout_selector.create_deck(
             outline.title,

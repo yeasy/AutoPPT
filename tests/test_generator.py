@@ -1955,6 +1955,19 @@ def test_max_context_preview_len_is_module_level():
     assert _MAX_CONTEXT_PREVIEW_LEN == 12_000
 
 
+def test_build_deck_spec_rejects_too_many_slides():
+    """build_deck_spec should reject outlines exceeding _MAX_SLIDES_COUNT."""
+    gen = Generator(provider_name="mock")
+    many_slides = [f"Slide {i}" for i in range(gen._MAX_SLIDES_COUNT + 1)]
+    outline = PresentationOutline(
+        title="T",
+        sections=[PresentationSection(title="S", slides=many_slides)],
+    )
+    with pytest.raises(ValueError, match="max is"):
+        gen.build_deck_spec(outline=outline, topic="Test")
+    gen.close()
+
+
 def test_build_deck_spec_rejects_after_close():
     """build_deck_spec should raise RuntimeError after close."""
     gen = Generator(provider_name="mock")

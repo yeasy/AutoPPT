@@ -175,6 +175,8 @@ class PPTRenderer:
                 blank_layout = layout
                 break
         if blank_layout is None:
+            if not self.prs.slide_layouts:
+                raise RenderError("_add_blank_slide", "Template has no slide layouts")
             blank_layout = self.prs.slide_layouts[min(6, len(self.prs.slide_layouts) - 1)]
         slide = self.prs.slides.add_slide(blank_layout)
         self._apply_background(slide)

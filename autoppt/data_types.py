@@ -34,6 +34,8 @@ class ChartData(BaseModel):
             raise ValueError("values must be finite numbers (no NaN or inf)")
         if self.chart_type == ChartType.PIE and any(v < 0 for v in self.values):
             raise ValueError("pie chart values must be non-negative")
+        if self.chart_type == ChartType.PIE and not any(self.values):
+            raise ValueError("pie chart must have at least one non-zero value")
         return self
 
 

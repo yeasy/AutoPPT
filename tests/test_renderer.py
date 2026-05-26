@@ -489,6 +489,15 @@ class TestBlankSlideLayoutFallback:
         assert slide is not None
 
 
+    def test_blank_layout_raises_on_empty_layouts(self):
+        """Empty slide_layouts should raise RenderError, not IndexError."""
+        from autoppt.exceptions import RenderError
+        renderer = PPTRenderer()
+        with patch.object(type(renderer.prs), "slide_layouts", new_callable=PropertyMock, return_value=[]):
+            with pytest.raises(RenderError, match="no slide layouts"):
+                renderer._add_blank_slide()
+
+
 class TestApplyBackgroundGradientFallback:
     """Tests for _apply_background gradient exception fallback."""
 

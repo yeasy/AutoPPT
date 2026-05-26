@@ -565,6 +565,15 @@ class TestChartDataNonFiniteValues:
         )
         assert chart.values == [0.0, 10.0]
 
+    def test_pie_rejects_all_zero_values(self):
+        with pytest.raises(ValidationError, match="non-zero"):
+            ChartData(
+                chart_type=ChartType.PIE,
+                title="All Zero Pie",
+                categories=["A", "B"],
+                values=[0.0, 0.0],
+            )
+
     def test_bar_allows_negative_values(self):
         chart = ChartData(
             chart_type=ChartType.BAR,
