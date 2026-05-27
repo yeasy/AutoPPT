@@ -31,7 +31,15 @@ _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
 _XML_TAG_RE = re.compile(r"</?[a-zA-Z][a-zA-Z0-9_-]*(?:\s[^>]*)?/?>")
 _SECTION_MARKER_RE = re.compile(r"^(?:===|---).+", re.MULTILINE)
 _INJECTION_PREFIX_RE = re.compile(
-    r"^\s*(?:TASK:|INSTRUCTIONS:|DIRECTIVE:|REQUIREMENT:|You MUST\b|You are\b|As an AI\b|OUTPUT\b|RESPOND\b|IGNORE\b|FORGET\b|<\|system\|>|<\|endoftext\|>).*$",
+    r"^\s*(?:"
+    r"TASK:|INSTRUCTIONS:|DIRECTIVE:|REQUIREMENT:"
+    r"|You MUST\b|As an AI\b"
+    r"|You are (?:now |a |an |the |my )?(?:AI|assistant|bot|agent|model|tool|system|helper)\b"
+    r"|OUTPUT\s*:|RESPOND\s*:"
+    r"|IGNORE\s+(?:all|any|previous|prior|above|the\s+above|my|your|these|those)\b"
+    r"|FORGET\s+(?:all|any|previous|prior|above|the\s+above|your|everything)\b"
+    r"|<\|system\|>|<\|endoftext\|>"
+    r").*$",
     re.MULTILINE | re.IGNORECASE,
 )
 _MULTI_WHITESPACE_RE = re.compile(r"[ \t]{2,}")
