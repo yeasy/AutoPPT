@@ -361,12 +361,11 @@ Respond ONLY with the JSON object, no additional text.
 
 class MockProvider(BaseLLMProvider):
     def _extract_hint(self, prompt: str, label: str) -> str:
-        marker = f"{label.lower()}: '"
-        prompt_lower = prompt.lower()
-        if marker not in prompt_lower:
+        pattern = re.escape(f"{label}: '")
+        match = re.search(pattern, prompt, re.IGNORECASE)
+        if not match:
             return ""
-        idx = prompt_lower.index(marker) + len(marker)
-        raw = prompt[idx:].split("'", 1)[0].strip()
+        raw = prompt[match.end():].split("'", 1)[0].strip()
         return raw[:200]
 
     def generate_text(self, prompt: str, system_prompt: str = "") -> str:

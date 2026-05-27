@@ -1290,6 +1290,20 @@ class TestMockProviderLeftRightTitleHints:
         assert provider._extract_hint("some prompt text", "left title hint") == ""
         assert provider._extract_hint("some prompt text", "right title hint") == ""
 
+    def test_extract_hint_case_insensitive(self):
+        """_extract_hint should match case-insensitively and preserve original case."""
+        provider = MockProvider()
+        prompt = "LEFT TITLE HINT: 'Current State' some trailing text"
+        result = provider._extract_hint(prompt, "left title hint")
+        assert result == "Current State"
+
+    def test_extract_hint_unicode_safe(self):
+        """_extract_hint should handle prompts with Unicode characters near the marker."""
+        provider = MockProvider()
+        prompt = "Ünïcödé prefix left title hint: 'My Title' rest"
+        result = provider._extract_hint(prompt, "left title hint")
+        assert result == "My Title"
+
 
 class TestOpenAIBuildMessages:
     """Tests for OpenAIProvider._build_messages helper."""
