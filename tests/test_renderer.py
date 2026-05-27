@@ -1091,6 +1091,32 @@ class TestRendererMissingTemplate:
             PPTRenderer(template_path="/nonexistent/path/template.pptx")
 
 
+class TestRendererTemplatePathValidation:
+    """Test that template_path is validated for security."""
+
+    def test_rejects_path_traversal(self):
+        from autoppt.exceptions import RenderError
+        with pytest.raises(RenderError, match="Path traversal"):
+            PPTRenderer(template_path="../../../etc/template.pptx")
+
+    def test_rejects_system_prefix(self):
+        from autoppt.exceptions import RenderError
+        with pytest.raises(RenderError, match="system path"):
+            PPTRenderer(template_path="/etc/template.pptx")
+
+    def test_rejects_sensitive_path(self):
+        from autoppt.exceptions import RenderError
+        with pytest.raises(RenderError, match="sensitive path"):
+            PPTRenderer(template_path="/home/user/.ssh/template.pptx")
+
+    def test_rejects_non_pptx_extension(self, tmp_path):
+        from autoppt.exceptions import RenderError
+        fake = tmp_path / "template.txt"
+        fake.write_text("not a pptx")
+        with pytest.raises(RenderError, match="Invalid template extension"):
+            PPTRenderer(template_path=str(fake))
+
+
 class TestZipBombProtection:
     """Tests for zip bomb detection in PPTRenderer."""
 

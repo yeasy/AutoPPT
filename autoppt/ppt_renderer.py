@@ -44,8 +44,22 @@ class PPTRenderer:
     def __init__(self, template_path: str | None = None, preserve_template_slides: bool = False):
         self._has_template = bool(template_path)
         if template_path:
+            if ".." in template_path.replace("\\", "/").split("/"):
+                raise RenderError("init", f"Path traversal detected: {template_path}")
+            resolved = os.path.realpath(template_path)
+            normalised = os.path.normpath(template_path)
+            for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+                if resolved.startswith(prefix) or normalised.startswith(prefix):
+                    raise RenderError("init", f"Access to system path is not allowed: {template_path}")
+            resolved_lower = resolved.lower()
+            normalised_lower = normalised.lower()
+            for segment in Config.BLOCKED_PATH_SEGMENTS:
+                if segment in resolved_lower or segment in normalised_lower:
+                    raise RenderError("init", f"Access to sensitive path is not allowed: {template_path}")
             if not os.path.isfile(template_path):
                 raise RenderError("init", f"Template not found: {template_path}")
+            if os.path.splitext(template_path)[1].lower() != ".pptx":
+                raise RenderError("init", f"Invalid template extension, expected .pptx")
             size = os.path.getsize(template_path)
             if size > Config.MAX_TEMPLATE_BYTES:
                 raise RenderError("init", f"Template file too large: {size} bytes (max {Config.MAX_TEMPLATE_BYTES})")
