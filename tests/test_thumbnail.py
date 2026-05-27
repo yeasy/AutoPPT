@@ -546,6 +546,20 @@ def test_create_grid_image_rejects_negative_cols():
         create_grid_image([Path("/fake/img.png")], cols=-1, thumb_width=200, start_index=0)
 
 
+def test_create_grid_image_rejects_zero_thumb_width():
+    """create_grid_image should reject thumb_width=0."""
+    from pathlib import Path
+    with pytest.raises(ValueError, match="thumb_width must be >= 1"):
+        create_grid_image([Path("/fake/img.png")], cols=3, thumb_width=0, start_index=0)
+
+
+def test_create_grid_image_rejects_negative_thumb_width():
+    """create_grid_image should reject negative thumb_width."""
+    from pathlib import Path
+    with pytest.raises(ValueError, match="thumb_width must be >= 1"):
+        create_grid_image([Path("/fake/img.png")], cols=3, thumb_width=-10, start_index=0)
+
+
 class TestGenerateThumbnailsColsClamping:
     """Tests for cols parameter clamping in generate_thumbnails."""
 
