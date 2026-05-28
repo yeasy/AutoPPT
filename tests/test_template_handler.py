@@ -298,7 +298,7 @@ class TestExtractTextContentTruncation:
     """Tests for extract_text_content size limit."""
 
     @patch("autoppt.template_handler.HAS_MARKITDOWN", True)
-    @patch("autoppt.template_handler.MarkItDown")
+    @patch("autoppt.template_handler.MarkItDown", create=True)
     def test_extract_text_content_truncates_large_output(self, mock_md_cls, tmp_path):
         """Extracted text exceeding _MAX_EXTRACT_CHARS should be truncated."""
         from autoppt.template_handler import TemplateHandler
