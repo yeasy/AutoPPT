@@ -297,21 +297,37 @@ class TestTemplateHandlerBlockedPaths:
 class TestExtractTextContentTruncation:
     """Tests for extract_text_content size limit."""
 
-    @patch("autoppt.template_handler.HAS_MARKITDOWN", True)
-    @patch("autoppt.template_handler.MarkItDown", create=True)
-    def test_extract_text_content_truncates_large_output(self, mock_md_cls, tmp_path):
-        """Extracted text exceeding _MAX_EXTRACT_CHARS should be truncated."""
-        from autoppt.template_handler import TemplateHandler
+    def test_truncation_limit_is_set(self):
+        """_MAX_EXTRACT_CHARS should cap extracted text."""
+        assert TemplateHandler._MAX_EXTRACT_CHARS == 50_000
+
+    def test_extract_respects_limit(self, tmp_path):
+        """extract_text_content should truncate output exceeding _MAX_EXTRACT_CHARS."""
+        import sys
+
+        func_globals = TemplateHandler.extract_text_content.__globals__
+        pptx_path = tmp_path / "test.pptx"
+        Presentation().save(str(pptx_path))
+        handler = TemplateHandler(str(pptx_path))
 
         mock_result = MagicMock()
-        mock_result.text_content = "x" * 60_000
+        mock_result.text_content = "y" * 60_000
+        mock_md_cls = MagicMock()
         mock_md_cls.return_value.convert.return_value = mock_result
 
-        handler = MagicMock(spec=TemplateHandler)
-        handler.template_path = tmp_path / "fake.pptx"
-        handler._MAX_EXTRACT_CHARS = TemplateHandler._MAX_EXTRACT_CHARS
-        result = TemplateHandler.extract_text_content(handler)
-        assert len(result) == TemplateHandler._MAX_EXTRACT_CHARS
+        orig_has = func_globals.get("HAS_MARKITDOWN")
+        orig_cls = func_globals.get("MarkItDown")
+        try:
+            func_globals["HAS_MARKITDOWN"] = True
+            func_globals["MarkItDown"] = mock_md_cls
+            result = handler.extract_text_content()
+            assert len(result) == 50_000
+        finally:
+            func_globals["HAS_MARKITDOWN"] = orig_has
+            if orig_cls is not None:
+                func_globals["MarkItDown"] = orig_cls
+            else:
+                func_globals.pop("MarkItDown", None)
 
 
 class TestGetBestLayoutFallback:
