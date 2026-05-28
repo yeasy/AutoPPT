@@ -121,6 +121,9 @@ def create_grid_image(
         raise ValueError(f"cols must be >= 1, got {cols}")
     if thumb_width < 1:
         raise ValueError(f"thumb_width must be >= 1, got {thumb_width}")
+    _MAX_GRID_IMAGES = 200
+    if len(images) > _MAX_GRID_IMAGES:
+        raise ValueError(f"Too many images for grid: {len(images)} (max {_MAX_GRID_IMAGES})")
 
     # Calculate grid dimensions
     rows = (len(images) + cols - 1) // cols
@@ -310,6 +313,8 @@ def generate_thumbnails(
                 logger.info("Created thumbnail grid: %s", output_path)
 
     except (ValueError, FileNotFoundError):
+        raise
+    except (MemoryError, RecursionError):
         raise
     except Exception as exc:
         logger.error("Error generating thumbnails: %s", exc, exc_info=True)

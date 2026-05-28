@@ -560,6 +560,14 @@ def test_create_grid_image_rejects_negative_thumb_width():
         create_grid_image([Path("/fake/img.png")], cols=3, thumb_width=-10, start_index=0)
 
 
+def test_create_grid_image_rejects_too_many_images():
+    """create_grid_image should reject more than 200 images."""
+    from pathlib import Path
+    images = [Path(f"/fake/img_{i}.png") for i in range(201)]
+    with pytest.raises(ValueError, match="Too many images for grid"):
+        create_grid_image(images, cols=5, thumb_width=300, start_index=0)
+
+
 class TestGenerateThumbnailsColsClamping:
     """Tests for cols parameter clamping in generate_thumbnails."""
 
