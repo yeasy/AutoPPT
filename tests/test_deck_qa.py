@@ -391,3 +391,37 @@ def test_deck_qa_passes_normal_comparison():
     )
     report = DeckQA().analyze(deck)
     assert not any(issue.code == "dense_comparison" for issue in report.issues)
+
+
+def test_deck_qa_flags_whitespace_only_quote_text():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.QUOTE,
+                title="Bad Quote",
+                quote_text="   ",
+                quote_author="Author",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert any(issue.code == "incomplete_quote" for issue in report.issues)
+
+
+def test_deck_qa_flags_whitespace_only_quote_author():
+    deck = DeckSpec(
+        title="Deck",
+        topic="Topic",
+        slides=[
+            SlideSpec(
+                layout=SlideLayout.QUOTE,
+                title="Bad Quote",
+                quote_text="Real quote",
+                quote_author="   ",
+            )
+        ],
+    )
+    report = DeckQA().analyze(deck)
+    assert any(issue.code == "incomplete_quote" for issue in report.issues)

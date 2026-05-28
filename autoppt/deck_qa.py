@@ -96,7 +96,7 @@ class DeckQA:
                 issues.append(self._issue("dense_comparison", "Comparison slide has more than 6 bullet points on one side.", index, slide))
 
         elif slide.layout == SlideLayout.QUOTE:
-            if not slide.quote_text or not slide.quote_author:
+            if not slide.quote_text or not (slide.quote_text or "").strip() or not slide.quote_author or not (slide.quote_author or "").strip():
                 issues.append(self._issue("incomplete_quote", "Quote slide is missing quote text or author attribution.", index, slide))
 
         elif slide.layout == SlideLayout.STATISTICS:
