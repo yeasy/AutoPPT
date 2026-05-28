@@ -3,6 +3,7 @@ Unit tests for TemplateHandler.
 """
 import pytest
 import os
+from unittest.mock import patch, MagicMock
 from pptx import Presentation
 from autoppt.template_handler import TemplateHandler
 
@@ -291,3 +292,37 @@ class TestTemplateHandlerBlockedPaths:
         """TemplateHandler should reject paths under /dev/."""
         with pytest.raises(ValueError, match="system path"):
             TemplateHandler("/dev/evil.pptx")
+
+
+class TestExtractTextContentTruncation:
+    """Tests for extract_text_content size limit."""
+
+    @patch("autoppt.template_handler.HAS_MARKITDOWN", True)
+    @patch("autoppt.template_handler.MarkItDown")
+    def test_extract_text_content_truncates_large_output(self, mock_md_cls, tmp_path):
+        """Extracted text exceeding _MAX_EXTRACT_CHARS should be truncated."""
+        from autoppt.template_handler import TemplateHandler
+
+        mock_result = MagicMock()
+        mock_result.text_content = "x" * 60_000
+        mock_md_cls.return_value.convert.return_value = mock_result
+
+        handler = MagicMock(spec=TemplateHandler)
+        handler.template_path = tmp_path / "fake.pptx"
+        handler._MAX_EXTRACT_CHARS = TemplateHandler._MAX_EXTRACT_CHARS
+        result = TemplateHandler.extract_text_content(handler)
+        assert len(result) == TemplateHandler._MAX_EXTRACT_CHARS
+
+
+class TestGetBestLayoutFallback:
+    """Tests for get_best_layout_for_type with edge-case layouts."""
+
+    def test_fallback_uses_first_available_layout(self):
+        """When neither index 0 nor 1 exists, should return first available key."""
+        from autoppt.template_handler import TemplateHandler
+
+        handler = MagicMock(spec=TemplateHandler)
+        handler.layouts = {5: {"name": "Custom"}, 7: {"name": "Other"}}
+        handler.get_layout_by_name = lambda name: None
+        result = TemplateHandler.get_best_layout_for_type(handler, "content")
+        assert result == 5

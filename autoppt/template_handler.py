@@ -90,6 +90,8 @@ class TemplateHandler:
 
         return layouts
 
+    _MAX_EXTRACT_CHARS = 50_000
+
     def extract_text_content(self) -> str:
         """Extract text content from the template using MarkItDown."""
         if not HAS_MARKITDOWN:
@@ -99,7 +101,11 @@ class TemplateHandler:
         try:
             md = MarkItDown()
             result = md.convert(str(self.template_path))
-            return str(result.text_content)
+            text = str(result.text_content)
+            if len(text) > self._MAX_EXTRACT_CHARS:
+                logger.warning("Extracted text truncated from %d to %d chars", len(text), self._MAX_EXTRACT_CHARS)
+                text = text[:self._MAX_EXTRACT_CHARS]
+            return text
         except Exception as exc:
             logger.error("Failed to extract text from template: %s", exc)
             return ""
@@ -138,5 +144,6 @@ class TemplateHandler:
             if idx is not None:
                 return idx
 
-        # Fallback to first non-title layout for content or unknown types
-        return 1 if 1 in self.layouts else 0
+        if 1 in self.layouts:
+            return 1
+        return next(iter(self.layouts)) if self.layouts else 0
