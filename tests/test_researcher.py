@@ -2232,6 +2232,40 @@ class TestGatherContextExecutorTimeout:
         assert "body" in result
 
 
+    @patch.object(Researcher, 'search')
+    @patch.object(Researcher, 'search_wikipedia')
+    @patch.object(Researcher, 'fetch_article_content')
+    def test_executor_timeout_preserves_completed_results(self, mock_fetch, mock_wiki, mock_search):
+        """When timeout fires, already-completed fetch results should be kept."""
+        import concurrent.futures
+
+        call_count = 0
+
+        def _side_effect(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return "Full article content from first source"
+            raise concurrent.futures.TimeoutError("timeout on second fetch")
+
+        mock_search.return_value = [
+            {"title": "Fast", "href": "https://fast.example.com", "body": "snippet1"},
+            {"title": "Slow", "href": "https://slow.example.com", "body": "snippet2"},
+        ]
+        mock_wiki.return_value = None
+        mock_fetch.side_effect = _side_effect
+
+        researcher = Researcher()
+        result = researcher.gather_context(
+            ["query"],
+            include_wikipedia=False,
+            fetch_full_text=True,
+            offline=False,
+        )
+        assert "Full article content from first source" in result
+        assert "Slow" in result
+
+
 class TestArticleFetchTimeoutConfig:
     """Test that article fetch uses Config.ARTICLE_FETCH_TIMEOUT."""
 
