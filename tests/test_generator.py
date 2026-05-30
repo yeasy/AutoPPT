@@ -1826,6 +1826,12 @@ class TestValidateFilePath:
             gen._validate_file_path("/etc/hosts")
         gen.close()
 
+    def test_rejects_etc_path_case_insensitive(self):
+        gen = Generator(provider_name="mock")
+        with pytest.raises(ValueError, match="system path"):
+            gen._validate_file_path("/ETC/hosts")
+        gen.close()
+
     def test_rejects_proc_path(self):
         gen = Generator(provider_name="mock")
         with pytest.raises(ValueError, match="system path"):

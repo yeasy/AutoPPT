@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- `BLOCKED_SYSTEM_PREFIXES` checks are now case-insensitive across all modules (`generator`, `researcher`, `ppt_renderer`, `template_handler`, `thumbnail`, `main`), consistent with the existing case-insensitive `BLOCKED_PATH_SEGMENTS` checks.
+- `download_image` in `researcher` now rejects symlink save paths, consistent with `generator` and `ppt_renderer` write-path validation.
+- `download_image` in `researcher` now returns immediately on `PermissionError` and `IsADirectoryError` instead of retrying.
+- `PROVIDER_MODELS` now includes `claude-opus-4-8`.
 - `save()` in `ppt_renderer` now checks `os.path.normpath` in addition to `os.path.realpath` against blocked paths, consistent with all other path validation sites.
 - `download_image` in `researcher` now closes the HTTP response on non-200 status codes before retrying, preventing connection pool leaks when `stream=True`.
 - `apply_plan` in `slide_planner` now clears stale `left_bullets`, `right_bullets`, `left_title`, and `right_title` fields when demoting COMPARISON or TWO_COLUMN to CONTENT, preventing layout re-inference loops.

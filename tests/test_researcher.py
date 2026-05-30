@@ -2427,11 +2427,44 @@ class TestDownloadImagePathValidation:
         assert result is False
 
     @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_download_image_rejects_system_prefix_case_insensitive(self, mock_safe):
+        """download_image should reject mixed-case system prefixes like /ETC/."""
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", "/ETC/img.jpg", retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
     def test_download_image_rejects_env_file(self, mock_safe):
         """download_image should reject save paths ending with .env (file, not directory)."""
         researcher = Researcher()
         result = researcher.download_image("https://example.com/img.jpg", "/home/user/project/.env", retries=1)
         assert result is False
+
+
+class TestDownloadImageSymlinkAndPermission:
+    """Tests for symlink rejection and non-retryable errors in download_image."""
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    def test_download_image_rejects_symlink_save_path(self, mock_safe, tmp_path):
+        """download_image should reject save paths that are symlinks."""
+        target = tmp_path / "real_file.jpg"
+        target.touch()
+        link = tmp_path / "link.jpg"
+        link.symlink_to(target)
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", str(link), retries=1)
+        assert result is False
+
+    @patch.object(Researcher, '_is_safe_url', return_value=True)
+    @patch('autoppt.researcher.requests.get')
+    def test_download_image_no_retry_on_permission_error(self, mock_get, mock_safe, tmp_path):
+        """download_image should not retry on PermissionError."""
+        mock_get.side_effect = PermissionError("write denied")
+        save_path = str(tmp_path / "img.jpg")
+        researcher = Researcher()
+        result = researcher.download_image("https://example.com/img.jpg", save_path, retries=3)
+        assert result is False
+        assert mock_get.call_count == 1
 
 
 class TestGatherContextTruncationAdvanced:

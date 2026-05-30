@@ -223,11 +223,11 @@ def generate_thumbnails(
     from .config import Config
     resolved_str = str(pptx_file)
     normalised_str = os.path.normpath(str(pptx_path))
-    for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-        if resolved_str.startswith(prefix) or normalised_str.startswith(prefix):
-            raise ValueError(f"Access to system path is not allowed: {pptx_path}")
     resolved_str_lower = resolved_str.lower()
     normalised_str_lower = normalised_str.lower()
+    for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+        if resolved_str_lower.startswith(prefix) or normalised_str_lower.startswith(prefix):
+            raise ValueError(f"Access to system path is not allowed: {pptx_path}")
     for segment in Config.BLOCKED_PATH_SEGMENTS:
         if segment in resolved_str_lower or segment in normalised_str_lower:
             raise ValueError(f"Access to sensitive path is not allowed: {pptx_path}")
@@ -242,11 +242,11 @@ def generate_thumbnails(
     output_dir = Path(output_prefix).resolve().parent
     output_resolved = str(output_dir)
     output_normalised = str(Path(os.path.normpath(output_prefix)).parent)
-    for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-        if output_resolved.startswith(prefix) or output_normalised.startswith(prefix):
-            raise ValueError(f"Output path is not allowed: {output_prefix}")
     output_resolved_lower = output_resolved.lower()
     output_normalised_lower = output_normalised.lower()
+    for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+        if output_resolved_lower.startswith(prefix) or output_normalised_lower.startswith(prefix):
+            raise ValueError(f"Output path is not allowed: {output_prefix}")
     for segment in Config.BLOCKED_PATH_SEGMENTS:
         if segment in output_resolved_lower or segment in output_normalised_lower:
             raise ValueError(f"Output path is not allowed: {output_prefix}")

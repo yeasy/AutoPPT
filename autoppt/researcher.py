@@ -244,14 +244,17 @@ class Researcher:
         if ".." in save_path.replace("\\", "/").split("/"):
             logger.warning("Path traversal detected in save_path: %s", save_path)
             return False
-        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved_save.startswith(prefix) or normalised_save.startswith(prefix):
-                logger.warning("Blocked save to system path: %s", save_path)
-                return False
         resolved_save_lower = resolved_save.lower()
         normalised_save_lower = normalised_save.lower()
+        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+            if resolved_save_lower.startswith(prefix) or normalised_save_lower.startswith(prefix):
+                logger.warning("Blocked save to system path: %s", save_path)
+                return False
         if any(seg in resolved_save_lower or seg in normalised_save_lower for seg in Config.BLOCKED_PATH_SEGMENTS):
             logger.warning("Blocked save to sensitive path: %s", save_path)
+            return False
+        if os.path.islink(save_path):
+            logger.warning("Refusing to write through symlink: %s", save_path)
             return False
 
         def _cleanup() -> None:
@@ -342,6 +345,10 @@ class Researcher:
                     return True
                 finally:
                     response.close()
+            except (PermissionError, IsADirectoryError) as exc:
+                logger.warning("Image download failed (non-retryable): %s", exc)
+                _cleanup()
+                return False
             except Exception as exc:
                 logger.warning("Image download attempt %s/%s failed: %s", attempt + 1, retries, exc)
                 if attempt < retries - 1:

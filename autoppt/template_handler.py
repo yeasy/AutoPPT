@@ -32,11 +32,11 @@ class TemplateHandler:
         self.template_path = Path(template_path).resolve()
         resolved_str = str(self.template_path)
         normalised_str = os.path.normpath(str(template_path))
-        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved_str.startswith(prefix) or normalised_str.startswith(prefix):
-                raise ValueError(f"Access to system path is not allowed: {template_path}")
         resolved_str_lower = resolved_str.lower()
         normalised_str_lower = normalised_str.lower()
+        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+            if resolved_str_lower.startswith(prefix) or normalised_str_lower.startswith(prefix):
+                raise ValueError(f"Access to system path is not allowed: {template_path}")
         for segment in Config.BLOCKED_PATH_SEGMENTS:
             if segment in resolved_str_lower or segment in normalised_str_lower:
                 raise ValueError(f"Access to sensitive path is not allowed: {template_path}")

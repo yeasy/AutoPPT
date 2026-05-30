@@ -370,13 +370,13 @@ class Generator:
         normalised = os.path.normpath(path)
 
         # Blocklist: reject known sensitive system prefixes.
+        resolved_lower = resolved.lower()
+        normalised_lower = normalised.lower()
         for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved.startswith(prefix) or normalised.startswith(prefix):
+            if resolved_lower.startswith(prefix) or normalised_lower.startswith(prefix):
                 raise ValueError(f"Access to system path is not allowed: {path}")
 
         # Blocklist: reject sensitive path segments (e.g. ~/.ssh/, ~/.aws/).
-        resolved_lower = resolved.lower()
-        normalised_lower = normalised.lower()
         for segment in Config.BLOCKED_PATH_SEGMENTS:
             if segment in resolved_lower or segment in normalised_lower:
                 raise ValueError(f"Access to sensitive path is not allowed: {path}")

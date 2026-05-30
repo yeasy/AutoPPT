@@ -95,11 +95,11 @@ Examples:
             parser.error(f"Path traversal detected: {args.output}")
         resolved_output = os.path.realpath(args.output)
         normalised_output = os.path.normpath(args.output)
-        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved_output.startswith(prefix) or normalised_output.startswith(prefix):
-                parser.error(f"Output path is not allowed: {args.output}")
         resolved_output_lower = resolved_output.lower()
         normalised_output_lower = normalised_output.lower()
+        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+            if resolved_output_lower.startswith(prefix) or normalised_output_lower.startswith(prefix):
+                parser.error(f"Output path is not allowed: {args.output}")
         for segment in Config.BLOCKED_PATH_SEGMENTS:
             if segment in resolved_output_lower or segment in normalised_output_lower:
                 parser.error(f"Output path is not allowed: {args.output}")

@@ -48,11 +48,11 @@ class PPTRenderer:
                 raise RenderError("init", f"Path traversal detected: {template_path}")
             resolved = os.path.realpath(template_path)
             normalised = os.path.normpath(template_path)
-            for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-                if resolved.startswith(prefix) or normalised.startswith(prefix):
-                    raise RenderError("init", f"Access to system path is not allowed: {template_path}")
             resolved_lower = resolved.lower()
             normalised_lower = normalised.lower()
+            for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+                if resolved_lower.startswith(prefix) or normalised_lower.startswith(prefix):
+                    raise RenderError("init", f"Access to system path is not allowed: {template_path}")
             for segment in Config.BLOCKED_PATH_SEGMENTS:
                 if segment in resolved_lower or segment in normalised_lower:
                     raise RenderError("init", f"Access to sensitive path is not allowed: {template_path}")
@@ -776,11 +776,11 @@ class PPTRenderer:
             raise RenderError("save", f"Path traversal detected: {output_path}")
         resolved = os.path.realpath(output_path)
         normalised = os.path.normpath(output_path)
-        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
-            if resolved.startswith(prefix) or normalised.startswith(prefix):
-                raise RenderError("save", f"Access to system path is not allowed: {output_path}")
         resolved_lower = resolved.lower()
         normalised_lower = normalised.lower()
+        for prefix in Config.BLOCKED_SYSTEM_PREFIXES:
+            if resolved_lower.startswith(prefix) or normalised_lower.startswith(prefix):
+                raise RenderError("save", f"Access to system path is not allowed: {output_path}")
         for segment in Config.BLOCKED_PATH_SEGMENTS:
             if segment in resolved_lower or segment in normalised_lower:
                 raise RenderError("save", f"Access to sensitive path is not allowed: {output_path}")
