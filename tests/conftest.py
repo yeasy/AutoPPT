@@ -15,12 +15,6 @@ def temp_dir():
 
 
 @pytest.fixture
-def sample_topic():
-    """Return a sample topic for testing."""
-    return "Artificial Intelligence"
-
-
-@pytest.fixture
 def sample_bullets():
     """Return sample bullet points for testing."""
     return [

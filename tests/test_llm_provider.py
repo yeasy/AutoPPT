@@ -1069,6 +1069,11 @@ class TestProviderHelpers:
         assert "claude-haiku-4-5" in anthropic_models
         assert "claude-haiku-4-5-20251001" not in anthropic_models
 
+    def test_anthropic_models_include_opus_4_8(self):
+        from autoppt.llm_provider import get_provider_models
+        anthropic_models = get_provider_models("anthropic")
+        assert "claude-opus-4-8" in anthropic_models
+
     def test_anthropic_models_include_opus_4_7(self):
         from autoppt.llm_provider import get_provider_models
         anthropic_models = get_provider_models("anthropic")
